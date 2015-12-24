@@ -214,28 +214,28 @@ func (db *DB) sendEx(name string, options map[string]string) error {
 }
 
 // recv() receives the result of a command sent by send().
-func (db *DB) recv() ([]byte, error) {
+func (db *DB) recv() (string, error) {
 	var res *C.char
 	var resLen C.uint
 	var resFlags C.int
 	rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags)
 	if rc != C.GRN_SUCCESS {
-		return nil, fmt.Errorf("grn_ctx_recv() failed: %d", rc)
+		return "", fmt.Errorf("grn_ctx_recv() failed: %d", rc)
 	}
-	return C.GoBytes(unsafe.Pointer(res), C.int(resLen)), nil
+	return C.GoStringN(res, C.int(resLen)), nil
 }
 
 // query() executes a command.
-func (db *DB) query(cmd string) ([]byte, error) {
+func (db *DB) query(cmd string) (string, error) {
 	if err := db.send(cmd); err != nil {
-		bytes, _ := db.recv()
-		return bytes, err
+		str, _ := db.recv()
+		return str, err
 	}
 	return db.recv()
 }
 
 // qureyEx() executes a command with separated options.
-func (db *DB) queryEx(name string, options map[string]string) ([]byte, error) {
+func (db *DB) queryEx(name string, options map[string]string) (string, error) {
 	if err := db.sendEx(name, options); err != nil {
 		bytes, _ := db.recv()
 		return bytes, err
@@ -617,12 +617,12 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		db.recv()
 		return 0, err
 	}
-	bytes, err := db.recv()
+	str, err := db.recv()
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println(string(bytes)) // FIXME: For debug.
-	cnt, err := strconv.Atoi(string(bytes))
+	fmt.Println(str) // FIXME: For debug.
+	cnt, err := strconv.Atoi(str)
 	if err != nil {
 		return 0, err
 	}
