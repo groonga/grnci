@@ -334,6 +334,11 @@ func Now() Time {
 	return Time((now.Unix() * 1000000) + (now.UnixNano() / 1000))
 }
 
+// Unix() returns `sec` and `nsec` for time.Unix().
+func (time Time) Unix() (int64, int64) {
+	return int64(time / 1000000), int64(time % 1000000)
+}
+
 //
 // The `load` command
 //
