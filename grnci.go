@@ -631,6 +631,9 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		db.recv()
 		return 0, err
 	}
+	if _, err := db.recv(); err != nil {
+		return 0, err
+	}
 	if err := db.send(bodyCmd); err != nil {
 		db.recv()
 		return 0, err
