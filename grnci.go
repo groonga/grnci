@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -325,6 +326,12 @@ func (val Text) writeTo(buf *bytes.Buffer) error {
 func (val Geo) writeTo(buf *bytes.Buffer) error {
 	_, err := fmt.Fprintf(buf, "\"%d,%d\"", val.Lat, val.Long)
 	return err
+}
+
+// Now() returns the current time.
+func Now() Time {
+	now := time.Now()
+	return Time((now.Unix() * 1000000) + (now.UnixNano() / 1000))
 }
 
 //
