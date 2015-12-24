@@ -467,14 +467,6 @@ func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (s
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
 	}
-	// TODO: Check it!
-//	if len(options.fieldIds) == 0 {
-//		// Write an empty array as a list of column names because `--columns` is
-//		// ignored when there are no columns.
-//		if _, err := buf.WriteString("[]"); err != nil {
-//			return err
-//		}
-//	}
 	val := reflect.ValueOf(vals)
 	switch val.Kind() {
 	case reflect.Struct:
