@@ -268,22 +268,22 @@ func (db *DB) queryEx(name string, options map[string]string) (string, error) {
 // fieldTag specifies the associated Groonga column.
 const fieldTag = "groonga"
 
-// Bool.
+// Bool represents Bool.
 type Bool bool
 
-// Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32 and UInt64.
+// Int represents Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32 and UInt64.
 type Int int64
 
-// Float.
+// Float represents Float.
 type Float float64
 
-// Time.
-type Time int64
+// Time represents Time.
+type Time int64 // The number of microseconds elapsed since the Unix epoch.
 
-// ShortText, Text and LongText.
+// Text represents ShortText, Text and LongText.
 type Text string
 
-// TokyoGeoPoint and WGS84GeoPoint.
+// Geo represents TokyoGeoPoint and WGS84GeoPoint.
 type Geo struct {
 	Lat  int32
 	Long int32
