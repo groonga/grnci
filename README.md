@@ -51,20 +51,25 @@ val.Key = "orange"
 val.ColA = "false"
 val.ColB = "delicious"
 val.ColC = []grnci.Int{100, 200, 300}
-if err := db.Load("Fruit", val); err != nil {
+if err := db.Load("Fruit", val, nil); err != nil {
 	log.Fatal(err)
 }
 ```
 
-以下のような制限事項があります．
+`LoadOptions` を使えば `--columns` や `--ifexists` を指定できます．
+以下の例では `--columns` により更新するカラムを制限しています．
 
-- 構造体の特定フィールドのみを更新することができません．
- - `map[key]value` のサポートで対応できます．
-  - 内部で JSON の配列表現が使えなくなります．
- - ポインタおよびスライスの `nil` を更新しないフィールドとして使うという選択肢があります．
-  - 内部で JSON の配列表現が使えなくなります．
- - `LoadOptions` に `--columns` を追加することで対応できます．
-  - `--columns` が指定されたときは，指定されたフィールドのみを更新します．
-  - レコードにより異なるフィールドを更新するようなことはできません．
+```go
+options := grnci.NewOptions()
+options.Columns = "_key,ColB"
+if err := db.Load("Fruit", val, options); err != nil {
+	log.Fatal(err)
+}
+```
+
+以下のような注意点があります．
+
+- レコードにより異なるフィールドを更新することはできません．
+ - 別々に `Load()` を呼び出せば更新できます．
 - 専用のデータ型を使います．
  - 使えるデータ型は `grnci.Bool`, `grnci.Int`, `grnci.Float`, `grnci.Time`, `grnci.Text`, `grnci.Geo` とこれらのスライスのみです．
