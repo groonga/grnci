@@ -54,83 +54,116 @@ func unrefLib() error {
 }
 
 //
-// DB management
+// DB handle
 //
 
-// DB is a DB handle.
+// DB is a handle to a Groonga DB.
 type DB struct {
 	ctx *C.grn_ctx
 	obj *C.grn_obj
 }
 
-// Create() creates a DB and returns its handle.
+// newDB() creates a handle.
+// The handle must be closed by DB.Close().
+func newDB() (*DB, error) {
+	if err := refLib(); err != nil {
+		return nil, err
+	}
+	var db DB
+	db.ctx = C.grn_ctx_open(C.int(0))
+	if db.ctx == nil {
+		unrefLib()
+		return nil, fmt.Errorf("grn_ctx_open() failed")
+	}
+	return &db, nil
+}
+
+// Create() creates a DB and returns a handle to it.
+// The handle must be closed by DB.Close().
 func Create(path string) (*DB, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path is empty")
 	}
-	if err := refLib(); err != nil {
+	db, err := newDB()
+	if err != nil {
 		return nil, err
 	}
-	ctx := C.grn_ctx_open(C.int(0))
-	if ctx == nil {
-		unrefLib()
-		return nil, fmt.Errorf("grn_ctx_open() failed")
-	}
 	cPath := []byte(path)
-	obj := C.grn_db_create(ctx, (*C.char)(unsafe.Pointer(&cPath[0])), nil)
-	if obj == nil {
-		C.grn_ctx_close(ctx)
-		unrefLib()
+	db.obj = C.grn_db_create(db.ctx, (*C.char)(unsafe.Pointer(&cPath[0])), nil)
+	if db.obj == nil {
+		db.Close()
 		return nil, fmt.Errorf("grn_db_create() failed")
 	}
-	return &DB{ctx, obj}, nil
+	return db, nil
 }
 
-// Open() opens a DB and returns its handle.
+// Open() opens a DB and returns a handle to it.
+// The handle must be closed by DB.Close().
 func Open(path string) (*DB, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path is empty")
 	}
-	if err := refLib(); err != nil {
+	db, err := newDB()
+	if err != nil {
 		return nil, err
-	}
-	ctx := C.grn_ctx_open(C.int(0))
-	if ctx == nil {
-		unrefLib()
-		return nil, fmt.Errorf("grn_ctx_open() failed")
 	}
 	cPath := []byte(path)
-	obj := C.grn_db_open(ctx, (*C.char)(unsafe.Pointer(&cPath[0])))
-	if obj == nil {
-		C.grn_ctx_close(ctx)
-		unrefLib()
+	db.obj = C.grn_db_open(db.ctx, (*C.char)(unsafe.Pointer(&cPath[0])))
+	if db.obj == nil {
+		db.Close()
 		return nil, fmt.Errorf("grn_db_open() failed")
 	}
-	return &DB{ctx, obj}, nil
+	return db, nil
 }
 
-// Dup() duplicates a DB handle.
-func (db *DB) Dup() (*DB, error) {
+// Connect() establishes a connection to a Groonga server.
+// The handle must be closed by DB.Close().
+func (db *DB) Connect(host string, port int) (*DB, error) {
+	if len(host) == 0 {
+		return nil, fmt.Errorf("host is empty")
+	}
 	if err := refLib(); err != nil {
 		return nil, err
 	}
-	ctx := C.grn_ctx_open(C.int(0))
-	if ctx == nil {
-		unrefLib()
-		return nil, fmt.Errorf("grn_ctx_open() failed")
+	cHost := []byte(host)
+	rc := C.grn_ctx_connect(db.ctx, (*C.char)(unsafe.Pointer(&cHost[0])), C.int(port), C.int(0))
+	if rc != C.GRN_SUCCESS {
+		db.Close()
+		return nil, fmt.Errorf("grn_ctx_connect() failed: %d", rc)
 	}
-	if rc := C.grn_ctx_use(ctx, db.obj); rc != C.GRN_SUCCESS {
-		C.grn_ctx_close(ctx)
-		unrefLib()
-		return nil, fmt.Errorf("grn_ctx_use() failed")
-	}
-	return &DB{ctx, db.obj}, nil
+	return db, nil
 }
 
-// Close() closes a DB handle.
+// Dup() duplicates a handle to a local DB.
+// The handle must be closed by DB.Close().
+//
+// Note that Dup() cannot duplicate a handle returned by Connect().
+func (db *DB) Dup() (*DB, error) {
+	if db.obj == nil {
+		return nil, fmt.Errorf("not a handle to a local DB")
+	}
+	db, err := newDB()
+	if err != nil {
+		return nil, err
+	}
+	if rc := C.grn_ctx_use(db.ctx, db.obj); rc != C.GRN_SUCCESS {
+		db.Close()
+		return nil, fmt.Errorf("grn_ctx_use() failed")
+	}
+	return db, nil
+}
+
+// Close() closes a handle.
 func (db *DB) Close() error {
-	C.grn_obj_unlink(db.ctx, db.obj)
+	if db.ctx == nil {
+		return fmt.Errorf("ctx is nil")
+	}
+	if db.obj != nil {
+		C.grn_obj_unlink(db.ctx, db.obj)
+		db.obj = nil
+	}
 	rc := C.grn_ctx_close(db.ctx)
+	db.ctx = nil
 	unrefLib()
 	if rc != C.GRN_SUCCESS {
 		return fmt.Errorf("grn_ctx_close() failed: %d", rc)
