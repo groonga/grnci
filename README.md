@@ -47,7 +47,7 @@ type Value struct {
 
 ```go
 var val Value
-val.Key = orange"
+val.Key = "orange"
 val.ColA = "false"
 val.ColB = "delicious"
 val.ColC = []grnci.Int{100, 200, 300}
