@@ -121,9 +121,10 @@ func (db *DB) Dup() (*DB, error) {
 
 // Close() closes a DB handle.
 func (db *DB) Close() error {
-	unrefLib()
 	C.grn_obj_unlink(db.ctx, db.obj)
-	if rc := C.grn_ctx_close(db.ctx); rc != C.GRN_SUCCESS {
+	rc := C.grn_ctx_close(db.ctx)
+	unrefLib()
+	if rc != C.GRN_SUCCESS {
 		return fmt.Errorf("grn_ctx_close() failed: %d", rc)
 	}
 	return nil
@@ -229,9 +230,9 @@ var VGeoType = reflect.TypeOf([]Geo{})
 const fieldTag = "groonga"
 
 // genLoadHead() generates a head of `load`.
-func (db *DB) genLoadHead(table string, vals interface{}, options *LoadOptions) (string, error) {
+func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
-	if _, err := fmt.Fprintf(buf, "load --table %s", table); err != nil {
+	if _, err := fmt.Fprintf(buf, "load --table %s", tbl); err != nil {
 		return "", err
 	}
 	if len(options.IfExists) != 0 {
@@ -282,35 +283,31 @@ func (db *DB) genLoadHead(table string, vals interface{}, options *LoadOptions) 
 func (db *DB) writeLoadScalar(buf *bytes.Buffer, val *reflect.Value) error {
 	switch val.Type() {
 	case BoolType:
-		ptr := (*Bool)(unsafe.Pointer(val.UnsafeAddr()))
-		if _, err := fmt.Fprint(buf, *ptr); err != nil {
+		if _, err := fmt.Fprint(buf, val.Bool()); err != nil {
 			return err
 		}
 	case IntType:
-		ptr := (*Int)(unsafe.Pointer(val.UnsafeAddr()))
-		if _, err := fmt.Fprint(buf, *ptr); err != nil {
+		if _, err := fmt.Fprint(buf, val.Int()); err != nil {
 			return err
 		}
 	case FloatType:
-		ptr := (*Float)(unsafe.Pointer(val.UnsafeAddr()))
-		if _, err := fmt.Fprint(buf, *ptr); err != nil {
+		if _, err := fmt.Fprint(buf, val.Float()); err != nil {
 			return err
 		}
 	case TimeType:
-		ptr := (*Time)(unsafe.Pointer(val.UnsafeAddr()))
-		if _, err := fmt.Fprint(buf, float64(*ptr) / 1000000.0); err != nil {
+		if _, err := fmt.Fprint(buf, float64(val.Int())/1000000.0); err != nil {
 			return err
 		}
 	case TextType:
-		ptr := (*Text)(unsafe.Pointer(val.UnsafeAddr()))
-		str := strings.Replace(string(*ptr), "\\", "\\\\", -1)
+		str := strings.Replace(val.String(), "\\", "\\\\", -1)
 		str = strings.Replace(str, "\"", "\\\"", -1)
 		if _, err := fmt.Fprintf(buf, "\"%s\"", str); err != nil {
 			return err
 		}
 	case GeoType:
-		ptr := (*Geo)(unsafe.Pointer(val.UnsafeAddr()))
-		if _, err := fmt.Fprintf(buf, "\"%d,%d\"", ptr.Lat, ptr.Long); err != nil {
+		lat := val.Field(0).Int()
+		long := val.Field(1).Int()
+		if _, err := fmt.Fprintf(buf, "\"%d,%d\"", lat, long); err != nil {
 			return err
 		}
 	default:
@@ -369,7 +366,7 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
 					return err
 				}
 			}
-			if _, err := fmt.Fprint(buf, float64(val) / 1000000.0); err != nil {
+			if _, err := fmt.Fprint(buf, float64(val)/1000000.0); err != nil {
 				return err
 			}
 		}
@@ -444,7 +441,7 @@ func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value) error {
 }
 
 // genLoadHead() generates a body of `load`.
-func (db *DB) genLoadBody(table string, vals interface{}, options *LoadOptions) (string, error) {
+func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
@@ -452,6 +449,9 @@ func (db *DB) genLoadBody(table string, vals interface{}, options *LoadOptions) 
 	val := reflect.ValueOf(vals)
 	switch val.Kind() {
 	case reflect.Struct:
+		if err := db.writeLoadValue(buf, &val); err != nil {
+			return "", err
+		}
 	case reflect.Ptr:
 		val = val.Elem()
 		if err := db.writeLoadValue(buf, &val); err != nil {
@@ -488,20 +488,20 @@ func NewLoadOptions() *LoadOptions {
 }
 
 // Load() loads values.
-func (db *DB) Load(table string, vals interface{}, options *LoadOptions) (int, error) {
+func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, error) {
 	if options == nil {
 		options = NewLoadOptions()
 	}
-	headCmd, err := db.genLoadHead(table, vals, options)
+	headCmd, err := db.genLoadHead(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
-fmt.Println(headCmd)
-	bodyCmd, err := db.genLoadBody(table, vals, options)
+	fmt.Println(headCmd)
+	bodyCmd, err := db.genLoadBody(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
-fmt.Println(bodyCmd)
+	fmt.Println(bodyCmd)
 	if err := db.send(headCmd); err != nil {
 		db.recv()
 		return 0, err
