@@ -121,11 +121,12 @@ func Open(path string) (*DB, error) {
 
 // Connect() establishes a connection to a Groonga server.
 // The handle must be closed by DB.Close().
-func (db *DB) Connect(host string, port int) (*DB, error) {
+func Connect(host string, port int) (*DB, error) {
 	if len(host) == 0 {
 		return nil, fmt.Errorf("host is empty")
 	}
-	if err := refLib(); err != nil {
+	db, err := newDB()
+	if err != nil {
 		return nil, err
 	}
 	cHost := C.CString(host)
