@@ -281,33 +281,31 @@ func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (s
 
 // writeLoadScalar() writes a scalar of `load`.
 func (db *DB) writeLoadScalar(buf *bytes.Buffer, val *reflect.Value) error {
-	switch val.Type() {
-	case BoolType:
-		if _, err := fmt.Fprint(buf, val.Bool()); err != nil {
+	switch v := val.Interface().(type) {
+	case Bool:
+		if _, err := fmt.Fprint(buf, v); err != nil {
 			return err
 		}
-	case IntType:
-		if _, err := fmt.Fprint(buf, val.Int()); err != nil {
+	case Int:
+		if _, err := fmt.Fprint(buf, v); err != nil {
 			return err
 		}
-	case FloatType:
-		if _, err := fmt.Fprint(buf, val.Float()); err != nil {
+	case Float:
+		if _, err := fmt.Fprint(buf, v); err != nil {
 			return err
 		}
-	case TimeType:
-		if _, err := fmt.Fprint(buf, float64(val.Int())/1000000.0); err != nil {
+	case Time:
+		if _, err := fmt.Fprint(buf, float64(v)/1000000.0); err != nil {
 			return err
 		}
-	case TextType:
-		str := strings.Replace(val.String(), "\\", "\\\\", -1)
+	case Text:
+		str := strings.Replace(string(v), "\\", "\\\\", -1)
 		str = strings.Replace(str, "\"", "\\\"", -1)
 		if _, err := fmt.Fprintf(buf, "\"%s\"", str); err != nil {
 			return err
 		}
-	case GeoType:
-		lat := val.Field(0).Int()
-		long := val.Field(1).Int()
-		if _, err := fmt.Fprintf(buf, "\"%d,%d\"", lat, long); err != nil {
+	case Geo:
+		if _, err := fmt.Fprintf(buf, "\"%d,%d\"", v.Lat, v.Long); err != nil {
 			return err
 		}
 	default:
@@ -321,10 +319,9 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
-	switch val.Type() {
-	case VBoolType:
-		ptr := (*[]Bool)(unsafe.Pointer(val.UnsafeAddr()))
-		for i, val := range *ptr {
+	switch vals := val.Interface().(type) {
+	case []Bool:
+		for i, val := range vals {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return err
@@ -334,9 +331,8 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
 				return err
 			}
 		}
-	case VIntType:
-		ptr := (*[]Int)(unsafe.Pointer(val.UnsafeAddr()))
-		for i, val := range *ptr {
+	case []Int:
+		for i, val := range vals {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return err
@@ -346,9 +342,8 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
 				return err
 			}
 		}
-	case VFloatType:
-		ptr := (*[]Float)(unsafe.Pointer(val.UnsafeAddr()))
-		for i, val := range *ptr {
+	case []Float:
+		for i, val := range vals {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return err
@@ -358,9 +353,8 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
 				return err
 			}
 		}
-	case VTimeType:
-		ptr := (*[]Time)(unsafe.Pointer(val.UnsafeAddr()))
-		for i, val := range *ptr {
+	case []Time:
+		for i, val := range vals {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return err
@@ -370,9 +364,8 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
 				return err
 			}
 		}
-	case VTextType:
-		ptr := (*[]Text)(unsafe.Pointer(val.UnsafeAddr()))
-		for i, val := range *ptr {
+	case []Text:
+		for i, val := range vals {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return err
@@ -384,9 +377,8 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
 				return err
 			}
 		}
-	case VGeoType:
-		ptr := (*[]Geo)(unsafe.Pointer(val.UnsafeAddr()))
-		for i, val := range *ptr {
+	case []Geo:
+		for i, val := range vals {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return err
@@ -496,11 +488,13 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if err != nil {
 		return 0, err
 	}
+	// FIXME: For debug.
 	fmt.Println(headCmd)
 	bodyCmd, err := db.genLoadBody(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
+	// FIXME: For debug.
 	fmt.Println(bodyCmd)
 	if err := db.send(headCmd); err != nil {
 		db.recv()
