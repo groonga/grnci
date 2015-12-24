@@ -3,6 +3,7 @@ package grnci
 
 // #cgo pkg-config: groonga
 // #include <groonga.h>
+// #include <stdlib.h>
 import "C"
 
 import (
@@ -88,8 +89,9 @@ func Create(path string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	cPath := []byte(path)
-	db.obj = C.grn_db_create(db.ctx, (*C.char)(unsafe.Pointer(&cPath[0])), nil)
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+	db.obj = C.grn_db_create(db.ctx, cPath, nil)
 	if db.obj == nil {
 		db.Close()
 		return nil, fmt.Errorf("grn_db_create() failed")
@@ -107,8 +109,9 @@ func Open(path string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	cPath := []byte(path)
-	db.obj = C.grn_db_open(db.ctx, (*C.char)(unsafe.Pointer(&cPath[0])))
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+	db.obj = C.grn_db_open(db.ctx, cPath)
 	if db.obj == nil {
 		db.Close()
 		return nil, fmt.Errorf("grn_db_open() failed")
@@ -125,8 +128,9 @@ func (db *DB) Connect(host string, port int) (*DB, error) {
 	if err := refLib(); err != nil {
 		return nil, err
 	}
-	cHost := []byte(host)
-	rc := C.grn_ctx_connect(db.ctx, (*C.char)(unsafe.Pointer(&cHost[0])), C.int(port), C.int(0))
+	cHost := C.CString(host)
+	defer C.free(unsafe.Pointer(cHost))
+	rc := C.grn_ctx_connect(db.ctx, cHost, C.int(port), C.int(0))
 	if rc != C.GRN_SUCCESS {
 		db.Close()
 		return nil, fmt.Errorf("grn_ctx_connect() failed: %d", rc)
