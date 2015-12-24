@@ -217,7 +217,9 @@ func (db *DB) sendEx(name string, options map[string]string) error {
 func (db *DB) recv() ([]byte, error) {
 	var res *C.char
 	var resLen C.uint
-	if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, nil); rc != C.GRN_SUCCESS {
+	var resFlags C.int
+	rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags)
+	if rc != C.GRN_SUCCESS {
 		return nil, fmt.Errorf("grn_ctx_recv() failed: %d", rc)
 	}
 	return C.GoBytes(unsafe.Pointer(res), C.int(resLen)), nil
