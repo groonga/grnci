@@ -286,39 +286,23 @@ func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (s
 			return "", err
 		}
 	}
-	valType := reflect.TypeOf(vals)
-	switch valType.Kind() {
-	case reflect.Ptr:
-		valType = valType.Elem()
-	case reflect.Slice:
-		valType = valType.Elem()
-	}
-	if valType.Kind() != reflect.Struct {
-		return "", fmt.Errorf("unsupported value type")
-	}
-	nCols := 0
-	for i := 0; i < valType.NumField(); i++ {
-		field := valType.Field(i)
-		col := field.Tag.Get(fieldTag)
-		if len(col) == 0 {
-			continue
+	if len(options.colNames) != 0 {
+		if _, err := buf.WriteString(" --columns '"); err != nil {
+			return "", err
 		}
-		if nCols == 0 {
-			if _, err := fmt.Fprintf(buf, " --columns '%s", col); err != nil {
-				return "", err
+		for i, colName := range options.colNames {
+			if i != 0 {
+				if err := buf.WriteByte(','); err != nil {
+					return "", err
+				}
 			}
-		} else {
-			if _, err := fmt.Fprintf(buf, ",%s", col); err != nil {
+			if _, err := buf.WriteString(colName); err != nil {
 				return "", err
 			}
 		}
-		nCols++
-	}
-	if nCols == 0 {
-		return "", fmt.Errorf("no valid fields")
-	}
-	if err := buf.WriteByte('\''); err != nil {
-		return "", nil
+		if err := buf.WriteByte('\''); err != nil {
+			return "", err
+		}
 	}
 	return buf.String(), nil
 }
@@ -443,40 +427,33 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
 }
 
 // writeLoadValue() writes a value of `load`.
-func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value) error {
+func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value, options *LoadOptions) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
-	valType := val.Type()
-	nCols := 0
-	for i := 0; i < valType.NumField(); i++ {
-		field := valType.Field(i)
-		if len(field.Tag.Get(fieldTag)) == 0 {
-			continue
-		}
-		if nCols != 0 {
+	for i, fieldId := range options.fieldIds {
+		if i != 0 {
 			if err := buf.WriteByte(','); err != nil {
 				return err
 			}
 		}
-		fieldVal := val.Field(i)
-		switch fieldVal.Kind() {
+		field := val.Field(fieldId)
+		switch field.Kind() {
 		case reflect.Slice:
-			if fieldVal.Len() == 0 {
+			if field.Len() == 0 {
 				if _, err := buf.WriteString("[]"); err != nil {
 					return err
 				}
 			} else {
-				if err := db.writeLoadVector(buf, fieldVal.Interface()); err != nil {
+				if err := db.writeLoadVector(buf, field.Interface()); err != nil {
 					return err
 				}
 			}
 		default:
-			if err := db.writeLoadScalar(buf, fieldVal.Interface()); err != nil {
+			if err := db.writeLoadScalar(buf, field.Interface()); err != nil {
 				return err
 			}
 		}
-		nCols++
 	}
 	if err := buf.WriteByte(']'); err != nil {
 		return err
@@ -490,15 +467,23 @@ func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (s
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
 	}
+	// TODO: Check it!
+//	if len(options.fieldIds) == 0 {
+//		// Write an empty array as a list of column names because `--columns` is
+//		// ignored when there are no columns.
+//		if _, err := buf.WriteString("[]"); err != nil {
+//			return err
+//		}
+//	}
 	val := reflect.ValueOf(vals)
 	switch val.Kind() {
 	case reflect.Struct:
-		if err := db.writeLoadValue(buf, &val); err != nil {
+		if err := db.writeLoadValue(buf, &val, options); err != nil {
 			return "", err
 		}
 	case reflect.Ptr:
 		elem := val.Elem()
-		if err := db.writeLoadValue(buf, &elem); err != nil {
+		if err := db.writeLoadValue(buf, &elem, options); err != nil {
 			return "", err
 		}
 	case reflect.Slice:
@@ -509,7 +494,7 @@ func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (s
 				}
 			}
 			idxVal := val.Index(i)
-			if err := db.writeLoadValue(buf, &idxVal); err != nil {
+			if err := db.writeLoadValue(buf, &idxVal, options); err != nil {
 				return "", err
 			}
 		}
@@ -522,7 +507,11 @@ func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (s
 
 // LoadOptions is a set of options for `load`.
 type LoadOptions struct {
+	Columns  string
 	IfExists string
+
+	fieldIds []int    // Target field IDs.
+	colNames []string // Target column names.
 }
 
 // NewLoadOptions() returns a LoadOptions with the default settings.
@@ -531,23 +520,63 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// Load() loads values.
+// scanFields() scans fields.
+func (db *DB) scanLoadFields(vals interface{}, options *LoadOptions) error {
+	valType := reflect.TypeOf(vals)
+	switch valType.Kind() {
+	case reflect.Ptr:
+		valType = valType.Elem()
+	case reflect.Slice:
+		valType = valType.Elem()
+	}
+	if valType.Kind() != reflect.Struct {
+		return fmt.Errorf("unsupported value type")
+	}
+	var listed map[string]bool
+	if len(options.Columns) != 0 {
+		listed = make(map[string]bool)
+		colNames := strings.Split(options.Columns, ",")
+		for _, colName := range colNames {
+			listed[colName] = true
+		}
+	}
+	fieldIds := make([]int, 0, valType.NumField())
+	colNames := make([]string, 0, valType.NumField())
+	for i := 0; i < valType.NumField(); i++ {
+		field := valType.Field(i)
+		colName := field.Tag.Get(fieldTag)
+		if len(colName) == 0 {
+			continue
+		}
+		if (listed != nil) && !listed[colName] {
+			continue
+		}
+		fieldIds = append(fieldIds, i)
+		colNames = append(colNames, colName)
+	}
+	options.fieldIds = fieldIds
+	options.colNames = colNames
+	return nil
+}
+
+// Load() executes `load`.
 func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, error) {
 	if options == nil {
 		options = NewLoadOptions()
+	}
+	if err := db.scanLoadFields(vals, options); err != nil {
+		return 0, err
 	}
 	headCmd, err := db.genLoadHead(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
-	// FIXME: For debug.
-	fmt.Println(headCmd)
+	fmt.Println(headCmd) // FIXME: For debug.
 	bodyCmd, err := db.genLoadBody(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
-	// FIXME: For debug.
-	fmt.Println(bodyCmd)
+	fmt.Println(bodyCmd) // FIXME: For debug.
 	if err := db.send(headCmd); err != nil {
 		db.recv()
 		return 0, err
