@@ -280,32 +280,32 @@ func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (s
 }
 
 // writeLoadScalar() writes a scalar of `load`.
-func (db *DB) writeLoadScalar(buf *bytes.Buffer, val *reflect.Value) error {
-	switch v := val.Interface().(type) {
+func (db *DB) writeLoadScalar(buf *bytes.Buffer, any *reflect.Value) error {
+	switch val := any.Interface().(type) {
 	case Bool:
-		if _, err := fmt.Fprint(buf, v); err != nil {
+		if _, err := fmt.Fprint(buf, val); err != nil {
 			return err
 		}
 	case Int:
-		if _, err := fmt.Fprint(buf, v); err != nil {
+		if _, err := fmt.Fprint(buf, val); err != nil {
 			return err
 		}
 	case Float:
-		if _, err := fmt.Fprint(buf, v); err != nil {
+		if _, err := fmt.Fprint(buf, val); err != nil {
 			return err
 		}
 	case Time:
-		if _, err := fmt.Fprint(buf, float64(v)/1000000.0); err != nil {
+		if _, err := fmt.Fprint(buf, float64(val)/1000000.0); err != nil {
 			return err
 		}
 	case Text:
-		str := strings.Replace(string(v), "\\", "\\\\", -1)
+		str := strings.Replace(string(val), "\\", "\\\\", -1)
 		str = strings.Replace(str, "\"", "\\\"", -1)
 		if _, err := fmt.Fprintf(buf, "\"%s\"", str); err != nil {
 			return err
 		}
 	case Geo:
-		if _, err := fmt.Fprintf(buf, "\"%d,%d\"", v.Lat, v.Long); err != nil {
+		if _, err := fmt.Fprintf(buf, "\"%d,%d\"", val.Lat, val.Long); err != nil {
 			return err
 		}
 	default:
@@ -315,11 +315,11 @@ func (db *DB) writeLoadScalar(buf *bytes.Buffer, val *reflect.Value) error {
 }
 
 // writeLoadScalar() writes a vector of `load`.
-func (db *DB) writeLoadVector(buf *bytes.Buffer, val *reflect.Value) error {
+func (db *DB) writeLoadVector(buf *bytes.Buffer, any *reflect.Value) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
-	switch vals := val.Interface().(type) {
+	switch vals := any.Interface().(type) {
 	case []Bool:
 		for i, val := range vals {
 			if i != 0 {
@@ -445,8 +445,8 @@ func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (s
 			return "", err
 		}
 	case reflect.Ptr:
-		val = val.Elem()
-		if err := db.writeLoadValue(buf, &val); err != nil {
+		elem := val.Elem()
+		if err := db.writeLoadValue(buf, &elem); err != nil {
 			return "", err
 		}
 	case reflect.Slice:
