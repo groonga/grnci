@@ -15,15 +15,13 @@ import (
 	"unsafe"
 )
 
+//
+// Library management
+//
+
 // grnCnt is a reference count of the Groonga library.
 // Init() increments `grnCnt` and Fin() decrements `grnCnt`.
 var grnCnt uint32
-
-// DB is a DB handle.
-type DB struct {
-	ctx *C.grn_ctx
-	obj *C.grn_obj
-}
 
 // refLib() increments `grnCtx`.
 // The Groonga library is initialized if `grnCtx` changes from 0 to 1.
@@ -53,6 +51,16 @@ func unrefLib() error {
 		}
 	}
 	return nil
+}
+
+//
+// DB management
+//
+
+// DB is a DB handle.
+type DB struct {
+	ctx *C.grn_ctx
+	obj *C.grn_obj
 }
 
 // Create() creates a DB and returns its handle.
@@ -130,6 +138,10 @@ func (db *DB) Close() error {
 	return nil
 }
 
+//
+// Low-level command interface
+//
+
 // send() sends a command.
 func (db *DB) send(cmd string) error {
 	if len(cmd) == 0 {
@@ -191,11 +203,17 @@ func (db *DB) queryEx(name string, options map[string]string) ([]byte, error) {
 	return db.recv()
 }
 
+//
+// Built-in data types
+//
+
+// fieldTag specifies the associated Groonga column.
+const fieldTag = "groonga"
+
 // Bool.
 type Bool bool
 
-// Int8, Int16, Int32 and Int64.
-// UInt8, UInt16, UInt32 and UInt64.
+// Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32 and UInt64.
 type Int int64
 
 // Float.
@@ -213,21 +231,47 @@ type Geo struct {
 	Long int32
 }
 
-var BoolType = reflect.TypeOf(Bool(false))
-var IntType = reflect.TypeOf(Int(0))
-var FloatType = reflect.TypeOf(Float(0.0))
-var TimeType = reflect.TypeOf(Time(0))
-var TextType = reflect.TypeOf(Text(""))
-var GeoType = reflect.TypeOf(Geo{0, 0})
+// writeTo() writes `val` to `buf`.
+func (val Bool) writeTo(buf *bytes.Buffer) error {
+	_, err := fmt.Fprint(buf, bool(val))
+	return err
+}
 
-var VBoolType = reflect.TypeOf([]Bool{})
-var VIntType = reflect.TypeOf([]Int{})
-var VFloatType = reflect.TypeOf([]Float{})
-var VTimeType = reflect.TypeOf([]Time{})
-var VTextType = reflect.TypeOf([]Text{})
-var VGeoType = reflect.TypeOf([]Geo{})
+// writeTo() writes `val` to `buf`.
+func (val Int) writeTo(buf *bytes.Buffer) error {
+	_, err := fmt.Fprint(buf, int64(val))
+	return err
+}
 
-const fieldTag = "groonga"
+// writeTo() writes `val` to `buf`.
+func (val Float) writeTo(buf *bytes.Buffer) error {
+	_, err := fmt.Fprint(buf, float64(val))
+	return err
+}
+
+// writeTo() writes `val` to `buf`.
+func (val Time) writeTo(buf *bytes.Buffer) error {
+	_, err := fmt.Fprint(buf, float64(int64(val))/1000000.0)
+	return err
+}
+
+// writeTo() writes `val` to `buf`.
+func (val Text) writeTo(buf *bytes.Buffer) error {
+	str := strings.Replace(string(val), "\\", "\\\\", -1)
+	str = strings.Replace(str, "\"", "\\\"", -1)
+	_, err := fmt.Fprintf(buf, "\"%s\"", str)
+	return err
+}
+
+// writeTo() writes `val` to `buf`.
+func (val Geo) writeTo(buf *bytes.Buffer) error {
+	_, err := fmt.Fprintf(buf, "\"%d,%d\"", val.Lat, val.Long)
+	return err
+}
+
+//
+// The `load` command
+//
 
 // genLoadHead() generates a head of `load`.
 func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
@@ -283,29 +327,27 @@ func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (s
 func (db *DB) writeLoadScalar(buf *bytes.Buffer, any interface{}) error {
 	switch val := any.(type) {
 	case Bool:
-		if _, err := fmt.Fprint(buf, val); err != nil {
+		if err := val.writeTo(buf); err != nil {
 			return err
 		}
 	case Int:
-		if _, err := fmt.Fprint(buf, val); err != nil {
+		if err := val.writeTo(buf); err != nil {
 			return err
 		}
 	case Float:
-		if _, err := fmt.Fprint(buf, val); err != nil {
+		if err := val.writeTo(buf); err != nil {
 			return err
 		}
 	case Time:
-		if _, err := fmt.Fprint(buf, float64(val)/1000000.0); err != nil {
+		if err := val.writeTo(buf); err != nil {
 			return err
 		}
 	case Text:
-		str := strings.Replace(string(val), "\\", "\\\\", -1)
-		str = strings.Replace(str, "\"", "\\\"", -1)
-		if _, err := fmt.Fprintf(buf, "\"%s\"", str); err != nil {
+		if err := val.writeTo(buf); err != nil {
 			return err
 		}
 	case Geo:
-		if _, err := fmt.Fprintf(buf, "\"%d,%d\"", val.Lat, val.Long); err != nil {
+		if err := val.writeTo(buf); err != nil {
 			return err
 		}
 	default:
@@ -321,24 +363,26 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
 	}
 	switch vals := any.(type) {
 	case []Bool:
-		for i, val := range vals {
-			if i != 0 {
-				if err := buf.WriteByte(','); err != nil {
-					return err
-				}
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
 			}
-			if _, err := fmt.Fprint(buf, val); err != nil {
+			if err := vals[i].writeTo(buf); err != nil {
 				return err
 			}
 		}
 	case []Int:
-		for i, val := range vals {
-			if i != 0 {
-				if err := buf.WriteByte(','); err != nil {
-					return err
-				}
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
 			}
-			if _, err := fmt.Fprint(buf, val); err != nil {
+			if err := vals[i].writeTo(buf); err != nil {
 				return err
 			}
 		}
@@ -349,42 +393,43 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
 					return err
 				}
 			}
-			if _, err := fmt.Fprint(buf, val); err != nil {
+			if _, err := fmt.Fprint(buf, float64(val)); err != nil {
 				return err
 			}
 		}
 	case []Time:
-		for i, val := range vals {
-			if i != 0 {
-				if err := buf.WriteByte(','); err != nil {
-					return err
-				}
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
 			}
-			if _, err := fmt.Fprint(buf, float64(val)/1000000.0); err != nil {
+			if err := vals[i].writeTo(buf); err != nil {
 				return err
 			}
 		}
 	case []Text:
-		for i, val := range vals {
-			if i != 0 {
-				if err := buf.WriteByte(','); err != nil {
-					return err
-				}
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
 			}
-			str := strings.Replace(string(val), "\\", "\\\\", -1)
-			str = strings.Replace(str, "\"", "\\\"", -1)
-			if _, err := fmt.Fprintf(buf, "\"%s\"", str); err != nil {
+			if err := vals[i].writeTo(buf); err != nil {
 				return err
 			}
 		}
 	case []Geo:
-		for i, val := range vals {
-			if i != 0 {
-				if err := buf.WriteByte(','); err != nil {
-					return err
-				}
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
 			}
-			if _, err := fmt.Fprintf(buf, "\"%d,%d\"", val.Lat, val.Long); err != nil {
+			if err := vals[i].writeTo(buf); err != nil {
 				return err
 			}
 		}
@@ -415,12 +460,19 @@ func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value) error {
 			}
 		}
 		fieldVal := val.Field(i)
-		if fieldVal.Kind() != reflect.Slice {
-			if err := db.writeLoadScalar(buf, fieldVal.Interface()); err != nil {
-				return err
+		switch fieldVal.Kind() {
+		case reflect.Slice:
+			if fieldVal.Len() == 0 {
+				if _, err := buf.WriteString("[]"); err != nil {
+					return err
+				}
+			} else {
+				if err := db.writeLoadVector(buf, fieldVal.Interface()); err != nil {
+					return err
+				}
 			}
-		} else {
-			if err := db.writeLoadVector(buf, fieldVal.Interface()); err != nil {
+		default:
+			if err := db.writeLoadScalar(buf, fieldVal.Interface()); err != nil {
 				return err
 			}
 		}
