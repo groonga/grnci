@@ -621,6 +621,7 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if err != nil {
 		return 0, err
 	}
+	fmt.Println(string(bytes)) // FIXME: For debug.
 	cnt, err := strconv.Atoi(string(bytes))
 	if err != nil {
 		return 0, err
