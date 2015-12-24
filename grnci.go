@@ -280,8 +280,8 @@ func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (s
 }
 
 // writeLoadScalar() writes a scalar of `load`.
-func (db *DB) writeLoadScalar(buf *bytes.Buffer, any *reflect.Value) error {
-	switch val := any.Interface().(type) {
+func (db *DB) writeLoadScalar(buf *bytes.Buffer, any interface{}) error {
+	switch val := any.(type) {
 	case Bool:
 		if _, err := fmt.Fprint(buf, val); err != nil {
 			return err
@@ -315,11 +315,11 @@ func (db *DB) writeLoadScalar(buf *bytes.Buffer, any *reflect.Value) error {
 }
 
 // writeLoadScalar() writes a vector of `load`.
-func (db *DB) writeLoadVector(buf *bytes.Buffer, any *reflect.Value) error {
+func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
-	switch vals := any.Interface().(type) {
+	switch vals := any.(type) {
 	case []Bool:
 		for i, val := range vals {
 			if i != 0 {
@@ -416,11 +416,11 @@ func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value) error {
 		}
 		fieldVal := val.Field(i)
 		if fieldVal.Kind() != reflect.Slice {
-			if err := db.writeLoadScalar(buf, &fieldVal); err != nil {
+			if err := db.writeLoadScalar(buf, fieldVal.Interface()); err != nil {
 				return err
 			}
 		} else {
-			if err := db.writeLoadVector(buf, &fieldVal); err != nil {
+			if err := db.writeLoadVector(buf, fieldVal.Interface()); err != nil {
 				return err
 			}
 		}
