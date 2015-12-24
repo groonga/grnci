@@ -218,11 +218,29 @@ func (db *DB) recv() (string, error) {
 	var res *C.char
 	var resLen C.uint
 	var resFlags C.int
-	rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags)
-	if rc != C.GRN_SUCCESS {
+	if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
 		return "", fmt.Errorf("grn_ctx_recv() failed: %d", rc)
 	}
-	return C.GoStringN(res, C.int(resLen)), nil
+	if (resFlags & C.GRN_CTX_MORE) == 0 {
+		return C.GoStringN(res, C.int(resLen)), nil
+	}
+	buf := bytes.NewBuffer(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
+	var bufErr error
+	for {
+		if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
+			return "", fmt.Errorf("grn_ctx_recv() failed: %d", rc)
+		}
+		if bufErr == nil {
+			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
+		}
+		if (resFlags & C.GRN_CTX_MORE) == 0 {
+			break
+		}
+	}
+	if bufErr != nil {
+		return "", bufErr
+	}
+	return buf.String(), nil
 }
 
 // query() executes a command.
