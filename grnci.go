@@ -59,14 +59,14 @@ func unrefLib() error {
 // DB handle
 //
 
-// DB is a handle to a Groonga DB.
+// DB is a handle to a database or a connection to a server.
 type DB struct {
 	ctx *C.grn_ctx
 	obj *C.grn_obj
 }
 
-// newDB() creates a handle.
-// The handle must be closed by DB.Close().
+// newDB() creates an instance of DB.
+// The instance must be closed by DB.Close().
 func newDB() (*DB, error) {
 	if err := refLib(); err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func newDB() (*DB, error) {
 	return &db, nil
 }
 
-// Create() creates a DB and returns a handle to it.
+// Create() creates a database and returns a handle to it.
 // The handle must be closed by DB.Close().
 func Create(path string) (*DB, error) {
 	if len(path) == 0 {
@@ -100,7 +100,7 @@ func Create(path string) (*DB, error) {
 	return db, nil
 }
 
-// Open() opens a DB and returns a handle to it.
+// Open() opens a database and returns a handle to it.
 // The handle must be closed by DB.Close().
 func Open(path string) (*DB, error) {
 	if len(path) == 0 {
@@ -120,8 +120,8 @@ func Open(path string) (*DB, error) {
 	return db, nil
 }
 
-// Connect() establishes a connection to a Groonga server.
-// The handle must be closed by DB.Close().
+// Connect() establishes a connection to a server.
+// The connection must be closed by DB.Close().
 func Connect(host string, port int) (*DB, error) {
 	if len(host) == 0 {
 		return nil, fmt.Errorf("host is empty")
@@ -140,10 +140,10 @@ func Connect(host string, port int) (*DB, error) {
 	return db, nil
 }
 
-// Dup() duplicates a handle to a local DB.
+// Dup() duplicates a handle.
 // The handle must be closed by DB.Close().
 //
-// Note that Dup() cannot duplicate a handle returned by Connect().
+// FIXME: Dup() cannot duplicate a connection.
 func (db *DB) Dup() (*DB, error) {
 	if db.obj == nil {
 		return nil, fmt.Errorf("not a handle to a local DB")
@@ -159,7 +159,7 @@ func (db *DB) Dup() (*DB, error) {
 	return db, nil
 }
 
-// Close() closes a handle.
+// Close() closes a handle or a connection.
 func (db *DB) Close() error {
 	if db.ctx == nil {
 		return fmt.Errorf("ctx is nil")
