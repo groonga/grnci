@@ -76,4 +76,4 @@ if err := db.Load("Fruit", val, options); err != nil {
 - レコードにより異なるフィールドを更新することはできません．
  - 別々に `Load()` を呼び出せば更新できます．
 - 専用のデータ型を使います．
- - 使えるデータ型は `grnci.Bool`, `grnci.Int`, `grnci.Float`, `grnci.Time`, `grnci.Text`, `grnci.Geo` とこれらのスライスのみです．
+ - 使えるデータ型は `grnci.Bool`, `grnci.Int`, `grnci.Float`, `grnci.Time`, `grnci.Text`, `grnci.Geo` とこれらのポインタおよびスライスのみです．
