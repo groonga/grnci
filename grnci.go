@@ -291,39 +291,63 @@ type Geo struct {
 }
 
 // writeTo() writes `val` to `buf`.
-func (val Bool) writeTo(buf *bytes.Buffer) error {
-	_, err := fmt.Fprint(buf, bool(val))
+func (val *Bool) writeTo(buf *bytes.Buffer) error {
+	if val == nil {
+		_, err := buf.WriteString("null")
+		return err
+	}
+	_, err := fmt.Fprint(buf, bool(*val))
 	return err
 }
 
 // writeTo() writes `val` to `buf`.
-func (val Int) writeTo(buf *bytes.Buffer) error {
-	_, err := fmt.Fprint(buf, int64(val))
+func (val *Int) writeTo(buf *bytes.Buffer) error {
+	if val == nil {
+		_, err := buf.WriteString("null")
+		return err
+	}
+	_, err := fmt.Fprint(buf, int64(*val))
 	return err
 }
 
 // writeTo() writes `val` to `buf`.
-func (val Float) writeTo(buf *bytes.Buffer) error {
-	_, err := fmt.Fprint(buf, float64(val))
+func (val *Float) writeTo(buf *bytes.Buffer) error {
+	if val == nil {
+		_, err := buf.WriteString("null")
+		return err
+	}
+	_, err := fmt.Fprint(buf, float64(*val))
 	return err
 }
 
 // writeTo() writes `val` to `buf`.
-func (val Time) writeTo(buf *bytes.Buffer) error {
-	_, err := fmt.Fprint(buf, float64(int64(val))/1000000.0)
+func (val *Time) writeTo(buf *bytes.Buffer) error {
+	if val == nil {
+		_, err := buf.WriteString("null")
+		return err
+	}
+	_, err := fmt.Fprint(buf, float64(int64(*val))/1000000.0)
 	return err
 }
 
 // writeTo() writes `val` to `buf`.
-func (val Text) writeTo(buf *bytes.Buffer) error {
-	str := strings.Replace(string(val), "\\", "\\\\", -1)
+func (val *Text) writeTo(buf *bytes.Buffer) error {
+	if val == nil {
+		_, err := buf.WriteString("null")
+		return err
+	}
+	str := strings.Replace(string(*val), "\\", "\\\\", -1)
 	str = strings.Replace(str, "\"", "\\\"", -1)
 	_, err := fmt.Fprintf(buf, "\"%s\"", str)
 	return err
 }
 
 // writeTo() writes `val` to `buf`.
-func (val Geo) writeTo(buf *bytes.Buffer) error {
+func (val *Geo) writeTo(buf *bytes.Buffer) error {
+	if val == nil {
+		_, err := buf.WriteString("null")
+		return err
+	}
 	_, err := fmt.Fprintf(buf, "\"%d,%d\"", val.Lat, val.Long)
 	return err
 }
@@ -404,6 +428,30 @@ func (db *DB) writeLoadScalar(buf *bytes.Buffer, any interface{}) error {
 		if err := val.writeTo(buf); err != nil {
 			return err
 		}
+	case *Bool:
+		if err := val.writeTo(buf); err != nil {
+			return err
+		}
+	case *Int:
+		if err := val.writeTo(buf); err != nil {
+			return err
+		}
+	case *Float:
+		if err := val.writeTo(buf); err != nil {
+			return err
+		}
+	case *Time:
+		if err := val.writeTo(buf); err != nil {
+			return err
+		}
+	case *Text:
+		if err := val.writeTo(buf); err != nil {
+			return err
+		}
+	case *Geo:
+		if err := val.writeTo(buf); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unsupported data type")
 	}
@@ -441,13 +489,14 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
 			}
 		}
 	case []Float:
-		for i, val := range vals {
-			if i != 0 {
-				if err := buf.WriteByte(','); err != nil {
-					return err
-				}
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
 			}
-			if _, err := fmt.Fprint(buf, float64(val)); err != nil {
+			if err := vals[i].writeTo(buf); err != nil {
 				return err
 			}
 		}
@@ -487,6 +536,78 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
 				return err
 			}
 		}
+	case []*Bool:
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
+			}
+			if err := vals[i].writeTo(buf); err != nil {
+				return err
+			}
+		}
+	case []*Int:
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
+			}
+			if err := vals[i].writeTo(buf); err != nil {
+				return err
+			}
+		}
+	case []*Float:
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
+			}
+			if err := vals[i].writeTo(buf); err != nil {
+				return err
+			}
+		}
+	case []*Time:
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
+			}
+			if err := vals[i].writeTo(buf); err != nil {
+				return err
+			}
+		}
+	case []*Text:
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
+			}
+			if err := vals[i].writeTo(buf); err != nil {
+				return err
+			}
+		}
+	case []*Geo:
+		if err := vals[0].writeTo(buf); err != nil {
+			return err
+		}
+		for i := 1; i < len(vals); i++ {
+			if err := buf.WriteByte(','); err != nil {
+				return err
+			}
+			if err := vals[i].writeTo(buf); err != nil {
+				return err
+			}
+		}
 	default:
 		return fmt.Errorf("unsupported data type")
 	}
@@ -514,10 +635,10 @@ func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value, options *Loa
 				if _, err := buf.WriteString("[]"); err != nil {
 					return err
 				}
-			} else {
-				if err := db.writeLoadVector(buf, field.Interface()); err != nil {
-					return err
-				}
+				break
+			}
+			if err := db.writeLoadVector(buf, field.Interface()); err != nil {
+				return err
 			}
 		default:
 			if err := db.writeLoadScalar(buf, field.Interface()); err != nil {
