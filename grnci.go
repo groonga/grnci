@@ -144,7 +144,7 @@ func Connect(host string, port int) (*DB, error) {
 	return db, nil
 }
 
-// Dup() duplicates a handle.
+// Dup() duplicates a handle or a connection.
 // The handle must be closed by DB.Close().
 func (db *DB) Dup() (*DB, error) {
 	if db.obj == nil {
