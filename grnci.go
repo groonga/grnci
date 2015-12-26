@@ -290,10 +290,12 @@ type Geo struct {
 	Long int32
 }
 
-// Value is an interface of built-in data types.
-type Value interface {
-	writeTo(buf *bytes.Buffer) error
-}
+var BoolType = reflect.TypeOf(Bool(false))
+var IntType = reflect.TypeOf(Int(0))
+var FloatType = reflect.TypeOf(Float(0.0))
+var TimeType = reflect.TypeOf(Time(0))
+var TextType = reflect.TypeOf(Text(""))
+var GeoType = reflect.TypeOf(Geo{0, 0})
 
 // writeTo() writes `val` to `buf`.
 func (val *Bool) writeTo(buf *bytes.Buffer) error {
@@ -746,14 +748,16 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		}
 		colName := field.Name
 		tagValue := field.Tag.Get(tagKey)
-		if !fieldType.Implements(reflect.TypeOf((*Value)(nil)).Elem()) {
+		switch fieldType {
+		case BoolType, IntType, FloatType, TimeType, TextType, GeoType:
+			if len(tagValue) != 0 {
+				colName = tagValue
+			}
+		default:
 			if len(tagValue) != 0 {
 				return fmt.Errorf("unsupported data type")
 			}
 			continue
-		}
-		if len(tagValue) != 0 {
-			colName = tagValue
 		}
 		if (listed != nil) && !listed[colName] {
 			continue
