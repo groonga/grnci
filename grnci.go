@@ -369,8 +369,8 @@ func (time Time) Unix() (sec, nsec int64) {
 // The `load` command
 //
 
-// genLoadHead() generates a head of `load`.
-func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
+// loadGenHead() generates a head of `load`.
+func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
 	if _, err := fmt.Fprintf(buf, "load --table %s", tbl); err != nil {
 		return "", err
@@ -403,8 +403,8 @@ func (db *DB) genLoadHead(tbl string, vals interface{}, options *LoadOptions) (s
 	return buf.String(), nil
 }
 
-// writeLoadScalar() writes a scalar of `load`.
-func (db *DB) writeLoadScalar(buf *bytes.Buffer, any interface{}) error {
+// loadWriteScalar() writes a scalar of `load`.
+func (db *DB) loadWriteScalar(buf *bytes.Buffer, any interface{}) error {
 	switch val := any.(type) {
 	case Bool:
 		if err := val.writeTo(buf); err != nil {
@@ -460,8 +460,8 @@ func (db *DB) writeLoadScalar(buf *bytes.Buffer, any interface{}) error {
 	return nil
 }
 
-// writeLoadScalar() writes a vector of `load`.
-func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
+// loadWriteScalar() writes a vector of `load`.
+func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
@@ -619,8 +619,8 @@ func (db *DB) writeLoadVector(buf *bytes.Buffer, any interface{}) error {
 	return nil
 }
 
-// writeLoadValue() writes a value of `load`.
-func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value, options *LoadOptions) error {
+// loadWriteValue() writes a value of `load`.
+func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, options *LoadOptions) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
@@ -639,11 +639,11 @@ func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value, options *Loa
 				}
 				break
 			}
-			if err := db.writeLoadVector(buf, field.Interface()); err != nil {
+			if err := db.loadWriteVector(buf, field.Interface()); err != nil {
 				return err
 			}
 		default:
-			if err := db.writeLoadScalar(buf, field.Interface()); err != nil {
+			if err := db.loadWriteScalar(buf, field.Interface()); err != nil {
 				return err
 			}
 		}
@@ -654,8 +654,8 @@ func (db *DB) writeLoadValue(buf *bytes.Buffer, val *reflect.Value, options *Loa
 	return nil
 }
 
-// genLoadHead() generates a body of `load`.
-func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (string, error) {
+// loadGenBody() generates a body of `load`.
+func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
@@ -663,12 +663,12 @@ func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (s
 	val := reflect.ValueOf(vals)
 	switch val.Kind() {
 	case reflect.Struct:
-		if err := db.writeLoadValue(buf, &val, options); err != nil {
+		if err := db.loadWriteValue(buf, &val, options); err != nil {
 			return "", err
 		}
 	case reflect.Ptr:
 		elem := val.Elem()
-		if err := db.writeLoadValue(buf, &elem, options); err != nil {
+		if err := db.loadWriteValue(buf, &elem, options); err != nil {
 			return "", err
 		}
 	case reflect.Slice:
@@ -679,7 +679,7 @@ func (db *DB) genLoadBody(tbl string, vals interface{}, options *LoadOptions) (s
 				}
 			}
 			idxVal := val.Index(i)
-			if err := db.writeLoadValue(buf, &idxVal, options); err != nil {
+			if err := db.loadWriteValue(buf, &idxVal, options); err != nil {
 				return "", err
 			}
 		}
@@ -705,8 +705,8 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// scanFields() scans fields.
-func (db *DB) scanLoadFields(vals interface{}, options *LoadOptions) error {
+// loadScanFields() scans fields.
+func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	valType := reflect.TypeOf(vals)
 	switch valType.Kind() {
 	case reflect.Ptr:
@@ -749,15 +749,15 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if options == nil {
 		options = NewLoadOptions()
 	}
-	if err := db.scanLoadFields(vals, options); err != nil {
+	if err := db.loadScanFields(vals, options); err != nil {
 		return 0, err
 	}
-	headCmd, err := db.genLoadHead(tbl, vals, options)
+	headCmd, err := db.loadGenHead(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
 	fmt.Println(headCmd) // FIXME: For debug.
-	bodyCmd, err := db.genLoadBody(tbl, vals, options)
+	bodyCmd, err := db.loadGenBody(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
