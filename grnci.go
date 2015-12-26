@@ -746,7 +746,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		}
 		colName := field.Name
 		tagValue := field.Tag.Get(tagKey)
-		if !fieldType.Implements(reflect.TypeOf(Value(nil))) {
+		if !fieldType.Implements(reflect.TypeOf((*Value)(nil)).Elem()) {
 			if len(tagValue) != 0 {
 				return fmt.Errorf("unsupported data type")
 			}
