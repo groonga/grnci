@@ -148,7 +148,7 @@ func Connect(host string, port int) (*DB, error) {
 // The handle must be closed by DB.Close().
 func (db *DB) Dup() (*DB, error) {
 	if db.obj == nil {
-		return nil, fmt.Errorf("not a handle to a local DB")
+		return db.Connect(db.host, db.port)
 	}
 	dupDB, err := newDB()
 	if err != nil {
