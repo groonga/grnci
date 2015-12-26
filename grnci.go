@@ -266,8 +266,8 @@ func (db *DB) queryEx(name string, options map[string]string) (string, error) {
 // Built-in data types
 //
 
-// fieldTag specifies the associated Groonga column.
-const fieldTag = "groonga"
+// tagKey specifies the associated Groonga column.
+const tagKey = "groonga"
 
 // Bool represents Bool.
 type Bool bool
@@ -288,6 +288,11 @@ type Text string
 type Geo struct {
 	Lat  int32
 	Long int32
+}
+
+// Value is an interface of built-in data types.
+type Value interface {
+	writeTo(buf *bytes.Buffer) error
 }
 
 // writeTo() writes `val` to `buf`.
@@ -729,9 +734,26 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	colNames := make([]string, 0, valType.NumField())
 	for i := 0; i < valType.NumField(); i++ {
 		field := valType.Field(i)
-		colName := field.Tag.Get(fieldTag)
-		if len(colName) == 0 {
+		fieldType := field.Type
+		switch fieldType.Kind() {
+		case reflect.Ptr:
+			fieldType = fieldType.Elem()
+		case reflect.Slice:
+			fieldType = fieldType.Elem()
+			if fieldType.Kind() == reflect.Ptr {
+				fieldType = fieldType.Elem()
+			}
+		}
+		colName := field.Name
+		tagValue := field.Tag.Get(tagKey)
+		if !fieldType.Implements(reflect.TypeOf(Value(nil))) {
+			if len(tagValue) != 0 {
+				return fmt.Errorf("unsupported data type")
+			}
 			continue
+		}
+		if len(tagValue) != 0 {
+			colName = tagValue
 		}
 		if (listed != nil) && !listed[colName] {
 			continue
