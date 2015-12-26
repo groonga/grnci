@@ -61,8 +61,10 @@ func unrefLib() error {
 
 // DB is a handle to a database or a connection to a server.
 type DB struct {
-	ctx *C.grn_ctx
-	obj *C.grn_obj
+	ctx  *C.grn_ctx
+	obj  *C.grn_obj
+	host string
+	port int
 }
 
 // newDB() creates an instance of DB.
@@ -137,26 +139,26 @@ func Connect(host string, port int) (*DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("grn_ctx_connect() failed: %d", rc)
 	}
+	db.host = host
+	db.port = port
 	return db, nil
 }
 
 // Dup() duplicates a handle.
 // The handle must be closed by DB.Close().
-//
-// FIXME: Dup() cannot duplicate a connection.
 func (db *DB) Dup() (*DB, error) {
 	if db.obj == nil {
 		return nil, fmt.Errorf("not a handle to a local DB")
 	}
-	db, err := newDB()
+	dupDB, err := newDB()
 	if err != nil {
 		return nil, err
 	}
-	if rc := C.grn_ctx_use(db.ctx, db.obj); rc != C.GRN_SUCCESS {
-		db.Close()
+	if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
+		dupDB.Close()
 		return nil, fmt.Errorf("grn_ctx_use() failed")
 	}
-	return db, nil
+	return dupDB, nil
 }
 
 // Close() closes a handle or a connection.
