@@ -36,7 +36,9 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
  - http://groonga.org/ja/docs/reference/commands/load.html
 
 `vals` にはレコードに対応する構造体，そのポインタおよびスライスを渡すことができます．
-構造体の `groonga` タグを付与されたフィールドのみが `load` に渡されます．
+データ型が `grnci.Bool`, `grnci.Int` などになっているフィールドのみが `load` に渡されます．
+基本的にはフィールド名がカラム名として採用されます．
+フィールドに `groonga` タグを付与することで，フィールド名とは異なるカラム名を指定することもできます．
 
 以下，構造体と使い方の例です．
 
