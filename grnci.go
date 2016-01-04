@@ -546,6 +546,9 @@ func (time Time) Unix() (sec, nsec int64) {
 // `table_create`
 //
 
+// DB is a handle to a database or a connection to a server.
+
+// TableCreateOptions is a set of options for `table_create`.
 type TableCreateOptions struct {
 	Flags            string
 	KeyType          string
@@ -555,6 +558,7 @@ type TableCreateOptions struct {
 	TokenFilters     string
 }
 
+// TableCreate() executes `table_create`.
 func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	return nil
 }
@@ -563,10 +567,12 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 // `column_create`
 //
 
+// ColumnCreateOptions is a set of options for `column_create`.
 type ColumnCreateOptions struct {
 	Source string
 }
 
+// ColumnCreate() executes `column_create`.
 func (db *DB) ColumnCreate(tbl, name, flags string, options *ColumnCreateOptions) error {
 	return nil
 }
