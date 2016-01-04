@@ -637,12 +637,12 @@ func (time Time) Unix() (sec, nsec int64) {
 
 // TableCreateOptions is a set of options for `table_create`.
 type TableCreateOptions struct {
-	Flags            string
-	KeyType          string
-	ValueType        string
-	DefaultTokenizer string
-	Normalizer       string
-	TokenFilters     string
+	Flags            string // --flags
+	KeyType          string // --key_type
+	ValueType        string // --value_type
+	DefaultTokenizer string // --default_tokenizer
+	Normalizer       string // --normalizer
+	TokenFilters     string // --token_filters
 }
 
 // NewTableCreateOptions() returns default options.
@@ -729,7 +729,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 
 // ColumnCreateOptions is a set of options for `column_create`.
 type ColumnCreateOptions struct {
-	Flags string
+	Flags string // --flags
 }
 
 // NewColumnCreateOptions() returns default options.
@@ -1124,8 +1124,8 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 
 // LoadOptions is a set of options for `load`.
 type LoadOptions struct {
-	Columns  string
-	IfExists string
+	Columns  string // --columns
+	IfExists string // --ifexists
 
 	fieldIds []int    // Target field IDs.
 	colNames []string // Target column names.
