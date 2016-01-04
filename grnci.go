@@ -729,7 +729,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 
 // ColumnCreateOptions is a set of options for `column_create`.
 type ColumnCreateOptions struct {
-	Source string
+	Flags string
 }
 
 // NewColumnCreateOptions() returns default options.
@@ -739,15 +739,60 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 }
 
 // ColumnCreate() executes `column_create`.
-func (db *DB) ColumnCreate(tbl, name, flags string, options *ColumnCreateOptions) error {
+//
+// If `typ` starts with "[]", "COLUMN_VECTOR" is added to --flags.
+// Else if `typ` starts with "*", "COLUMN_INDEX" is added to --flags.
+// Otherwise, "COLUMN_SCALAR" is added to --flags.
+//
+// If `typ` contains '.', the former part is used as --type and the latter part
+// is used as --source.
+func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) error {
 	if err := checkTableName(tbl); err != nil {
 		return err
 	}
 	if err := checkColumnName(name); err != nil {
 		return err
 	}
+	typFlag := "COLUMN_SCALAR"
+	switch {
+	case strings.HasPrefix(typ, "[]"):
+		typFlag = "COLUMN_VECTOR"
+		typ = typ[2:]
+	case strings.HasPrefix(typ, "*"):
+		typFlag = "COLUMN_INDEX"
+		typ = typ[1:]
+	}
+	src := ""
+	if idx := strings.IndexByte(typ, '.'); idx != -1 {
+		src = typ[idx+1:]
+		typ = typ[:idx]
+	}
 	if options == nil {
 		options = NewColumnCreateOptions()
+	}
+	args := make(map[string]string)
+	args["table"] = tbl
+	args["name"] = name
+	if len(options.Flags) != 0 {
+		args["flags"] = options.Flags
+	}
+	if len(typFlag) != 0 {
+		if len(args["flags"]) == 0 {
+			args["flags"] = typFlag
+		} else {
+			args["flags"] += "|" + typFlag
+		}
+	}
+	args["type"] = typ
+	if len(src) != 0 {
+		args["source"] = src
+	}
+	str, err := db.queryEx("column_create", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("table_create failed")
 	}
 	return nil
 }
