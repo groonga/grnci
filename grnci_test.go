@@ -83,4 +83,19 @@ func TestTableCreate(t *testing.T) {
 	if err := db.TableCreate("A", nil); err != nil {
 		t.Fatalf("DB.TableCreate() failed: %v", err)
 	}
+	if err := db.TableCreate("A", nil); err == nil {
+		t.Fatalf("DB.TableCreate() succeeded")
+	}
+
+	options := NewTableCreateOptions()
+	options.KeyType = "ShortText"
+	options.Flags = "TABLE_PAT_KEY"
+	if err := db.TableCreate("B", options); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+
+	options.ValueType = "Int32"
+	if err := db.TableCreate("C", options); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
 }
