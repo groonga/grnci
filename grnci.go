@@ -543,7 +543,24 @@ func (time Time) Unix() (sec, nsec int64) {
 }
 
 //
-// The `load` command
+// `table_create`
+//
+
+type TableCreateOptions struct {
+	Flags            string
+	KeyType          string
+	ValueType        string
+	DefaultTokenizer string
+	Normalizer       string
+	TokenFilters     string
+}
+
+func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
+	return nil
+}
+
+//
+// `load`
 //
 
 // loadGenHead() generates a head of `load`.
