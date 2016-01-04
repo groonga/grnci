@@ -189,6 +189,18 @@ func (rc C.grn_rc) String() string {
 // Utility
 //
 
+// checkTableName() checks whether `name` is valid as a table name.
+func checkTableName(name string) error {
+	// TODO
+	return nil
+}
+
+// checkTableName() checks whether `name` is valid as a column name.
+func checkColumnName(name string) error {
+	// TODO
+	return nil
+}
+
 // splitCsv() splits a comma-separated values, trims each value and discards
 // empty values.
 func splitCsv(csv string) []string {
