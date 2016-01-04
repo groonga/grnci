@@ -208,7 +208,7 @@ func splitCsv(csv string) []string {
 	cnt := 0
 	for i := range vals {
 		val := strings.TrimSpace(vals[i])
-		if val == "" {
+		if len(val) == 0 {
 			continue
 		}
 		vals[cnt] = val
