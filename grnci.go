@@ -421,8 +421,8 @@ func (db *DB) send(cmd string) error {
 	return nil
 }
 
-// sendEx() sends a command with separated options.
-func (db *DB) sendEx(name string, options map[string]string) error {
+// sendEx() sends a command with separated arguments.
+func (db *DB) sendEx(name string, args map[string]string) error {
 	if len(name) == 0 {
 		return fmt.Errorf("name is empty")
 	}
@@ -430,7 +430,7 @@ func (db *DB) sendEx(name string, options map[string]string) error {
 	if _, err := buf.WriteString(name); err != nil {
 		return err
 	}
-	for key, val := range options {
+	for key, val := range args {
 		if len(key) == 0 {
 			return fmt.Errorf("key is empty")
 		}
@@ -480,9 +480,9 @@ func (db *DB) query(cmd string) (string, error) {
 	return db.recv()
 }
 
-// qureyEx() executes a command with separated options.
-func (db *DB) queryEx(name string, options map[string]string) (string, error) {
-	if err := db.sendEx(name, options); err != nil {
+// qureyEx() executes a command with separated arguments.
+func (db *DB) queryEx(name string, args map[string]string) (string, error) {
+	if err := db.sendEx(name, args); err != nil {
 		bytes, _ := db.recv()
 		return bytes, err
 	}
@@ -629,7 +629,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	if options == nil {
 		options = NewTableCreateOptions()
 	}
-	optionsMap := make(map[string]string)
+	args := make(map[string]string)
 	keyFlag := ""
 	if len(options.Flags) != 0 {
 		flags := splitValues(options.Flags, "|")
@@ -653,7 +653,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 				keyFlag = flag
 			}
 		}
-		optionsMap["flags"] = options.Flags
+		args["flags"] = options.Flags
 	}
 	if len(keyFlag) == 0 {
 		if len(options.KeyType) == 0 {
@@ -661,28 +661,28 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 		} else {
 			keyFlag = "TABLE_HASH_KEY"
 		}
-		if len(optionsMap["flags"]) == 0 {
-			optionsMap["flags"] = keyFlag
+		if len(args["flags"]) == 0 {
+			args["flags"] = keyFlag
 		} else {
-			optionsMap["flags"] += "|" + keyFlag
+			args["flags"] += "|" + keyFlag
 		}
 	}
 	if len(options.KeyType) != 0 {
-		optionsMap["key_type"] = options.KeyType
+		args["key_type"] = options.KeyType
 	}
 	if len(options.ValueType) != 0 {
-		optionsMap["value_type"] = options.ValueType
+		args["value_type"] = options.ValueType
 	}
 	if len(options.DefaultTokenizer) != 0 {
-		optionsMap["default_tokenizer"] = options.DefaultTokenizer
+		args["default_tokenizer"] = options.DefaultTokenizer
 	}
 	if len(options.Normalizer) != 0 {
-		optionsMap["normalizer"] = options.Normalizer
+		args["normalizer"] = options.Normalizer
 	}
 	if len(options.TokenFilters) != 0 {
-		optionsMap["token_filters"] = options.TokenFilters
+		args["token_filters"] = options.TokenFilters
 	}
-	str, err := db.queryEx("table_create", optionsMap)
+	str, err := db.queryEx("table_create", args)
 	if err != nil {
 		return err
 	}
