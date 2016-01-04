@@ -189,38 +189,36 @@ func (rc C.grn_rc) String() string {
 // Utility
 //
 
-// checkTableName() checks whether `name` is valid as a table name.
-func checkTableName(name string) error {
-	if len(name) == 0 {
+// checkTableName() checks whether a string is valid as a table name.
+func checkTableName(s string) error {
+	if len(s) == 0 {
 		return fmt.Errorf("table name must not be empty")
 	}
-	if name[0] == '_' {
+	if s[0] == '_' {
 		return fmt.Errorf("table name must not start with '_'")
 	}
-	for i := 0; i < len(name); i++ {
-		if !((name[i] >= 'a') && (name[i] <= 'z')) &&
-			!((name[i] >= 'A') && (name[i] <= 'Z')) &&
-			!((name[i] >= '0') && (name[i] <= '9')) &&
-			(name[i] != '#') && (name[i] != '@') &&
-			(name[i] != '-') && (name[i] != '_') {
-			return fmt.Errorf("table name must not contain U+%X", name[i])
+	for i := 0; i < len(s); i++ {
+		if !((s[i] >= 'a') && (s[i] <= 'z')) &&
+			!((s[i] >= 'A') && (s[i] <= 'Z')) &&
+			!((s[i] >= '0') && (s[i] <= '9')) &&
+			(s[i] != '#') && (s[i] != '@') && (s[i] != '-') && (s[i] != '_') {
+			return fmt.Errorf("table name must not contain \\x%X", s[i])
 		}
 	}
 	return nil
 }
 
-// checkColumnName() checks whether `name` is valid as a column name.
-func checkColumnName(name string) error {
-	if len(name) == 0 {
+// checkColumnName() checks whether a string is valid as a column name.
+func checkColumnName(s string) error {
+	if len(s) == 0 {
 		return fmt.Errorf("column name must not be empty")
 	}
-	for i := 0; i < len(name); i++ {
-		if !((name[i] >= 'a') && (name[i] <= 'z')) &&
-			!((name[i] >= 'A') && (name[i] <= 'Z')) &&
-			!((name[i] >= '0') && (name[i] <= '9')) &&
-			(name[i] != '#') && (name[i] != '@') &&
-			(name[i] != '-') && (name[i] != '_') {
-			return fmt.Errorf("column name must not contain U+%X", name[i])
+	for i := 0; i < len(s); i++ {
+		if !((s[i] >= 'a') && (s[i] <= 'z')) &&
+			!((s[i] >= 'A') && (s[i] <= 'Z')) &&
+			!((s[i] >= '0') && (s[i] <= '9')) &&
+			(s[i] != '#') && (s[i] != '@') && (s[i] != '-') && (s[i] != '_') {
+			return fmt.Errorf("column name must not contain \\x%X", s[i])
 		}
 	}
 	return nil
@@ -431,7 +429,7 @@ func checkCmdName(s string) error {
 	}
 	for i := 0; i < len(s); i++ {
 		if !((s[i] >= 'a') && (s[i] <= 'z')) && (s[i] != '_') {
-			return fmt.Errorf("command name must not contain '%X'", s[i])
+			return fmt.Errorf("command name must not contain \\x%X", s[i])
 		}
 	}
 	return nil
@@ -447,7 +445,7 @@ func checkArgKey(s string) error {
 	}
 	for i := 0; i < len(s); i++ {
 		if !((s[i] >= 'a') && (s[i] <= 'z')) && (s[i] != '_') {
-			return fmt.Errorf("command name must not contain '%X'", s[i])
+			return fmt.Errorf("command name must not contain \\x%X", s[i])
 		}
 	}
 	return nil
