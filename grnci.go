@@ -623,6 +623,9 @@ func NewTableCreateOptions() *TableCreateOptions {
 
 // TableCreate() executes `table_create`.
 func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
+	if err := checkTableName(name); err != nil {
+		return err
+	}
 	if options == nil {
 		options = NewTableCreateOptions()
 	}
@@ -646,6 +649,12 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 
 // ColumnCreate() executes `column_create`.
 func (db *DB) ColumnCreate(tbl, name, flags string, options *ColumnCreateOptions) error {
+	if err := checkTableName(tbl); err != nil {
+		return err
+	}
+	if err := checkColumnName(name); err != nil {
+		return err
+	}
 	if options == nil {
 		options = NewColumnCreateOptions()
 	}
@@ -1052,6 +1061,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 
 // Load() executes `load`.
 func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, error) {
+	if err := checkTableName(tbl); err != nil {
+		return 0, err
+	}
 	if options == nil {
 		options = NewLoadOptions()
 	}
