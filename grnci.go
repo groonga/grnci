@@ -632,6 +632,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 		options = NewTableCreateOptions()
 	}
 	args := make(map[string]string)
+	args["name"] = name
 	keyFlag := ""
 	if len(options.Flags) != 0 {
 		flags := splitValues(options.Flags, "|")
