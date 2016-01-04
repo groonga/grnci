@@ -578,8 +578,17 @@ type TableCreateOptions struct {
 	TokenFilters     string
 }
 
+// NewTableCreateOptions() returns default options.
+func NewTableCreateOptions() *TableCreateOptions {
+	options := new(TableCreateOptions)
+	return options
+}
+
 // TableCreate() executes `table_create`.
 func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
+	if options == nil {
+		options = NewTableCreateOptions()
+	}
 	return nil
 }
 
@@ -592,8 +601,17 @@ type ColumnCreateOptions struct {
 	Source string
 }
 
+// NewColumnCreateOptions() returns default options.
+func NewColumnCreateOptions() *ColumnCreateOptions {
+	options := new(ColumnCreateOptions)
+	return options
+}
+
 // ColumnCreate() executes `column_create`.
 func (db *DB) ColumnCreate(tbl, name, flags string, options *ColumnCreateOptions) error {
+	if options == nil {
+		options = NewColumnCreateOptions()
+	}
 	return nil
 }
 
@@ -931,7 +949,7 @@ type LoadOptions struct {
 	colNames []string // Target column names.
 }
 
-// NewLoadOptions() returns a LoadOptions with the default settings.
+// NewLoadOptions() returns default options.
 func NewLoadOptions() *LoadOptions {
 	options := new(LoadOptions)
 	return options
