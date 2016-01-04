@@ -969,12 +969,10 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println(headCmd) // FIXME: For debug.
 	bodyCmd, err := db.loadGenBody(tbl, vals, options)
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println(bodyCmd) // FIXME: For debug.
 	if err := db.send(headCmd); err != nil {
 		db.recv()
 		return 0, err
@@ -990,7 +988,6 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println(str) // FIXME: For debug.
 	cnt, err := strconv.Atoi(str)
 	if err != nil {
 		return 0, err
