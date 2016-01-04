@@ -18,6 +18,174 @@ import (
 )
 
 //
+// Error handling
+//
+
+// String() returns an error code with its name as a string.
+func (rc C.grn_rc) String() string {
+	switch rc {
+	case C.GRN_SUCCESS:
+		return fmt.Sprintf("GRN_SUCCESS (%d)", rc)
+	case C.GRN_END_OF_DATA:
+		return fmt.Sprintf("GRN_END_OF_DATA (%d)", rc)
+	case C.GRN_UNKNOWN_ERROR:
+		return fmt.Sprintf("GRN_UNKNOWN_ERROR (%d)", rc)
+	case C.GRN_OPERATION_NOT_PERMITTED:
+		return fmt.Sprintf("GRN_OPERATION_NOT_PERMITTED (%d)", rc)
+	case C.GRN_NO_SUCH_FILE_OR_DIRECTORY:
+		return fmt.Sprintf("GRN_NO_SUCH_FILE_OR_DIRECTORY (%d)", rc)
+	case C.GRN_NO_SUCH_PROCESS:
+		return fmt.Sprintf("GRN_NO_SUCH_PROCESS (%d)", rc)
+	case C.GRN_INTERRUPTED_FUNCTION_CALL:
+		return fmt.Sprintf("GRN_INTERRUPTED_FUNCTION_CALL (%d)", rc)
+	case C.GRN_INPUT_OUTPUT_ERROR:
+		return fmt.Sprintf("GRN_INPUT_OUTPUT_ERROR (%d)", rc)
+	case C.GRN_NO_SUCH_DEVICE_OR_ADDRESS:
+		return fmt.Sprintf("GRN_NO_SUCH_DEVICE_OR_ADDRESS (%d)", rc)
+	case C.GRN_ARG_LIST_TOO_LONG:
+		return fmt.Sprintf("GRN_ARG_LIST_TOO_LONG (%d)", rc)
+	case C.GRN_EXEC_FORMAT_ERROR:
+		return fmt.Sprintf("GRN_EXEC_FORMAT_ERROR (%d)", rc)
+	case C.GRN_BAD_FILE_DESCRIPTOR:
+		return fmt.Sprintf("GRN_BAD_FILE_DESCRIPTOR (%d)", rc)
+	case C.GRN_NO_CHILD_PROCESSES:
+		return fmt.Sprintf("GRN_NO_CHILD_PROCESSES (%d)", rc)
+	case C.GRN_RESOURCE_TEMPORARILY_UNAVAILABLE:
+		return fmt.Sprintf("GRN_RESOURCE_TEMPORARILY_UNAVAILABLE (%d)", rc)
+	case C.GRN_NOT_ENOUGH_SPACE:
+		return fmt.Sprintf("GRN_NOT_ENOUGH_SPACE (%d)", rc)
+	case C.GRN_PERMISSION_DENIED:
+		return fmt.Sprintf("GRN_PERMISSION_DENIED (%d)", rc)
+	case C.GRN_BAD_ADDRESS:
+		return fmt.Sprintf("GRN_BAD_ADDRESS (%d)", rc)
+	case C.GRN_RESOURCE_BUSY:
+		return fmt.Sprintf("GRN_RESOURCE_BUSY (%d)", rc)
+	case C.GRN_FILE_EXISTS:
+		return fmt.Sprintf("GRN_FILE_EXISTS (%d)", rc)
+	case C.GRN_IMPROPER_LINK:
+		return fmt.Sprintf("GRN_IMPROPER_LINK (%d)", rc)
+	case C.GRN_NO_SUCH_DEVICE:
+		return fmt.Sprintf("GRN_NO_SUCH_DEVICE (%d)", rc)
+	case C.GRN_NOT_A_DIRECTORY:
+		return fmt.Sprintf("GRN_NOT_A_DIRECTORY (%d)", rc)
+	case C.GRN_IS_A_DIRECTORY:
+		return fmt.Sprintf("GRN_IS_A_DIRECTORY (%d)", rc)
+	case C.GRN_INVALID_ARGUMENT:
+		return fmt.Sprintf("GRN_INVALID_ARGUMENT (%d)", rc)
+	case C.GRN_TOO_MANY_OPEN_FILES_IN_SYSTEM:
+		return fmt.Sprintf("GRN_TOO_MANY_OPEN_FILES_IN_SYSTEM (%d)", rc)
+	case C.GRN_TOO_MANY_OPEN_FILES:
+		return fmt.Sprintf("GRN_TOO_MANY_OPEN_FILES (%d)", rc)
+	case C.GRN_INAPPROPRIATE_I_O_CONTROL_OPERATION:
+		return fmt.Sprintf("GRN_INAPPROPRIATE_I_O_CONTROL_OPERATION (%d)", rc)
+	case C.GRN_FILE_TOO_LARGE:
+		return fmt.Sprintf("GRN_FILE_TOO_LARGE (%d)", rc)
+	case C.GRN_NO_SPACE_LEFT_ON_DEVICE:
+		return fmt.Sprintf("GRN_NO_SPACE_LEFT_ON_DEVICE (%d)", rc)
+	case C.GRN_INVALID_SEEK:
+		return fmt.Sprintf("GRN_INVALID_SEEK (%d)", rc)
+	case C.GRN_READ_ONLY_FILE_SYSTEM:
+		return fmt.Sprintf("GRN_READ_ONLY_FILE_SYSTEM (%d)", rc)
+	case C.GRN_TOO_MANY_LINKS:
+		return fmt.Sprintf("GRN_TOO_MANY_LINKS (%d)", rc)
+	case C.GRN_BROKEN_PIPE:
+		return fmt.Sprintf("GRN_BROKEN_PIPE (%d)", rc)
+	case C.GRN_DOMAIN_ERROR:
+		return fmt.Sprintf("GRN_DOMAIN_ERROR (%d)", rc)
+	case C.GRN_RESULT_TOO_LARGE:
+		return fmt.Sprintf("GRN_RESULT_TOO_LARGE (%d)", rc)
+	case C.GRN_RESOURCE_DEADLOCK_AVOIDED:
+		return fmt.Sprintf("GRN_RESOURCE_DEADLOCK_AVOIDED (%d)", rc)
+	case C.GRN_NO_MEMORY_AVAILABLE:
+		return fmt.Sprintf("GRN_NO_MEMORY_AVAILABLE (%d)", rc)
+	case C.GRN_FILENAME_TOO_LONG:
+		return fmt.Sprintf("GRN_FILENAME_TOO_LONG (%d)", rc)
+	case C.GRN_NO_LOCKS_AVAILABLE:
+		return fmt.Sprintf("GRN_NO_LOCKS_AVAILABLE (%d)", rc)
+	case C.GRN_FUNCTION_NOT_IMPLEMENTED:
+		return fmt.Sprintf("GRN_FUNCTION_NOT_IMPLEMENTED (%d)", rc)
+	case C.GRN_DIRECTORY_NOT_EMPTY:
+		return fmt.Sprintf("GRN_DIRECTORY_NOT_EMPTY (%d)", rc)
+	case C.GRN_ILLEGAL_BYTE_SEQUENCE:
+		return fmt.Sprintf("GRN_ILLEGAL_BYTE_SEQUENCE (%d)", rc)
+	case C.GRN_SOCKET_NOT_INITIALIZED:
+		return fmt.Sprintf("GRN_SOCKET_NOT_INITIALIZED (%d)", rc)
+	case C.GRN_OPERATION_WOULD_BLOCK:
+		return fmt.Sprintf("GRN_OPERATION_WOULD_BLOCK (%d)", rc)
+	case C.GRN_ADDRESS_IS_NOT_AVAILABLE:
+		return fmt.Sprintf("GRN_ADDRESS_IS_NOT_AVAILABLE (%d)", rc)
+	case C.GRN_NETWORK_IS_DOWN:
+		return fmt.Sprintf("GRN_NETWORK_IS_DOWN (%d)", rc)
+	case C.GRN_NO_BUFFER:
+		return fmt.Sprintf("GRN_NO_BUFFER (%d)", rc)
+	case C.GRN_SOCKET_IS_ALREADY_CONNECTED:
+		return fmt.Sprintf("GRN_SOCKET_IS_ALREADY_CONNECTED (%d)", rc)
+	case C.GRN_SOCKET_IS_NOT_CONNECTED:
+		return fmt.Sprintf("GRN_SOCKET_IS_NOT_CONNECTED (%d)", rc)
+	case C.GRN_SOCKET_IS_ALREADY_SHUTDOWNED:
+		return fmt.Sprintf("GRN_SOCKET_IS_ALREADY_SHUTDOWNED (%d)", rc)
+	case C.GRN_OPERATION_TIMEOUT:
+		return fmt.Sprintf("GRN_OPERATION_TIMEOUT (%d)", rc)
+	case C.GRN_CONNECTION_REFUSED:
+		return fmt.Sprintf("GRN_CONNECTION_REFUSED (%d)", rc)
+	case C.GRN_RANGE_ERROR:
+		return fmt.Sprintf("GRN_RANGE_ERROR (%d)", rc)
+	case C.GRN_TOKENIZER_ERROR:
+		return fmt.Sprintf("GRN_TOKENIZER_ERROR (%d)", rc)
+	case C.GRN_FILE_CORRUPT:
+		return fmt.Sprintf("GRN_FILE_CORRUPT (%d)", rc)
+	case C.GRN_INVALID_FORMAT:
+		return fmt.Sprintf("GRN_INVALID_FORMAT (%d)", rc)
+	case C.GRN_OBJECT_CORRUPT:
+		return fmt.Sprintf("GRN_OBJECT_CORRUPT (%d)", rc)
+	case C.GRN_TOO_MANY_SYMBOLIC_LINKS:
+		return fmt.Sprintf("GRN_TOO_MANY_SYMBOLIC_LINKS (%d)", rc)
+	case C.GRN_NOT_SOCKET:
+		return fmt.Sprintf("GRN_NOT_SOCKET (%d)", rc)
+	case C.GRN_OPERATION_NOT_SUPPORTED:
+		return fmt.Sprintf("GRN_OPERATION_NOT_SUPPORTED (%d)", rc)
+	case C.GRN_ADDRESS_IS_IN_USE:
+		return fmt.Sprintf("GRN_ADDRESS_IS_IN_USE (%d)", rc)
+	case C.GRN_ZLIB_ERROR:
+		return fmt.Sprintf("GRN_ZLIB_ERROR (%d)", rc)
+	case C.GRN_LZ4_ERROR:
+		return fmt.Sprintf("GRN_LZ4_ERROR (%d)", rc)
+	case C.GRN_STACK_OVER_FLOW:
+		return fmt.Sprintf("GRN_STACK_OVER_FLOW (%d)", rc)
+	case C.GRN_SYNTAX_ERROR:
+		return fmt.Sprintf("GRN_SYNTAX_ERROR (%d)", rc)
+	case C.GRN_RETRY_MAX:
+		return fmt.Sprintf("GRN_RETRY_MAX (%d)", rc)
+	case C.GRN_INCOMPATIBLE_FILE_FORMAT:
+		return fmt.Sprintf("GRN_INCOMPATIBLE_FILE_FORMAT (%d)", rc)
+	case C.GRN_UPDATE_NOT_ALLOWED:
+		return fmt.Sprintf("GRN_UPDATE_NOT_ALLOWED (%d)", rc)
+	case C.GRN_TOO_SMALL_OFFSET:
+		return fmt.Sprintf("GRN_TOO_SMALL_OFFSET (%d)", rc)
+	case C.GRN_TOO_LARGE_OFFSET:
+		return fmt.Sprintf("GRN_TOO_LARGE_OFFSET (%d)", rc)
+	case C.GRN_TOO_SMALL_LIMIT:
+		return fmt.Sprintf("GRN_TOO_SMALL_LIMIT (%d)", rc)
+	case C.GRN_CAS_ERROR:
+		return fmt.Sprintf("GRN_CAS_ERROR (%d)", rc)
+	case C.GRN_UNSUPPORTED_COMMAND_VERSION:
+		return fmt.Sprintf("GRN_UNSUPPORTED_COMMAND_VERSION (%d)", rc)
+	case C.GRN_NORMALIZER_ERROR:
+		return fmt.Sprintf("GRN_NORMALIZER_ERROR (%d)", rc)
+	case C.GRN_TOKEN_FILTER_ERROR:
+		return fmt.Sprintf("GRN_TOKEN_FILTER_ERROR (%d)", rc)
+	case C.GRN_COMMAND_ERROR:
+		return fmt.Sprintf("GRN_COMMAND_ERROR (%d)", rc)
+	case C.GRN_PLUGIN_ERROR:
+		return fmt.Sprintf("GRN_PLUGIN_ERROR (%d)", rc)
+	case C.GRN_SCORER_ERROR:
+		return fmt.Sprintf("GRN_SCORER_ERROR (%d)", rc)
+	default:
+		return fmt.Sprintf("GRN_UNDEFINED_ERROR (%d)", rc)
+	}
+}
+
+//
 // Library management
 //
 
@@ -33,7 +201,7 @@ func refLib() error {
 	}
 	if grnCnt == 0 {
 		if rc := C.grn_init(); rc != C.GRN_SUCCESS {
-			return fmt.Errorf("grn_init() failed: %d", rc)
+			return fmt.Errorf("grn_init() failed: %s", rc)
 		}
 	}
 	grnCnt++
@@ -49,7 +217,7 @@ func unrefLib() error {
 	grnCnt--
 	if grnCnt == 0 {
 		if rc := C.grn_fin(); rc != C.GRN_SUCCESS {
-			return fmt.Errorf("grn_fin() failed: %d", rc)
+			return fmt.Errorf("grn_fin() failed: %s", rc)
 		}
 	}
 	return nil
@@ -137,7 +305,7 @@ func Connect(host string, port int) (*DB, error) {
 	rc := C.grn_ctx_connect(db.ctx, cHost, C.int(port), C.int(0))
 	if rc != C.GRN_SUCCESS {
 		db.Close()
-		return nil, fmt.Errorf("grn_ctx_connect() failed: %d", rc)
+		return nil, fmt.Errorf("grn_ctx_connect() failed: %s", rc)
 	}
 	db.host = host
 	db.port = port
@@ -156,7 +324,7 @@ func (db *DB) Dup() (*DB, error) {
 	}
 	if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
 		dupDB.Close()
-		return nil, fmt.Errorf("grn_ctx_use() failed")
+		return nil, fmt.Errorf("grn_ctx_use() failed: %s", rc)
 	}
 	return dupDB, nil
 }
@@ -174,7 +342,7 @@ func (db *DB) Close() error {
 	db.ctx = nil
 	unrefLib()
 	if rc != C.GRN_SUCCESS {
-		return fmt.Errorf("grn_ctx_close() failed: %d", rc)
+		return fmt.Errorf("grn_ctx_close() failed: %s", rc)
 	}
 	return nil
 }
@@ -191,7 +359,7 @@ func (db *DB) send(cmd string) error {
 	cCmd := []byte(cmd)
 	if rc := C.grn_ctx_send(db.ctx, (*C.char)(unsafe.Pointer(&cCmd[0])),
 		C.uint(len(cCmd)), C.int(0)); rc != C.GRN_SUCCESS {
-		return fmt.Errorf("grn_ctx_send() failed: %d", rc)
+		return fmt.Errorf("grn_ctx_send() failed: %s", rc)
 	}
 	return nil
 }
@@ -222,7 +390,7 @@ func (db *DB) recv() (string, error) {
 	var resLen C.uint
 	var resFlags C.int
 	if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
-		return "", fmt.Errorf("grn_ctx_recv() failed: %d", rc)
+		return "", fmt.Errorf("grn_ctx_recv() failed: %s", rc)
 	}
 	if (resFlags & C.GRN_CTX_MORE) == 0 {
 		return C.GoStringN(res, C.int(resLen)), nil
@@ -231,7 +399,7 @@ func (db *DB) recv() (string, error) {
 	var bufErr error
 	for {
 		if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
-			return "", fmt.Errorf("grn_ctx_recv() failed: %d", rc)
+			return "", fmt.Errorf("grn_ctx_recv() failed: %s", rc)
 		}
 		if bufErr == nil {
 			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
