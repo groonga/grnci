@@ -24,6 +24,54 @@ Groonga コマンドに対する Go インタフェースのテストと評価�
 
 ローカル DB へのハンドルもしくはサーバへの接続を閉じます．
 
+### DB.TableCreate()
+
+`table_create` コマンドを実行します．
+
+```go
+type TableCreateOptions struct {
+	Flags            string
+	KeyType          string
+	ValueType        string
+	DefaultTokenizer string
+	Normalizer       string
+	TokenFilters     string
+}
+
+// NewTableCreateOptions() returns default options.
+func NewTableCreateOptions() *TableCreateOptions
+
+// TableCreate() executes `table_create`.
+func (db *DB) TableCreate(name string, options *TableCreateOptions) error
+```
+
+**TBW**
+
+### DB.ColumnCreate()
+
+`column_create` コマンドを実行します．
+
+```go
+type ColumnCreateOptions struct {
+	Flags string
+}
+
+// NewColumnCreateOptions() returns default options.
+func NewColumnCreateOptions() *ColumnCreateOptions
+
+// ColumnCreate() executes `column_create`.
+//
+// If `typ` starts with "[]", "COLUMN_VECTOR" is added to --flags.
+// Else if `typ` starts with "*", "COLUMN_INDEX" is added to --flags.
+// Otherwise, "COLUMN_SCALAR" is added to --flags.
+//
+// If `typ` contains '.', the former part is used as --type and the latter part
+// is used as --source.
+func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) error
+```
+
+**TBW**
+
 ### DB.Load()
 
 `load` コマンドを実行して，更新されたレコードの数を返します．
