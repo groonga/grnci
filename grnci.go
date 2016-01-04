@@ -191,13 +191,38 @@ func (rc C.grn_rc) String() string {
 
 // checkTableName() checks whether `name` is valid as a table name.
 func checkTableName(name string) error {
-	// TODO
+	if len(name) == 0 {
+		return fmt.Errorf("table name must not be empty")
+	}
+	if name[0] == '_' {
+		return fmt.Errorf("table name must not start with '_'")
+	}
+	for i := 0; i < len(name); i++ {
+		if !((name[i] >= 'a') && (name[i] <= 'z')) &&
+			!((name[i] >= 'A') && (name[i] <= 'Z')) &&
+			!((name[i] >= '0') && (name[i] <= '9')) &&
+			(name[i] != '#') && (name[i] != '@') &&
+			(name[i] != '-') && (name[i] != '_') {
+			return fmt.Errorf("table name must not contain U+%X", name[i])
+		}
+	}
 	return nil
 }
 
-// checkTableName() checks whether `name` is valid as a column name.
+// checkColumnName() checks whether `name` is valid as a column name.
 func checkColumnName(name string) error {
-	// TODO
+	if len(name) == 0 {
+		return fmt.Errorf("column name must not be empty")
+	}
+	for i := 0; i < len(name); i++ {
+		if !((name[i] >= 'a') && (name[i] <= 'z')) &&
+			!((name[i] >= 'A') && (name[i] <= 'Z')) &&
+			!((name[i] >= '0') && (name[i] <= '9')) &&
+			(name[i] != '#') && (name[i] != '@') &&
+			(name[i] != '-') && (name[i] != '_') {
+			return fmt.Errorf("column name must not contain U+%X", name[i])
+		}
+	}
 	return nil
 }
 
