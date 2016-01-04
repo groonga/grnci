@@ -80,22 +80,64 @@ func TestTableCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 
-	if err := db.TableCreate("A", nil); err != nil {
+	if err := db.TableCreate("a", nil); err != nil {
 		t.Fatalf("DB.TableCreate() failed: %v", err)
 	}
-	if err := db.TableCreate("A", nil); err == nil {
+	if err := db.TableCreate("a", nil); err == nil {
 		t.Fatalf("DB.TableCreate() succeeded")
 	}
 
 	options := NewTableCreateOptions()
 	options.KeyType = "ShortText"
 	options.Flags = "TABLE_PAT_KEY"
-	if err := db.TableCreate("B", options); err != nil {
+	if err := db.TableCreate("b", options); err != nil {
 		t.Fatalf("DB.TableCreate() failed: %v", err)
 	}
 
+	options = NewTableCreateOptions()
 	options.ValueType = "Int32"
-	if err := db.TableCreate("C", options); err != nil {
+	if err := db.TableCreate("c", options); err != nil {
 		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+
+	options = NewTableCreateOptions()
+	options.KeyType = "ShortText"
+	options.Flags = "TABLE_PAT_KEY"
+	options.Normalizer = "TokenBigram"
+	options.DefaultTokenizer = "NormalizerAuto"
+	if err := db.TableCreate("tbl2", options); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+}
+
+// TestColumnCreate() tests DB.ColumnCreate().
+func TestColumnCreate(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+	if err := db.TableCreate("tbl", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+	tblOptions := NewTableCreateOptions()
+	tblOptions.KeyType = "ShortText"
+	tblOptions.Normalizer = "TokenBigram"
+	tblOptions.DefaultTokenizer = "NormalizerAuto"
+	if err := db.TableCreate("tbl2", tblOptions); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+
+	if err := db.ColumnCreate("tbl", "a", "Text", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "b", "[]Int32", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+
+	colOptions := NewColumnCreateOptions()
+	colOptions.Flags = "WITH_SECTION|WITH_POSITION"
+	if err := db.ColumnCreate("tbl2", "a", "*tbl.a", colOptions); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl2", "b", "*tbl.b", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
 	}
 }
