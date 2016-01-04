@@ -186,6 +186,26 @@ func (rc C.grn_rc) String() string {
 }
 
 //
+// Utility
+//
+
+// splitCsv() splits a comma-separated values, trims each value and discards
+// empty values.
+func splitCsv(csv string) []string {
+	vals := strings.Split(csv, ",")
+	cnt := 0
+	for i := range vals {
+		val := strings.TrimSpace(vals[i])
+		if val == "" {
+			continue
+		}
+		vals[cnt] = val
+		cnt++
+	}
+	return vals[:cnt]
+}
+
+//
 // Library management
 //
 
@@ -932,7 +952,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	var listed map[string]bool
 	if len(options.Columns) != 0 {
 		listed = make(map[string]bool)
-		colNames := strings.Split(options.Columns, ",")
+		colNames := splitCsv(options.Columns)
 		for _, colName := range colNames {
 			listed[colName] = true
 		}
