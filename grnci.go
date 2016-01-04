@@ -421,20 +421,50 @@ func (db *DB) send(cmd string) error {
 	return nil
 }
 
+// checkCmdName() checks whether a string is valid as a command name.
+func checkCmdName(s string) error {
+	if len(s) == 0 {
+		return fmt.Errorf("command name must not be empty")
+	}
+	if s[0] == '_' {
+		return fmt.Errorf("command name must not start with '_'")
+	}
+	for i := 0; i < len(s); i++ {
+		if !((s[i] >= 'a') && (s[i] <= 'z')) && (s[i] != '_') {
+			return fmt.Errorf("command name must not contain '%X'", s[i])
+		}
+	}
+	return nil
+}
+
+// checkCmdArgKey() checks whether a string is valid as an argument key.
+func checkArgKey(s string) error {
+	if len(s) == 0 {
+		return fmt.Errorf("command name must not be empty")
+	}
+	if s[0] == '_' {
+		return fmt.Errorf("command name must not start with '_'")
+	}
+	for i := 0; i < len(s); i++ {
+		if !((s[i] >= 'a') && (s[i] <= 'z')) && (s[i] != '_') {
+			return fmt.Errorf("command name must not contain '%X'", s[i])
+		}
+	}
+	return nil
+}
+
 // sendEx() sends a command with separated arguments.
-//
-// FIXME: Check arguments.
 func (db *DB) sendEx(name string, args map[string]string) error {
-	if len(name) == 0 {
-		return fmt.Errorf("name is empty")
+	if err := checkCmdName(name); err != nil {
+		return err
 	}
 	buf := new(bytes.Buffer)
 	if _, err := buf.WriteString(name); err != nil {
 		return err
 	}
 	for key, val := range args {
-		if len(key) == 0 {
-			return fmt.Errorf("key is empty")
+		if err := checkArgKey(key); err != nil {
+			return err
 		}
 		val = strings.Replace(val, "\\", "\\\\", -1)
 		val = strings.Replace(val, "'", "\\'", -1)
