@@ -226,10 +226,10 @@ func checkColumnName(name string) error {
 	return nil
 }
 
-// splitCsv() splits a comma-separated values, trims each value and discards
-// empty values.
-func splitCsv(csv string) []string {
-	vals := strings.Split(csv, ",")
+// splitValues() splits a string separated by `sep` into values, trims each
+// value and discards empty values.
+func splitValues(s, sep string) []string {
+	vals := strings.Split(s, sep)
 	cnt := 0
 	for i := range vals {
 		val := strings.TrimSpace(vals[i])
@@ -629,6 +629,66 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	if options == nil {
 		options = NewTableCreateOptions()
 	}
+	optionsMap := make(map[string]string)
+	keyFlag := ""
+	if len(options.Flags) != 0 {
+		flags := splitValues(options.Flags, "|")
+		for _, flag := range flags {
+			switch flag {
+			case "TABLE_NO_KEY":
+				if len(keyFlag) != 0 {
+					return fmt.Errorf("TABLE_NO_KEY must not be set with %s", keyFlag)
+				}
+				if len(options.KeyType) != 0 {
+					return fmt.Errorf("TABLE_NO_KEY disallows KeyType")
+				}
+				keyFlag = flag
+			case "TABLE_HASH_KEY", "TABLE_PAT_KEY", "TABLE_DAT_KEY":
+				if len(keyFlag) != 0 {
+					return fmt.Errorf("%s must not be set with %s", flag, keyFlag)
+				}
+				if len(options.KeyType) == 0 {
+					return fmt.Errorf("%s requires KeyType", flag)
+				}
+				keyFlag = flag
+			}
+		}
+		optionsMap["flags"] = options.Flags
+	}
+	if len(keyFlag) == 0 {
+		if len(options.KeyType) == 0 {
+			keyFlag = "TABLE_NO_KEY"
+		} else {
+			keyFlag = "TABLE_HASH_KEY"
+		}
+		if len(optionsMap["flags"]) == 0 {
+			optionsMap["flags"] = keyFlag
+		} else {
+			optionsMap["flags"] += "|" + keyFlag
+		}
+	}
+	if len(options.KeyType) != 0 {
+		optionsMap["key_type"] = options.KeyType
+	}
+	if len(options.ValueType) != 0 {
+		optionsMap["value_type"] = options.ValueType
+	}
+	if len(options.DefaultTokenizer) != 0 {
+		optionsMap["default_tokenizer"] = options.DefaultTokenizer
+	}
+	if len(options.Normalizer) != 0 {
+		optionsMap["normalizer"] = options.Normalizer
+	}
+	if len(options.TokenFilters) != 0 {
+		optionsMap["token_filters"] = options.TokenFilters
+	}
+	str, err := db.queryEx("table_create", optionsMap)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("table_create failed")
+	}
 	return nil
 }
 
@@ -1016,7 +1076,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	var listed map[string]bool
 	if len(options.Columns) != 0 {
 		listed = make(map[string]bool)
-		colNames := splitCsv(options.Columns)
+		colNames := splitValues(options.Columns, ",")
 		for _, colName := range colNames {
 			listed[colName] = true
 		}
