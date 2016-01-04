@@ -547,12 +547,12 @@ type Geo struct {
 	Long int32
 }
 
-var BoolType = reflect.TypeOf(Bool(false))
-var IntType = reflect.TypeOf(Int(0))
-var FloatType = reflect.TypeOf(Float(0.0))
-var TimeType = reflect.TypeOf(Time(0))
-var TextType = reflect.TypeOf(Text(""))
-var GeoType = reflect.TypeOf(Geo{0, 0})
+var boolType = reflect.TypeOf(Bool(false))
+var intType = reflect.TypeOf(Int(0))
+var floatType = reflect.TypeOf(Float(0.0))
+var timeType = reflect.TypeOf(Time(0))
+var textType = reflect.TypeOf(Text(""))
+var geoType = reflect.TypeOf(Geo{0, 0})
 
 // writeTo() writes `val` to `buf`.
 func (val *Bool) writeTo(buf *bytes.Buffer) error {
@@ -1129,7 +1129,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		colName := field.Name
 		tagValue := field.Tag.Get(tagKey)
 		switch fieldType {
-		case BoolType, IntType, FloatType, TimeType, TextType, GeoType:
+		case boolType, intType, floatType, timeType, textType, geoType:
 			if len(tagValue) != 0 {
 				colName = tagValue
 			}
