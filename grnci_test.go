@@ -74,3 +74,13 @@ func TestDup(t *testing.T) {
 		t.Fatalf("DB.Close() failed: %v", err)
 	}
 }
+
+// TestTableCreate() tests DB.TableCreate().
+func TestTableCreate(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+
+	if err := db.TableCreate("A", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+}
