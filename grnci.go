@@ -422,6 +422,8 @@ func (db *DB) send(cmd string) error {
 }
 
 // sendEx() sends a command with separated arguments.
+//
+// FIXME: Check arguments.
 func (db *DB) sendEx(name string, args map[string]string) error {
 	if len(name) == 0 {
 		return fmt.Errorf("name is empty")
