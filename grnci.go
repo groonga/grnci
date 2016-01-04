@@ -560,6 +560,18 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 }
 
 //
+// `column_create`
+//
+
+type ColumnCreateOptions struct {
+	Source string
+}
+
+func (db *DB) ColumnCreate(tbl, name, flags string, options *ColumnCreateOptions) error {
+	return nil
+}
+
+//
 // `load`
 //
 
