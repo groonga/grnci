@@ -879,6 +879,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	colNames := make([]string, 0, valType.NumField())
 	for i := 0; i < valType.NumField(); i++ {
 		field := valType.Field(i)
+		if len(field.PkgPath) != 0 {
+			continue
+		}
 		fieldType := field.Type
 		switch fieldType.Kind() {
 		case reflect.Ptr:
