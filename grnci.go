@@ -453,9 +453,10 @@ func (db *DB) send(cmd string) error {
 	if len(cmd) == 0 {
 		return fmt.Errorf("cmd is empty")
 	}
-	cCmd := []byte(cmd)
-	if rc := C.grn_ctx_send(db.ctx, (*C.char)(unsafe.Pointer(&cCmd[0])),
-		C.uint(len(cCmd)), C.int(0)); rc != C.GRN_SUCCESS {
+	cCmd := C.CString(cmd)
+	defer C.free(unsafe.Pointer(cCmd))
+	rc := C.grn_ctx_send(db.ctx, cCmd, C.uint(len(cmd)), C.int(0))
+	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
 		return db.errorf("grn_ctx_send() failed: %s", rc)
 	}
 	return nil
