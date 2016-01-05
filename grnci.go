@@ -381,6 +381,9 @@ func Connect(host string, port int) (*DB, error) {
 // Dup() duplicates a handle or a connection.
 // The handle must be closed by DB.Close().
 func (db *DB) Dup() (*DB, error) {
+	if err := db.check(); err != nil {
+		return nil, err
+	}
 	if db.obj == nil {
 		return Connect(db.host, db.port)
 	}
@@ -397,8 +400,8 @@ func (db *DB) Dup() (*DB, error) {
 
 // Close() closes a handle or a connection.
 func (db *DB) Close() error {
-	if db.ctx == nil {
-		return fmt.Errorf("ctx is nil")
+	if err := db.check(); err != nil {
+		return err
 	}
 	if db.obj != nil {
 		C.grn_obj_unlink(db.ctx, db.obj)
