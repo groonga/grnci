@@ -305,6 +305,17 @@ func newDB() (*DB, error) {
 	return &db, nil
 }
 
+// check() returns an error if `db` is invalid.
+func (db *DB) check() error {
+	if db.ctx == nil {
+		return fmt.Errorf("ctx is nil")
+	}
+	if (db.obj == nil) && (len(db.host) == 0) {
+		return fmt.Errorf("neither a handle nor a connection")
+	}
+	return nil
+}
+
 // Create() creates a database and returns a handle to it.
 // The handle must be closed by DB.Close().
 func Create(path string) (*DB, error) {
