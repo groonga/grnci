@@ -284,10 +284,10 @@ func unrefLib() error {
 
 // DB is a handle to a database or a connection to a server.
 type DB struct {
-	ctx  *C.grn_ctx
-	obj  *C.grn_obj
-	host string
-	port int
+	ctx  *C.grn_ctx // Context.
+	obj  *C.grn_obj // Database object (handle).
+	host string     // Server host name (connection).
+	port int        // Server port number (connection).
 }
 
 // newDB() creates an instance of DB.
@@ -543,8 +543,8 @@ type Text string
 
 // Geo represents TokyoGeoPoint and WGS84GeoPoint.
 type Geo struct {
-	Lat  int32
-	Long int32
+	Lat  int32 // Latitude in milliseconds.
+	Long int32 // Longitude in milliseconds.
 }
 
 var boolType = reflect.TypeOf(Bool(false))
