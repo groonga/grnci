@@ -141,3 +141,95 @@ func TestColumnCreate(t *testing.T) {
 		t.Fatalf("DB.ColumnCreate() failed: %v", err)
 	}
 }
+
+// TestLoad() tests DB.Load().
+func TestLoad(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+	options := NewTableCreateOptions()
+	options.KeyType = "ShortText"
+	if err := db.TableCreate("tbl", options); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "bool", "Bool", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "int", "Int32", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "float", "Float", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "time", "Time", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "text", "Text", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "geo", "WGS84GeoPoint", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "vbool", "[]Bool", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "vint", "[]Int32", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "vfloat", "[]Float", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "vtime", "[]Time", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "vtext", "[]Text", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "vgeo", "[]WGS84GeoPoint", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+
+	type tblRec struct {
+		Key    Text    `groonga:"_key"`
+		Bool   Bool    `groonga:"bool"`
+		Int    Int     `groonga:"int"`
+		Float  Float   `groonga:"float"`
+		Time   Time    `groonga:"time"`
+		Text   Text    `groonga:"text"`
+		Geo    Geo     `groonga:"geo"`
+		VBool  []Bool  `groonga:"vbool"`
+		VInt   []Int   `groonga:"vint"`
+		VFloat []Float `groonga:"vfloat"`
+		VTime  []Time  `groonga:"vtime"`
+		VText  []Text  `groonga:"vtext"`
+		VGeo   []Geo   `groonga:"vgeo"`
+	}
+	recs := []tblRec{
+		{Key: "Apple", Bool: false, Int: 123, Float: 1.23,
+			Time: Now(), Text: "Hello, world!", Geo: Geo{123, 456}},
+		{Key: "Banana", Bool: true, Int: 456, Float: 4.56,
+			Time: Now(), Text: "Foo, var!", Geo: Geo{456, 789},
+			VBool: []Bool{false, true}, VInt: []Int{100, 200},
+			VFloat: []Float{-1.25, 1.25}, VTime: []Time{Now(), Now() + 1000000},
+			VText: []Text{"one", "two"}, VGeo: []Geo{{100, 200}, {300, 400}}}}
+
+	cnt, err := db.Load("tbl", recs[0], nil)
+	if err != nil {
+		t.Fatalf("DB.Load() failed: %v", err)
+	} else if cnt != 1 {
+		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+	}
+
+	cnt, err = db.Load("tbl", &recs[0], nil)
+	if err != nil {
+		t.Fatalf("DB.Load() failed: %v", err)
+	} else if cnt != 1 {
+		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+	}
+
+	cnt, err = db.Load("tbl", recs, nil)
+	if err != nil {
+		t.Fatalf("DB.Load() failed: %v", err)
+	} else if cnt != 2 {
+		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+	}
+}
