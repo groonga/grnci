@@ -925,7 +925,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 // loadGenHead() generates a head of `load`.
 func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
-	if _, err := fmt.Fprintf(buf, "load --table %s", tbl); err != nil {
+	if _, err := fmt.Fprintf(buf, "load --table '%s'", tbl); err != nil {
 		return "", err
 	}
 	if len(options.IfExists) != 0 {
