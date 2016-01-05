@@ -872,6 +872,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		listed = make(map[string]bool)
 		colNames := splitValues(options.Columns, ",")
 		for _, colName := range colNames {
+			if err := checkColumnName(colName); err != nil {
+				return err
+			}
 			listed[colName] = true
 		}
 	}
@@ -904,6 +907,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 				return fmt.Errorf("unsupported data type")
 			}
 			continue
+		}
+		if err := checkColumnName(colName); err != nil {
+			return err
 		}
 		if (listed != nil) && !listed[colName] {
 			continue
