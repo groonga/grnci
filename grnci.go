@@ -830,7 +830,7 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 		return err
 	}
 	if str != "true" {
-		return fmt.Errorf("table_create failed")
+		return fmt.Errorf("column_create failed")
 	}
 	return nil
 }
