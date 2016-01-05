@@ -395,6 +395,7 @@ func (db *DB) Dup() (*DB, error) {
 		dupDB.Close()
 		return nil, fmt.Errorf("grn_ctx_use() failed: %s", rc)
 	}
+	dupDB.obj = db.obj
 	return dupDB, nil
 }
 
