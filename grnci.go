@@ -256,7 +256,7 @@ func refLib() error {
 	}
 	if grnCnt == 0 {
 		if rc := C.grn_init(); rc != C.GRN_SUCCESS {
-			return fmt.Errorf("grn_init() failed: %s", rc)
+			return fmt.Errorf("grn_init() failed: rc = %s", rc)
 		}
 	}
 	grnCnt++
@@ -272,7 +272,7 @@ func unrefLib() error {
 	grnCnt--
 	if grnCnt == 0 {
 		if rc := C.grn_fin(); rc != C.GRN_SUCCESS {
-			return fmt.Errorf("grn_fin() failed: %s", rc)
+			return fmt.Errorf("grn_fin() failed: rc = %s", rc)
 		}
 	}
 	return nil
@@ -324,7 +324,7 @@ func (db *DB) fin() error {
 	db.ctx = nil
 	unrefLib()
 	if rc != C.GRN_SUCCESS {
-		return fmt.Errorf("grn_ctx_close() failed: %s", rc)
+		return fmt.Errorf("grn_ctx_close() failed: rc = %s", rc)
 	}
 	return nil
 }
@@ -408,7 +408,7 @@ func Connect(host string, port int) (*DB, error) {
 	rc := C.grn_ctx_connect(db.ctx, cHost, C.int(port), C.int(0))
 	if rc != C.GRN_SUCCESS {
 		db.fin()
-		return nil, fmt.Errorf("grn_ctx_connect() failed: %s", rc)
+		return nil, fmt.Errorf("grn_ctx_connect() failed: rc = %s", rc)
 	}
 	db.host = host
 	db.port = port
@@ -430,7 +430,7 @@ func (db *DB) Dup() (*DB, error) {
 	}
 	if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
 		dupDB.fin()
-		return nil, db.errorf("grn_ctx_use() failed: %s", rc)
+		return nil, db.errorf("grn_ctx_use() failed: rc = %s", rc)
 	}
 	dupDB.obj = db.obj
 	return dupDB, nil
@@ -457,7 +457,7 @@ func (db *DB) send(cmd string) error {
 	defer C.free(unsafe.Pointer(cCmd))
 	rc := C.grn_rc(C.grn_ctx_send(db.ctx, cCmd, C.uint(len(cmd)), C.int(0)))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return db.errorf("grn_ctx_send() failed: %s", rc)
+		return db.errorf("grn_ctx_send() failed: rc = %s", rc)
 	}
 	return nil
 }
@@ -521,7 +521,7 @@ func (db *DB) recv() (string, error) {
 	var resFlags C.int
 	rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return "", db.errorf("grn_ctx_recv() failed: %s", rc)
+		return "", db.errorf("grn_ctx_recv() failed: rc = %s", rc)
 	}
 	if (resFlags & C.GRN_CTX_MORE) == 0 {
 		return C.GoStringN(res, C.int(resLen)), nil
@@ -531,7 +531,7 @@ func (db *DB) recv() (string, error) {
 	for {
 		rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 		if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-			return "", db.errorf("grn_ctx_recv() failed: %s", rc)
+			return "", db.errorf("grn_ctx_recv() failed: rc = %s", rc)
 		}
 		if bufErr == nil {
 			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
