@@ -455,7 +455,7 @@ func (db *DB) send(cmd string) error {
 	}
 	cCmd := C.CString(cmd)
 	defer C.free(unsafe.Pointer(cCmd))
-	rc := C.grn_ctx_send(db.ctx, cCmd, C.uint(len(cmd)), C.int(0))
+	rc := C.grn_rc(C.grn_ctx_send(db.ctx, cCmd, C.uint(len(cmd)), C.int(0)))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
 		return db.errorf("grn_ctx_send() failed: %s", rc)
 	}
@@ -519,7 +519,7 @@ func (db *DB) recv() (string, error) {
 	var res *C.char
 	var resLen C.uint
 	var resFlags C.int
-	rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags)
+	rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
 		return "", db.errorf("grn_ctx_recv() failed: %s", rc)
 	}
@@ -529,7 +529,7 @@ func (db *DB) recv() (string, error) {
 	buf := bytes.NewBuffer(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
 	var bufErr error
 	for {
-		rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags)
+		rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 		if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
 			return "", db.errorf("grn_ctx_recv() failed: %s", rc)
 		}
