@@ -668,6 +668,9 @@ func NewTableCreateOptions() *TableCreateOptions {
 
 // TableCreate() executes `table_create`.
 func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
 	if err := checkTableName(name); err != nil {
 		return err
 	}
@@ -762,6 +765,9 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 // If `typ` contains '.', the former part is used as --type and the latter part
 // is used as --source.
 func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
 	if err := checkTableName(tbl); err != nil {
 		return err
 	}
@@ -1212,6 +1218,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 
 // Load() executes `load`.
 func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, error) {
+	if err := db.check(); err != nil {
+		return 0, err
+	}
 	if err := checkTableName(tbl); err != nil {
 		return 0, err
 	}
