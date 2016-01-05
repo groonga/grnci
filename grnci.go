@@ -329,6 +329,15 @@ func (db *DB) fin() error {
 	return nil
 }
 
+// Errorf() creates an error.
+func (db *DB) errorf(format string, args ...interface{}) error {
+	if (db == nil) || (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
+		return fmt.Errorf(format, args)
+	}
+	return fmt.Errorf(format + ": ctx.rc = %s, ctx.errbuf = %s",
+		args, db.ctx.rc, C.GoString(&db.ctx.errbuf[0]))
+}
+
 // check() returns an error if `db` is invalid.
 func (db *DB) check() error {
 	if db == nil {
