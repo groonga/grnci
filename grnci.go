@@ -307,6 +307,9 @@ func newDB() (*DB, error) {
 
 // check() returns an error if `db` is invalid.
 func (db *DB) check() error {
+	if db == nil {
+		return fmt.Errorf("db is nil")
+	}
 	if db.ctx == nil {
 		return fmt.Errorf("ctx is nil")
 	}
