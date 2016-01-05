@@ -519,7 +519,8 @@ func (db *DB) recv() (string, error) {
 	var res *C.char
 	var resLen C.uint
 	var resFlags C.int
-	if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
+	rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags)
+	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
 		return "", db.errorf("grn_ctx_recv() failed: %s", rc)
 	}
 	if (resFlags & C.GRN_CTX_MORE) == 0 {
@@ -528,7 +529,8 @@ func (db *DB) recv() (string, error) {
 	buf := bytes.NewBuffer(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
 	var bufErr error
 	for {
-		if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
+		rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags)
+		if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
 			return "", db.errorf("grn_ctx_recv() failed: %s", rc)
 		}
 		if bufErr == nil {
