@@ -839,6 +839,80 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 // `load`
 //
 
+// LoadOptions is a set of options for `load`.
+type LoadOptions struct {
+	Columns  string // --columns
+	IfExists string // --ifexists
+
+	fieldIds []int    // Target field IDs.
+	colNames []string // Target column names.
+}
+
+// NewLoadOptions() returns default options.
+func NewLoadOptions() *LoadOptions {
+	options := new(LoadOptions)
+	return options
+}
+
+// loadScanFields() scans the struct of `vals` and fill `options.fieldIds` and
+// `options.colNames`.
+func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
+	valType := reflect.TypeOf(vals)
+	switch valType.Kind() {
+	case reflect.Ptr:
+		valType = valType.Elem()
+	case reflect.Slice:
+		valType = valType.Elem()
+	}
+	if valType.Kind() != reflect.Struct {
+		return fmt.Errorf("unsupported value type")
+	}
+	var listed map[string]bool
+	if len(options.Columns) != 0 {
+		listed = make(map[string]bool)
+		colNames := splitValues(options.Columns, ",")
+		for _, colName := range colNames {
+			listed[colName] = true
+		}
+	}
+	fieldIds := make([]int, 0, valType.NumField())
+	colNames := make([]string, 0, valType.NumField())
+	for i := 0; i < valType.NumField(); i++ {
+		field := valType.Field(i)
+		fieldType := field.Type
+		switch fieldType.Kind() {
+		case reflect.Ptr:
+			fieldType = fieldType.Elem()
+		case reflect.Slice:
+			fieldType = fieldType.Elem()
+			if fieldType.Kind() == reflect.Ptr {
+				fieldType = fieldType.Elem()
+			}
+		}
+		colName := field.Name
+		tagValue := field.Tag.Get(tagKey)
+		switch fieldType {
+		case boolType, intType, floatType, timeType, textType, geoType:
+			if len(tagValue) != 0 {
+				colName = tagValue
+			}
+		default:
+			if len(tagValue) != 0 {
+				return fmt.Errorf("unsupported data type")
+			}
+			continue
+		}
+		if (listed != nil) && !listed[colName] {
+			continue
+		}
+		fieldIds = append(fieldIds, i)
+		colNames = append(colNames, colName)
+	}
+	options.fieldIds = fieldIds
+	options.colNames = colNames
+	return nil
+}
+
 // loadGenHead() generates a head of `load`.
 func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
@@ -1158,79 +1232,6 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 		return "", err
 	}
 	return buf.String(), nil
-}
-
-// LoadOptions is a set of options for `load`.
-type LoadOptions struct {
-	Columns  string // --columns
-	IfExists string // --ifexists
-
-	fieldIds []int    // Target field IDs.
-	colNames []string // Target column names.
-}
-
-// NewLoadOptions() returns default options.
-func NewLoadOptions() *LoadOptions {
-	options := new(LoadOptions)
-	return options
-}
-
-// loadScanFields() scans fields.
-func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
-	valType := reflect.TypeOf(vals)
-	switch valType.Kind() {
-	case reflect.Ptr:
-		valType = valType.Elem()
-	case reflect.Slice:
-		valType = valType.Elem()
-	}
-	if valType.Kind() != reflect.Struct {
-		return fmt.Errorf("unsupported value type")
-	}
-	var listed map[string]bool
-	if len(options.Columns) != 0 {
-		listed = make(map[string]bool)
-		colNames := splitValues(options.Columns, ",")
-		for _, colName := range colNames {
-			listed[colName] = true
-		}
-	}
-	fieldIds := make([]int, 0, valType.NumField())
-	colNames := make([]string, 0, valType.NumField())
-	for i := 0; i < valType.NumField(); i++ {
-		field := valType.Field(i)
-		fieldType := field.Type
-		switch fieldType.Kind() {
-		case reflect.Ptr:
-			fieldType = fieldType.Elem()
-		case reflect.Slice:
-			fieldType = fieldType.Elem()
-			if fieldType.Kind() == reflect.Ptr {
-				fieldType = fieldType.Elem()
-			}
-		}
-		colName := field.Name
-		tagValue := field.Tag.Get(tagKey)
-		switch fieldType {
-		case boolType, intType, floatType, timeType, textType, geoType:
-			if len(tagValue) != 0 {
-				colName = tagValue
-			}
-		default:
-			if len(tagValue) != 0 {
-				return fmt.Errorf("unsupported data type")
-			}
-			continue
-		}
-		if (listed != nil) && !listed[colName] {
-			continue
-		}
-		fieldIds = append(fieldIds, i)
-		colNames = append(colNames, colName)
-	}
-	options.fieldIds = fieldIds
-	options.colNames = colNames
-	return nil
 }
 
 // Load() executes `load`.
