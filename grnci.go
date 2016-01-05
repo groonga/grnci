@@ -291,7 +291,7 @@ type DB struct {
 }
 
 // newDB() creates an instance of DB.
-// The instance must be closed by DB.Close().
+// The instance must be finalized by DB.fin().
 func newDB() (*DB, error) {
 	if err := refLib(); err != nil {
 		return nil, err
@@ -303,6 +303,30 @@ func newDB() (*DB, error) {
 		return nil, fmt.Errorf("grn_ctx_open() failed")
 	}
 	return &db, nil
+}
+
+// fin() finalizes an instance of DB.
+func (db *DB) fin() error {
+	if db == nil {
+		return fmt.Errorf("db is nil")
+	}
+	if db.ctx == nil {
+		return nil
+	}
+	if db.obj != nil {
+		C.grn_obj_unlink(db.ctx, db.obj)
+		db.obj = nil
+	} else {
+		db.host = ""
+		db.port = 0
+	}
+	rc := C.grn_ctx_close(db.ctx)
+	db.ctx = nil
+	unrefLib()
+	if rc != C.GRN_SUCCESS {
+		return fmt.Errorf("grn_ctx_close() failed: %s", rc)
+	}
+	return nil
 }
 
 // check() returns an error if `db` is invalid.
@@ -333,7 +357,7 @@ func Create(path string) (*DB, error) {
 	defer C.free(unsafe.Pointer(cPath))
 	db.obj = C.grn_db_create(db.ctx, cPath, nil)
 	if db.obj == nil {
-		db.Close()
+		db.fin()
 		return nil, fmt.Errorf("grn_db_create() failed")
 	}
 	return db, nil
@@ -353,7 +377,7 @@ func Open(path string) (*DB, error) {
 	defer C.free(unsafe.Pointer(cPath))
 	db.obj = C.grn_db_open(db.ctx, cPath)
 	if db.obj == nil {
-		db.Close()
+		db.fin()
 		return nil, fmt.Errorf("grn_db_open() failed")
 	}
 	return db, nil
@@ -373,7 +397,7 @@ func Connect(host string, port int) (*DB, error) {
 	defer C.free(unsafe.Pointer(cHost))
 	rc := C.grn_ctx_connect(db.ctx, cHost, C.int(port), C.int(0))
 	if rc != C.GRN_SUCCESS {
-		db.Close()
+		db.fin()
 		return nil, fmt.Errorf("grn_ctx_connect() failed: %s", rc)
 	}
 	db.host = host
@@ -395,7 +419,7 @@ func (db *DB) Dup() (*DB, error) {
 		return nil, err
 	}
 	if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
-		dupDB.Close()
+		dupDB.fin()
 		return nil, fmt.Errorf("grn_ctx_use() failed: %s", rc)
 	}
 	dupDB.obj = db.obj
@@ -407,17 +431,7 @@ func (db *DB) Close() error {
 	if err := db.check(); err != nil {
 		return err
 	}
-	if db.obj != nil {
-		C.grn_obj_unlink(db.ctx, db.obj)
-		db.obj = nil
-	}
-	rc := C.grn_ctx_close(db.ctx)
-	db.ctx = nil
-	unrefLib()
-	if rc != C.GRN_SUCCESS {
-		return fmt.Errorf("grn_ctx_close() failed: %s", rc)
-	}
-	return nil
+	return db.fin()
 }
 
 //
