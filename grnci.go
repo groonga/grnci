@@ -331,11 +331,12 @@ func (db *DB) fin() error {
 
 // Errorf() creates an error.
 func (db *DB) errorf(format string, args ...interface{}) error {
+	msg := fmt.Sprintf(format, args...)
 	if (db == nil) || (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
-		return fmt.Errorf(format, args)
+		return fmt.Errorf(format, args...)
 	}
-	return fmt.Errorf(format + ": ctx.rc = %s, ctx.errbuf = %s",
-		args, db.ctx.rc, C.GoString(&db.ctx.errbuf[0]))
+	ctxMsg := C.GoString(&db.ctx.errbuf[0])
+	return fmt.Errorf("%s: ctx.rc = %s, ctx.errbuf = %s", msg, db.ctx.rc, ctxMsg)
 }
 
 // check() returns an error if `db` is invalid.
