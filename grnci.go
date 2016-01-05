@@ -429,7 +429,7 @@ func (db *DB) Dup() (*DB, error) {
 	}
 	if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
 		dupDB.fin()
-		return nil, fmt.Errorf("grn_ctx_use() failed: %s", rc)
+		return nil, db.errorf("grn_ctx_use() failed: %s", rc)
 	}
 	dupDB.obj = db.obj
 	return dupDB, nil
@@ -455,7 +455,7 @@ func (db *DB) send(cmd string) error {
 	cCmd := []byte(cmd)
 	if rc := C.grn_ctx_send(db.ctx, (*C.char)(unsafe.Pointer(&cCmd[0])),
 		C.uint(len(cCmd)), C.int(0)); rc != C.GRN_SUCCESS {
-		return fmt.Errorf("grn_ctx_send() failed: %s", rc)
+		return db.errorf("grn_ctx_send() failed: %s", rc)
 	}
 	return nil
 }
@@ -518,7 +518,7 @@ func (db *DB) recv() (string, error) {
 	var resLen C.uint
 	var resFlags C.int
 	if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
-		return "", fmt.Errorf("grn_ctx_recv() failed: %s", rc)
+		return "", db.errorf("grn_ctx_recv() failed: %s", rc)
 	}
 	if (resFlags & C.GRN_CTX_MORE) == 0 {
 		return C.GoStringN(res, C.int(resLen)), nil
@@ -527,7 +527,7 @@ func (db *DB) recv() (string, error) {
 	var bufErr error
 	for {
 		if rc := C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags); rc != C.GRN_SUCCESS {
-			return "", fmt.Errorf("grn_ctx_recv() failed: %s", rc)
+			return "", db.errorf("grn_ctx_recv() failed: %s", rc)
 		}
 		if bufErr == nil {
 			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
@@ -839,7 +839,7 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 		return err
 	}
 	if str != "true" {
-		return fmt.Errorf("column_create failed")
+		return db.errorf("column_create failed")
 	}
 	return nil
 }
