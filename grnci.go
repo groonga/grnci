@@ -1242,6 +1242,9 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if err := checkTableName(tbl); err != nil {
 		return 0, err
 	}
+	if vals == nil {
+		return 0, fmt.Errorf("vals is nil")
+	}
 	if options == nil {
 		options = NewLoadOptions()
 	}
