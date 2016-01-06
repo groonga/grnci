@@ -447,12 +447,18 @@ func (db *DB) Close() error {
 // Host() returns the server host name if db is a connection.
 // Otherwise, it returns "".
 func (db *DB) Host() string {
+	if db == nil {
+		return ""
+	}
 	return db.host
 }
 
 // Port() returns the server port number if db is a connection.
 // Otherwise, it returns 0.
 func (db *DB) Port() int {
+	if db == nil {
+		return 0
+	}
 	return db.port
 }
 
