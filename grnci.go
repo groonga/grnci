@@ -339,6 +339,34 @@ func (db *DB) errorf(format string, args ...interface{}) error {
 	return fmt.Errorf("%s: ctx.rc = %s, ctx.errbuf = %s", msg, db.ctx.rc, ctxMsg)
 }
 
+// IsHandle() returns whether db is a handle.
+func (db *DB) IsHandle() bool {
+	return (db != nil) && (db.obj != nil)
+}
+
+// IsConnection() returns whether db is a connection.
+func (db *DB) IsConnection() bool {
+	return (db != nil) && (len(db.host) != 0)
+}
+
+// Host() returns the server host name if db is a connection.
+// Otherwise, it returns "".
+func (db *DB) Host() string {
+	if db == nil {
+		return ""
+	}
+	return db.host
+}
+
+// Port() returns the server port number if db is a connection.
+// Otherwise, it returns 0.
+func (db *DB) Port() int {
+	if db == nil {
+		return 0
+	}
+	return db.port
+}
+
 // check() returns an error if db is invalid.
 func (db *DB) check() error {
 	if db == nil {
@@ -442,24 +470,6 @@ func (db *DB) Close() error {
 		return err
 	}
 	return db.fin()
-}
-
-// Host() returns the server host name if db is a connection.
-// Otherwise, it returns "".
-func (db *DB) Host() string {
-	if db == nil {
-		return ""
-	}
-	return db.host
-}
-
-// Port() returns the server port number if db is a connection.
-// Otherwise, it returns 0.
-func (db *DB) Port() int {
-	if db == nil {
-		return 0
-	}
-	return db.port
 }
 
 //
