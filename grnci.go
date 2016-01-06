@@ -444,6 +444,18 @@ func (db *DB) Close() error {
 	return db.fin()
 }
 
+// Host() returns the server host name if db is a connection.
+// Otherwise, it returns "".
+func (db *DB) Host() string {
+	return db.host
+}
+
+// Port() returns the server port number if db is a connection.
+// Otherwise, it returns 0.
+func (db *DB) Port() int {
+	return db.port
+}
+
 //
 // Low-level command interface
 //
