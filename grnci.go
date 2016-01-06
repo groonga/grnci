@@ -466,7 +466,7 @@ func Connect(host string, port int) (*DB, error) {
 }
 
 // Dup() duplicates a handle or a connection.
-// The handle must be closed by DB.Close().
+// The handle or connection must be closed by DB.Close().
 func (db *DB) Dup() (*DB, error) {
 	if err := db.check(); err != nil {
 		return nil, err
