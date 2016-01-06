@@ -1337,7 +1337,22 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 
 // Load() executes `load`.
 //
-// TODO: vals
+// vals accepts a struct, a pointer to struct and a slice of struct.
+// A struct and a pointer to struct are available to load one record.
+// A slice of struct is useful to load more than one records.
+//
+// Exported fields of the struct are handled as column values.
+// Bool, Int, Float, Time, Text and Geo are available to represent scalar
+// values.
+// Note that pointers are available to represent null and slices are available
+// to represent vector values.
+//
+// The field name is used as the column name by default, but if the field has
+// "groonga" tag, the tag value is used as the column name.
+//
+// Load() uses all the acceptable fields.
+// If you want to use a subset of the struct, specify --columns with
+// options.Columns.
 //
 // If options is nil, Load() uses the default options.
 //
