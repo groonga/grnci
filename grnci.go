@@ -286,6 +286,7 @@ func unrefLib() error {
 type DB struct {
 	ctx  *C.grn_ctx // Context.
 	obj  *C.grn_obj // Database object (handle).
+	path string     // Database path (handle).
 	host string     // Server host name (connection).
 	port int        // Server port number (connection).
 }
@@ -349,6 +350,15 @@ func (db *DB) IsConnection() bool {
 	return (db != nil) && (len(db.host) != 0)
 }
 
+// Path() returns the database path if db is a handle.
+// Otherwise, it returns "".
+func (db *DB) Path() string {
+	if db == nil {
+		return ""
+	}
+	return db.path
+}
+
 // Host() returns the server host name if db is a connection.
 // Otherwise, it returns "".
 func (db *DB) Host() string {
@@ -398,6 +408,12 @@ func Create(path string) (*DB, error) {
 		db.fin()
 		return nil, fmt.Errorf("grn_db_create() failed")
 	}
+	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
+	if cAbsPath == nil {
+		db.fin()
+		return nil, fmt.Errorf("grn_obj_path() failed")
+	}
+	db.path = C.GoString(cAbsPath)
 	return db, nil
 }
 
