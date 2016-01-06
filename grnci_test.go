@@ -45,6 +45,12 @@ func removeTempDB(tb testing.TB, dirPath string, db *DB) {
 func TestCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
+	if !db.IsHandle() {
+		t.Fatalf("DB.IsHandle() failed")
+	}
+	if db.IsConnection() {
+		t.Fatalf("DB.IsConnection() failed")
+	}
 }
 
 // TestCreate() tests Open().
