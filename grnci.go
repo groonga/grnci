@@ -877,6 +877,10 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 //
 
 // LoadOptions is a set of options for `load`.
+//
+// --input_type is not supported.
+//
+// http://groonga.org/docs/reference/commands/load.html
 type LoadOptions struct {
 	Columns  string // --columns
 	IfExists string // --ifexists
@@ -891,8 +895,8 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// loadScanFields() scans the struct of `vals` and fill `options.fieldIds` and
-// `options.colNames`.
+// loadScanFields() scans the struct of vals and fill options.fieldIds and
+// options.colNames.
 func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	valType := reflect.TypeOf(vals)
 	switch valType.Kind() {
@@ -959,7 +963,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	return nil
 }
 
-// loadGenHead() generates a head of `load`.
+// loadGenHead() generates the `load` header.
 func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
 	if _, err := fmt.Fprintf(buf, "load --table '%s'", tbl); err != nil {
@@ -993,7 +997,7 @@ func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (s
 	return buf.String(), nil
 }
 
-// loadWriteScalar() writes a scalar of `load`.
+// loadWriteScalar() writes a scalar value.
 func (db *DB) loadWriteScalar(buf *bytes.Buffer, any interface{}) error {
 	switch val := any.(type) {
 	case Bool:
@@ -1050,7 +1054,7 @@ func (db *DB) loadWriteScalar(buf *bytes.Buffer, any interface{}) error {
 	return nil
 }
 
-// loadWriteScalar() writes a vector of `load`.
+// loadWriteVector() writes a vector value.
 func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
@@ -1209,7 +1213,7 @@ func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 	return nil
 }
 
-// loadWriteValue() writes a value of `load`.
+// loadWriteValue() writes a value.
 func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, options *LoadOptions) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
@@ -1244,7 +1248,7 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, options *Loa
 	return nil
 }
 
-// loadGenBody() generates a body of `load`.
+// loadGenBody() generates the `load` body.
 func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
@@ -1281,6 +1285,12 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 }
 
 // Load() executes `load`.
+//
+// TODO: vals
+//
+// If options is nil, Load() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/load.html
 func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, error) {
 	if err := db.check(); err != nil {
 		return 0, err
