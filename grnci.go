@@ -449,7 +449,7 @@ func (db *DB) Dup() (*DB, error) {
 	if err := db.check(); err != nil {
 		return nil, err
 	}
-	if db.obj == nil {
+	if db.IsConnection() {
 		return Connect(db.host, db.port)
 	}
 	dupDB, err := newDB()
