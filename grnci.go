@@ -434,6 +434,12 @@ func Open(path string) (*DB, error) {
 		db.fin()
 		return nil, fmt.Errorf("grn_db_open() failed")
 	}
+	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
+	if cAbsPath == nil {
+		db.fin()
+		return nil, fmt.Errorf("grn_obj_path() failed")
+	}
+	db.path = C.GoString(cAbsPath)
 	return db, nil
 }
 
@@ -477,6 +483,7 @@ func (db *DB) Dup() (*DB, error) {
 		return nil, db.errorf("grn_ctx_use() failed: rc = %s", rc)
 	}
 	dupDB.obj = db.obj
+	dupDB.path = db.path
 	return dupDB, nil
 }
 
