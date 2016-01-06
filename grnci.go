@@ -1312,6 +1312,9 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 			return "", err
 		}
 	case reflect.Ptr:
+		if val.IsNil() {
+			return "", fmt.Errorf("vals is nil")
+		}
 		elem := val.Elem()
 		if err := db.loadWriteValue(buf, &elem, options); err != nil {
 			return "", err

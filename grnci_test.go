@@ -270,6 +270,11 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
 	}
 
+	cnt, err = db.Load("tbl", (*tblRec)(nil), nil)
+	if err == nil {
+		t.Fatalf("DB.Load() succeeded")
+	}
+
 	cnt, err = db.Load("tbl", recs, nil)
 	if err != nil {
 		t.Fatalf("DB.Load() failed: %v", err)
