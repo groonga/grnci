@@ -681,6 +681,8 @@ func (time Time) Unix() (sec, nsec int64) {
 // DB is a handle to a database or a connection to a server.
 
 // TableCreateOptions is a set of options for `table_create`.
+//
+// http://groonga.org/docs/reference/commands/table_create.html
 type TableCreateOptions struct {
 	Flags            string // --flags
 	KeyType          string // --key_type
@@ -690,13 +692,20 @@ type TableCreateOptions struct {
 	TokenFilters     string // --token_filters
 }
 
-// NewTableCreateOptions() returns default options.
+// NewTableCreateOptions() returns the default options.
 func NewTableCreateOptions() *TableCreateOptions {
 	options := new(TableCreateOptions)
 	return options
 }
 
 // TableCreate() executes `table_create`.
+//
+// If options is nil, TableCreate() uses the default options.
+//
+// If options.Flags does not contain TABLE_NO_KEY and options.KeyType is empty,
+// TABLE_NO_KEY is automatically added to options.Flags.
+//
+// http://groonga.org/docs/reference/commands/table_create.html
 func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	if err := db.check(); err != nil {
 		return err
