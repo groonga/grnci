@@ -51,6 +51,15 @@ func TestCreate(t *testing.T) {
 	if db.IsConnection() {
 		t.Fatalf("DB.IsConnection() failed")
 	}
+	if len(db.Path()) == 0 {
+		t.Fatalf("DB.Path() failed")
+	}
+	if len(db.Host()) != 0 {
+		t.Fatalf("DB.Host() failed")
+	}
+	if db.Port() != 0 {
+		t.Fatalf("DB.Port() failed")
+	}
 }
 
 // TestCreate() tests Open().
