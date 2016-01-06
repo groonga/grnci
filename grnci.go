@@ -785,11 +785,22 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 //
 
 // ColumnCreateOptions is a set of options for `column_create`.
+//
+// `column_create` takes --flags as a required argument but ColumnCreateOptions
+// has Flags because users can specify COLUMN_* via an argument typ of
+// ColumnCreate().
+// This also means that COLUMN_* should not be set manually.
+//
+// `column_create` takes --source as an option but ColumnCreateOptions does not
+// have Source because users can specify --source via an argument typ of
+// ColumnCreate().
+//
+// http://groonga.org/docs/reference/commands/column_create.html
 type ColumnCreateOptions struct {
 	Flags string // --flags
 }
 
-// NewColumnCreateOptions() returns default options.
+// NewColumnCreateOptions() returns the default options.
 func NewColumnCreateOptions() *ColumnCreateOptions {
 	options := new(ColumnCreateOptions)
 	return options
@@ -797,12 +808,14 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 
 // ColumnCreate() executes `column_create`.
 //
-// If `typ` starts with "[]", "COLUMN_VECTOR" is added to --flags.
-// Else if `typ` starts with "*", "COLUMN_INDEX" is added to --flags.
-// Otherwise, "COLUMN_SCALAR" is added to --flags.
+// If typ starts with "[]", COLUMN_VECTOR is added to --flags.
+// Else if typ starts with "*", COLUMN_INDEX is added to --flags.
+// Otherwise, COLUMN_SCALAR is added to --flags.
 //
-// If `typ` contains '.', the former part is used as --type and the latter part
+// If typ contains ".", the former part is used as --type and the latter part
 // is used as --source.
+//
+// If options is nil, ColumnCreate() uses the default options.
 func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) error {
 	if err := db.check(); err != nil {
 		return err
