@@ -224,7 +224,7 @@ func checkColumnName(s string) error {
 	return nil
 }
 
-// splitValues() splits a string separated by `sep` into values, trims each
+// splitValues() splits a string separated by sep into values, trims each
 // value and discards empty values.
 func splitValues(s, sep string) []string {
 	vals := strings.Split(s, sep)
@@ -245,11 +245,11 @@ func splitValues(s, sep string) []string {
 //
 
 // grnCnt is a reference count of the Groonga library.
-// Init() increments `grnCnt` and Fin() decrements `grnCnt`.
+// Init() increments grnCnt and Fin() decrements grnCnt.
 var grnCnt uint32
 
-// refLib() increments `grnCtx`.
-// The Groonga library is initialized if `grnCtx` changes from 0 to 1.
+// refLib() increments grnCnt.
+// The Groonga library is initialized if grnCnt changes from 0 to 1.
 func refLib() error {
 	if grnCnt == math.MaxUint32 {
 		return fmt.Errorf("grnCnt overflow")
@@ -263,8 +263,8 @@ func refLib() error {
 	return nil
 }
 
-// unrefLib() decrements `grnCtx`.
-// The Groonga library is finalized if `grnCtx` changes from 1 to 0.
+// unrefLib() decrements grnCnt.
+// The Groonga library is finalized if grnCnt changes from 1 to 0.
 func unrefLib() error {
 	if grnCnt == 0 {
 		return fmt.Errorf("grnCnt underflow")
@@ -339,7 +339,7 @@ func (db *DB) errorf(format string, args ...interface{}) error {
 	return fmt.Errorf("%s: ctx.rc = %s, ctx.errbuf = %s", msg, db.ctx.rc, ctxMsg)
 }
 
-// check() returns an error if `db` is invalid.
+// check() returns an error if db is invalid.
 func (db *DB) check() error {
 	if db == nil {
 		return fmt.Errorf("db is nil")
@@ -599,7 +599,7 @@ var timeType = reflect.TypeOf(Time(0))
 var textType = reflect.TypeOf(Text(""))
 var geoType = reflect.TypeOf(Geo{0, 0})
 
-// writeTo() writes `val` to `buf`.
+// writeTo() writes val to buf.
 func (val *Bool) writeTo(buf *bytes.Buffer) error {
 	if val == nil {
 		_, err := buf.WriteString("null")
@@ -609,7 +609,7 @@ func (val *Bool) writeTo(buf *bytes.Buffer) error {
 	return err
 }
 
-// writeTo() writes `val` to `buf`.
+// writeTo() writes val to buf.
 func (val *Int) writeTo(buf *bytes.Buffer) error {
 	if val == nil {
 		_, err := buf.WriteString("null")
@@ -619,7 +619,7 @@ func (val *Int) writeTo(buf *bytes.Buffer) error {
 	return err
 }
 
-// writeTo() writes `val` to `buf`.
+// writeTo() writes val to buf.
 func (val *Float) writeTo(buf *bytes.Buffer) error {
 	if val == nil {
 		_, err := buf.WriteString("null")
@@ -629,7 +629,7 @@ func (val *Float) writeTo(buf *bytes.Buffer) error {
 	return err
 }
 
-// writeTo() writes `val` to `buf`.
+// writeTo() writes val to buf.
 func (val *Time) writeTo(buf *bytes.Buffer) error {
 	if val == nil {
 		_, err := buf.WriteString("null")
@@ -639,7 +639,7 @@ func (val *Time) writeTo(buf *bytes.Buffer) error {
 	return err
 }
 
-// writeTo() writes `val` to `buf`.
+// writeTo() writes val to buf.
 func (val *Text) writeTo(buf *bytes.Buffer) error {
 	if val == nil {
 		_, err := buf.WriteString("null")
@@ -651,7 +651,7 @@ func (val *Text) writeTo(buf *bytes.Buffer) error {
 	return err
 }
 
-// writeTo() writes `val` to `buf`.
+// writeTo() writes val to buf.
 func (val *Geo) writeTo(buf *bytes.Buffer) error {
 	if val == nil {
 		_, err := buf.WriteString("null")
@@ -667,7 +667,7 @@ func Now() Time {
 	return Time((now.Unix() * 1000000) + (now.UnixNano() / 1000))
 }
 
-// Unix() returns `sec` and `nsec` for time.Unix().
+// Unix() returns sec and nsec for time.Unix().
 func (time Time) Unix() (sec, nsec int64) {
 	sec = int64(time) / 1000000
 	nsec = (int64(time) % 1000000) * 1000
