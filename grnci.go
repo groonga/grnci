@@ -816,6 +816,8 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 // is used as --source.
 //
 // If options is nil, ColumnCreate() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/column_create.html
 func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) error {
 	if err := db.check(); err != nil {
 		return err
