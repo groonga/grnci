@@ -1430,3 +1430,123 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	}
 	return cnt, nil
 }
+
+//
+// `table_create`, `column_create`, `load`
+//
+
+// loadExCreateTable() creates a table.
+func (db *DB) loadExCreateTable(tbl string, structType reflect.Type) error {
+	options := NewTableCreateOptions()
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		if len(field.PkgPath) != 0 {
+			continue
+		}
+		tag := field.Tag.Get(tagKey)
+		if len(tag) == 0 {
+			tag = field.Tag.Get(oldTagKey)
+			if len(tag) == 0 {
+				continue
+			}
+		}
+		name := ""
+		if idx := strings.IndexByte(tag, tagSep); idx != -1 {
+			name = tag[:idx]
+		} else {
+			name = tag
+		}
+		fieldType := field.Type
+		if fieldType.Kind() == reflect.Ptr {
+			fieldType = fieldType.Elem()
+		}
+		switch name {
+		case "_key":
+			// name;key_type;flags;default_tokenizer;normalizer;token_filters
+			tags := splitValues(tag, tagSep)
+			switch fieldType {
+			case boolType:
+				options.KeyType = "Bool"
+			case intType:
+				options.KeyType = "Int64"
+			case floatType:
+				options.KeyType = "Float"
+			case timeType:
+				options.KeyType = "Time"
+			case textType:
+				options.KeyType = "ShortText"
+			case geoType:
+				options.KeyType = "WGS84GeoPoint"
+			default:
+				return fmt.Errorf("unsupported key type")
+			}
+			if (len(tags) >= 2) && (len(tags[1]) != 0) {
+				options.KeyType = tags[1]
+			}
+			if (len(tags) >= 3) && (len(tags[2]) != 0) {
+				options.Flags = tags[2]
+			}
+			if (len(tags) >= 4) && (len(tags[3]) != 0) {
+				options.DefaultTokenizer = tags[3]
+			}
+			if (len(tags) >= 5) && (len(tags[4]) != 0) {
+				options.Normalizer = tags[4]
+			}
+			if (len(tags) >= 6) && (len(tags[5]) != 0) {
+				options.TokenFilters = tags[5]
+			}
+		case "_value":
+			// name;value_type
+			tags := splitValues(tag, tagSep)
+			switch fieldType {
+			case boolType:
+				options.ValueType = "Bool"
+			case intType:
+				options.ValueType = "Int64"
+			case floatType:
+				options.ValueType = "Float"
+			case timeType:
+				options.ValueType = "Time"
+			case geoType:
+				options.ValueType = "WGS84GeoPoint"
+			default:
+				return fmt.Errorf("unsupported value type")
+			}
+			if (len(tags) >= 2) && (len(tags[1]) != 0) {
+				options.ValueType = tags[1]
+			}
+		}
+	}
+	return db.TableCreate(tbl, options)
+}
+
+// loadExCreateColumns() creates columns.
+func (db *DB) loadExCreateColumns(tbl string, structType reflect.Type) error {
+	return fmt.Errorf("not implemented yet")
+}
+
+// LoadEx() executes `table_create`, `column_create` and `load`.
+//
+// LoadEx() is experimental.
+func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, error) {
+	if err := db.check(); err != nil {
+		return 0, err
+	}
+	if err := checkTableName(tbl); err != nil {
+		return 0, err
+	}
+	if vals == nil {
+		return 0, fmt.Errorf("vals is nil")
+	}
+	structType, err := getStructType(vals)
+	if err != nil {
+		return 0, err
+	}
+	if err := db.loadExCreateTable(tbl, structType); err != nil {
+		return 0, err
+	}
+	if err := db.loadExCreateColumns(tbl, structType); err != nil {
+		return 0, err
+	}
+	return db.Load(tbl, vals, options)
+}
