@@ -245,6 +245,21 @@ func splitValues(s, sep string) []string {
 	return vals[:cnt]
 }
 
+// getStructType() returns the struct type.
+func getStructType(vals interface{}) (reflect.Type, error) {
+	typ := reflect.TypeOf(vals)
+	switch typ.Kind() {
+	case reflect.Ptr:
+		typ = typ.Elem()
+	case reflect.Slice:
+		typ = typ.Elem()
+	}
+	if typ.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("unsupported value type")
+	}
+	return typ, nil
+}
+
 //
 // Library management
 //
@@ -952,15 +967,9 @@ func NewLoadOptions() *LoadOptions {
 // loadScanFields() scans the struct of vals and fill options.fieldIds and
 // options.colNames.
 func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
-	valType := reflect.TypeOf(vals)
-	switch valType.Kind() {
-	case reflect.Ptr:
-		valType = valType.Elem()
-	case reflect.Slice:
-		valType = valType.Elem()
-	}
-	if valType.Kind() != reflect.Struct {
-		return fmt.Errorf("unsupported value type")
+	valType, err := getStructType(vals)
+	if err != nil {
+		return err
 	}
 	var listed map[string]bool
 	if len(options.Columns) != 0 {
