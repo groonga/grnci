@@ -954,8 +954,8 @@ type LoadOptions struct {
 	Columns  string // --columns
 	IfExists string // --ifexists
 
-	fieldIds []int    // Target field IDs.
-	colNames []string // Target column names.
+	ids      []int    // Target field IDs.
+	names    []string // Target column names.
 }
 
 // NewLoadOptions() returns default options.
@@ -964,8 +964,8 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// loadScanFields() scans the struct of vals and fill options.fieldIds and
-// options.colNames.
+// loadScanFields() scans the struct of vals and fill options.ids and
+// options.names.
 func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	structType, err := getStructType(vals)
 	if err != nil {
@@ -974,16 +974,16 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	var listed map[string]bool
 	if len(options.Columns) != 0 {
 		listed = make(map[string]bool)
-		colNames := splitValues(options.Columns, ",")
-		for _, colName := range colNames {
-			if err := checkColumnName(colName); err != nil {
+		names := splitValues(options.Columns, ",")
+		for _, name := range names {
+			if err := checkColumnName(name); err != nil {
 				return err
 			}
-			listed[colName] = true
+			listed[name] = true
 		}
 	}
-	fieldIds := make([]int, 0, structType.NumField())
-	colNames := make([]string, 0, structType.NumField())
+	ids := make([]int, 0, structType.NumField())
+	names := make([]string, 0, structType.NumField())
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
 		if len(field.PkgPath) != 0 {
@@ -998,7 +998,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		if fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
 		}
-		colName := field.Name
+		name := field.Name
 		tag := field.Tag.Get(tagKey)
 		if len(tag) == 0 {
 			tag = field.Tag.Get(oldTagKey)
@@ -1009,7 +1009,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		switch fieldType {
 		case boolType, intType, floatType, timeType, textType, geoType:
 			if len(tag) != 0 {
-				colName = tag
+				name = tag
 			}
 		default:
 			if len(tag) != 0 {
@@ -1017,20 +1017,20 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 			}
 			continue
 		}
-		if err := checkColumnName(colName); err != nil {
+		if err := checkColumnName(name); err != nil {
 			return err
 		}
-		if isVector && ((colName == "_key") || (colName == "_value")) {
-			return fmt.Errorf("%s must not be vector", colName)
+		if isVector && ((name == "_key") || (name == "_value")) {
+			return fmt.Errorf("%s must not be vector", name)
 		}
-		if (listed != nil) && !listed[colName] {
+		if (listed != nil) && !listed[name] {
 			continue
 		}
-		fieldIds = append(fieldIds, i)
-		colNames = append(colNames, colName)
+		ids = append(ids, i)
+		names = append(names, name)
 	}
-	options.fieldIds = fieldIds
-	options.colNames = colNames
+	options.ids = ids
+	options.names = names
 	return nil
 }
 
@@ -1047,17 +1047,17 @@ func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (s
 			return "", err
 		}
 	}
-	if len(options.colNames) != 0 {
+	if len(options.names) != 0 {
 		if _, err := buf.WriteString(" --columns '"); err != nil {
 			return "", err
 		}
-		for i, colName := range options.colNames {
+		for i, name := range options.names {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return "", err
 				}
 			}
-			if _, err := buf.WriteString(colName); err != nil {
+			if _, err := buf.WriteString(name); err != nil {
 				return "", err
 			}
 		}
@@ -1289,7 +1289,7 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, options *Loa
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
-	for i, fieldId := range options.fieldIds {
+	for i, fieldId := range options.ids {
 		if i != 0 {
 			if err := buf.WriteByte(','); err != nil {
 				return err
