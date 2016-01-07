@@ -229,20 +229,19 @@ func checkColumnName(s string) error {
 	return nil
 }
 
-// splitValues() splits a string separated by sep into values, trims each
-// value and discards empty values.
+// splitValues() splits a string separated by sep into values.
+//
+// If s contains only white spaces, splitValues() returns an empty slice.
 func splitValues(s, sep string) []string {
-	vals := strings.Split(s, sep)
-	cnt := 0
-	for i := range vals {
-		val := strings.TrimSpace(vals[i])
-		if len(val) == 0 {
-			continue
-		}
-		vals[cnt] = val
-		cnt++
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return []string{}
 	}
-	return vals[:cnt]
+	vals := strings.Split(s, sep)
+	for i, val := range vals {
+		vals[i] = strings.TrimSpace(val)
+	}
+	return vals
 }
 
 // getStructType() returns the struct type.
