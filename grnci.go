@@ -232,16 +232,20 @@ func checkColumnName(s string) error {
 // splitValues() splits a string separated by sep into values.
 //
 // If s contains only white spaces, splitValues() returns an empty slice.
-func splitValues(s, sep string) []string {
-	s = strings.TrimSpace(s)
-	if len(s) == 0 {
-		return []string{}
+func splitValues(s string, sep byte) []string {
+	var vals []string
+	for {
+		idx := strings.IndexByte(s, sep)
+		if idx == -1 {
+			s = strings.TrimSpace(s)
+			if (len(vals) != 0) || (len(s) != 0) {
+				vals = append(vals, s)
+			}
+			return vals
+		}
+		vals = append(vals, strings.TrimSpace(s[:idx]))
+		s = s[idx+1:]
 	}
-	vals := strings.Split(s, sep)
-	for i, val := range vals {
-		vals[i] = strings.TrimSpace(val)
-	}
-	return vals
 }
 
 // getStructType() returns the struct type.
@@ -793,7 +797,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	args["name"] = name
 	keyFlag := ""
 	if len(options.Flags) != 0 {
-		flags := splitValues(options.Flags, "|")
+		flags := splitValues(options.Flags, '|')
 		for _, flag := range flags {
 			switch flag {
 			case "TABLE_NO_KEY":
@@ -973,7 +977,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 	var listed map[string]bool
 	if len(options.Columns) != 0 {
 		listed = make(map[string]bool)
-		names := splitValues(options.Columns, ",")
+		names := splitValues(options.Columns, ',')
 		for _, name := range names {
 			if err := checkColumnName(name); err != nil {
 				return err
