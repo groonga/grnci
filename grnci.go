@@ -1006,14 +1006,15 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		if len(tag) == 0 {
 			tag = field.Tag.Get(oldTagKey)
 		}
-		if idx := strings.IndexByte(tag, tagSep); idx != -1 {
-			tag = tag[:idx]
+		idx := strings.IndexByte(tag, tagSep)
+		if idx == -1 {
+			idx = len(tag)
+		}
+		if idx != 0 {
+			name = tag[:idx]
 		}
 		switch fieldType {
 		case boolType, intType, floatType, timeType, textType, geoType:
-			if len(tag) != 0 {
-				name = tag
-			}
 		default:
 			if len(tag) != 0 {
 				return fmt.Errorf("unsupported data type")
