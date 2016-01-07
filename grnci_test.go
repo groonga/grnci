@@ -178,10 +178,10 @@ func TestColumnCreate(t *testing.T) {
 
 	colOptions := NewColumnCreateOptions()
 	colOptions.Flags = "WITH_SECTION|WITH_POSITION"
-	if err := db.ColumnCreate("tbl2", "a", "*tbl.a", colOptions); err != nil {
+	if err := db.ColumnCreate("tbl2", "a", "tbl.a", colOptions); err != nil {
 		t.Fatalf("DB.ColumnCreate() failed: %v", err)
 	}
-	if err := db.ColumnCreate("tbl2", "b", "*tbl.b", nil); err != nil {
+	if err := db.ColumnCreate("tbl2", "b", "tbl.b", nil); err != nil {
 		t.Fatalf("DB.ColumnCreate() failed: %v", err)
 	}
 }
