@@ -860,11 +860,10 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 // ColumnCreate() executes `column_create`.
 //
 // If typ starts with "[]", COLUMN_VECTOR is added to --flags.
-// Else if typ starts with "*", COLUMN_INDEX is added to --flags.
+// Else if typ contains ".", COLUMN_INDEX is added to --flags.
+// In this case, the former part (before '.') is used as --type and the latter
+// part (after '.') is used as --source.
 // Otherwise, COLUMN_SCALAR is added to --flags.
-//
-// If typ contains ".", the former part is used as --type and the latter part
-// is used as --source.
 //
 // If options is nil, ColumnCreate() uses the default options.
 //
@@ -880,16 +879,12 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 		return err
 	}
 	typFlag := "COLUMN_SCALAR"
-	switch {
-	case strings.HasPrefix(typ, "[]"):
+	src := ""
+	if strings.HasPrefix(typ, "[]") {
 		typFlag = "COLUMN_VECTOR"
 		typ = typ[2:]
-	case strings.HasPrefix(typ, "*"):
+	} else if idx := strings.IndexByte(typ, '.'); idx != -1 {
 		typFlag = "COLUMN_INDEX"
-		typ = typ[1:]
-	}
-	src := ""
-	if idx := strings.IndexByte(typ, '.'); idx != -1 {
 		src = typ[idx+1:]
 		typ = typ[:idx]
 	}
