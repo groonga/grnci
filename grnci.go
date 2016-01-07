@@ -990,14 +990,11 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 			continue
 		}
 		fieldType := field.Type
-		switch fieldType.Kind() {
-		case reflect.Ptr:
+		if fieldType.Kind() == reflect.Slice {
 			fieldType = fieldType.Elem()
-		case reflect.Slice:
+		}
+		if fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
-			if fieldType.Kind() == reflect.Ptr {
-				fieldType = fieldType.Elem()
-			}
 		}
 		colName := field.Name
 		tag := field.Tag.Get(tagKey)
