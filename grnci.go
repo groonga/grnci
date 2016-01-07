@@ -967,7 +967,7 @@ func NewLoadOptions() *LoadOptions {
 // loadScanFields() scans the struct of vals and fill options.fieldIds and
 // options.colNames.
 func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
-	valType, err := getStructType(vals)
+	structType, err := getStructType(vals)
 	if err != nil {
 		return err
 	}
@@ -982,10 +982,10 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 			listed[colName] = true
 		}
 	}
-	fieldIds := make([]int, 0, valType.NumField())
-	colNames := make([]string, 0, valType.NumField())
-	for i := 0; i < valType.NumField(); i++ {
-		field := valType.Field(i)
+	fieldIds := make([]int, 0, structType.NumField())
+	colNames := make([]string, 0, structType.NumField())
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
 		if len(field.PkgPath) != 0 {
 			continue
 		}
