@@ -619,9 +619,13 @@ func (db *DB) queryEx(name string, args map[string]string) (string, error) {
 // Built-in data types
 //
 
-// tagKey specifies the associated Groonga column.
+// tagKey is the key of a struct field tag that specifies details of the
+// associated Groonga column.
 const tagKey = "grnci"
 const oldTagKey = "groonga"
+
+// tagSep is the separator of a struct field tag value.
+const tagSep = ';'
 
 // Bool represents Bool.
 type Bool bool
@@ -985,6 +989,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		tagValue := field.Tag.Get(tagKey)
 		if len(tagValue) == 0 {
 			tagValue = field.Tag.Get(oldTagKey)
+		}
+		if idx := strings.IndexByte(tagValue, tagSep); idx != -1 {
+			tagValue = tagValue[:idx]
 		}
 		switch fieldType {
 		case boolType, intType, floatType, timeType, textType, geoType:
