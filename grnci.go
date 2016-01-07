@@ -1,4 +1,9 @@
-// Groonga Command Interface (Test ver.)
+// Package grnci provides an interface to execute Groonga commands.
+//
+// grnci: Groonga Command Interface (test version)
+//
+// The grnci package is experimental and supports only a subset of Groonga
+// commands.
 package grnci
 
 // #cgo pkg-config: groonga
