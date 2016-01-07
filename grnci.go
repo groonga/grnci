@@ -1000,20 +1000,20 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 			}
 		}
 		colName := field.Name
-		tagValue := field.Tag.Get(tagKey)
-		if len(tagValue) == 0 {
-			tagValue = field.Tag.Get(oldTagKey)
+		tag := field.Tag.Get(tagKey)
+		if len(tag) == 0 {
+			tag = field.Tag.Get(oldTagKey)
 		}
-		if idx := strings.IndexByte(tagValue, tagSep); idx != -1 {
-			tagValue = tagValue[:idx]
+		if idx := strings.IndexByte(tag, tagSep); idx != -1 {
+			tag = tag[:idx]
 		}
 		switch fieldType {
 		case boolType, intType, floatType, timeType, textType, geoType:
-			if len(tagValue) != 0 {
-				colName = tagValue
+			if len(tag) != 0 {
+				colName = tag
 			}
 		default:
-			if len(tagValue) != 0 {
+			if len(tag) != 0 {
 				return fmt.Errorf("unsupported data type")
 			}
 			continue
