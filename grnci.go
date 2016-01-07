@@ -990,8 +990,10 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 			continue
 		}
 		fieldType := field.Type
+		isVector := false
 		if fieldType.Kind() == reflect.Slice {
 			fieldType = fieldType.Elem()
+			isVector = true
 		}
 		if fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
@@ -1017,6 +1019,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		}
 		if err := checkColumnName(colName); err != nil {
 			return err
+		}
+		if isVector && ((colName == "_key") || (colName == "_value")) {
+			return fmt.Errorf("%s must not be vector", colName)
 		}
 		if (listed != nil) && !listed[colName] {
 			continue
