@@ -233,19 +233,19 @@ func TestLoad(t *testing.T) {
 	}
 
 	type tblRec struct {
-		Key    Text    `groonga:"_key"`
-		Bool   Bool    `groonga:"bool"`
-		Int    Int     `groonga:"int"`
-		Float  Float   `groonga:"float"`
-		Time   Time    `groonga:"time"`
-		Text   Text    `groonga:"text"`
-		Geo    Geo     `groonga:"geo"`
-		VBool  []Bool  `groonga:"vbool"`
-		VInt   []Int   `groonga:"vint"`
-		VFloat []Float `groonga:"vfloat"`
-		VTime  []Time  `groonga:"vtime"`
-		VText  []Text  `groonga:"vtext"`
-		VGeo   []Geo   `groonga:"vgeo"`
+		Key    Text    `grnci:"_key"`
+		Bool   Bool    `grnci:"bool"`
+		Int    Int     `grnci:"int"`
+		Float  Float   `grnci:"float"`
+		Time   Time    `grnci:"time"`
+		Text   Text    `grnci:"text"`
+		Geo    Geo     `grnci:"geo"`
+		VBool  []Bool  `grnci:"vbool"`
+		VInt   []Int   `grnci:"vint"`
+		VFloat []Float `grnci:"vfloat"`
+		VTime  []Time  `grnci:"vtime"`
+		VText  []Text  `grnci:"vtext"`
+		VGeo   []Geo   `grnci:"vgeo"`
 	}
 	recs := []tblRec{
 		{Key: "Apple", Bool: false, Int: 123, Float: 1.23,

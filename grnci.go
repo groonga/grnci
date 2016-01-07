@@ -620,7 +620,8 @@ func (db *DB) queryEx(name string, args map[string]string) (string, error) {
 //
 
 // tagKey specifies the associated Groonga column.
-const tagKey = "groonga"
+const tagKey = "grnci"
+const oldTagKey = "groonga"
 
 // Bool represents Bool.
 type Bool bool
@@ -982,6 +983,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		}
 		colName := field.Name
 		tagValue := field.Tag.Get(tagKey)
+		if len(tagValue) == 0 {
+			tagValue = field.Tag.Get(oldTagKey)
+		}
 		switch fieldType {
 		case boolType, intType, floatType, timeType, textType, geoType:
 			if len(tagValue) != 0 {
