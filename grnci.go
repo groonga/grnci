@@ -729,8 +729,6 @@ func (time Time) Unix() (sec, nsec int64) {
 // `table_create`
 //
 
-// DB is a handle to a database or a connection to a server.
-
 // TableCreateOptions is a set of options for `table_create`.
 //
 // http://groonga.org/docs/reference/commands/table_create.html
