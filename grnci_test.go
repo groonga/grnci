@@ -282,3 +282,47 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
 	}
 }
+
+// TestLoadEx() tests DB.LoadEx().
+func TestLoadEx(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+
+	type tblRec struct {
+		Key    Text    `grnci:"_key;;TABLE_PAT_KEY"`
+		Bool   Bool    `grnci:"bool"`
+		Int    Int     `grnci:"int;Int32"`
+		Float  Float   `grnci:"float"`
+		Time   Time    `grnci:"time"`
+		Text   Text    `grnci:"text"`
+		Geo    Geo     `grnci:"geo;TokyoGeoPoint"`
+		VBool  []Bool  `grnci:"vbool"`
+		VInt   []Int   `grnci:"vint"`
+		VFloat []Float `grnci:"vfloat"`
+		VTime  []Time  `grnci:"vtime"`
+		VText  []Text  `grnci:"vtext;[]ShortText"`
+		VGeo   []Geo   `grnci:"vgeo"`
+	}
+	recs := []tblRec{
+		{Key: "Apple", Bool: false, Int: 123, Float: 1.23,
+			Time: Now(), Text: "Hello, world!", Geo: Geo{123, 456}},
+		{Key: "Banana", Bool: true, Int: 456, Float: 4.56,
+			Time: Now(), Text: "Foo, var!", Geo: Geo{456, 789},
+			VBool: []Bool{false, true}, VInt: []Int{100, 200},
+			VFloat: []Float{-1.25, 1.25}, VTime: []Time{Now(), Now() + 1000000},
+			VText: []Text{"one", "two"}, VGeo: []Geo{{100, 200}, {300, 400}}}}
+
+	cnt, err := db.LoadEx("tbl", []tblRec(nil), nil)
+	if err != nil {
+		t.Fatalf("DB.Load() failed: %v", err)
+	} else if cnt != 0 {
+		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+	}
+
+	cnt, err = db.LoadEx("tbl2", recs, nil)
+	if err != nil {
+		t.Fatalf("DB.Load() failed: %v", err)
+	} else if cnt != 2 {
+		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+	}
+}
