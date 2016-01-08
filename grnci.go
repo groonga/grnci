@@ -770,6 +770,45 @@ func (val Geo) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%d,%d\"", val.Lat, val.Long)), nil
 }
 
+// UnmarshalJSON() decodes JSON bytes.
+func (val *Time) UnmarshalJSON(bytes []byte) error {
+	sec, err := strconv.ParseFloat(string(bytes), 64)
+	if err != nil {
+		return err
+	}
+	*val = Time(int64(sec * 1000000.0))
+	return nil
+}
+
+// UnmarshalJSON() decodes JSON bytes.
+func (val *Geo) UnmarshalJSON(bytes []byte) error {
+	str := string(bytes)
+	if (len(str) < 2) || (str[0] != '"') || (str[len(str)-1] != '"') {
+		return fmt.Errorf("Geo must be a string in JSON")
+	}
+	str = str[1 : len(str)-1]
+	idx := strings.IndexAny(str, "x,")
+	if idx == -1 {
+		return fmt.Errorf("Geo needs a separator 'x' or ',' in JSON")
+	}
+	lat, err := strconv.ParseFloat(str[:idx], 64)
+	if err != nil {
+		return err
+	}
+	long, err := strconv.ParseFloat(str[idx+1:], 64)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(str, ".") {
+		val.Lat = int32(lat * 60 * 60 * 1000)
+		val.Long = int32(long * 60 * 60 * 1000)
+	} else {
+		val.Lat = int32(lat)
+		val.Long = int32(long)
+	}
+	return nil
+}
+
 //
 // `table_create`
 //
