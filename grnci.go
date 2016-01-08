@@ -1001,17 +1001,9 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		if fieldType.Kind() == reflect.Ptr {
 			fieldType = fieldType.Elem()
 		}
-		name := field.Name
 		tag := field.Tag.Get(tagKey)
 		if len(tag) == 0 {
 			tag = field.Tag.Get(oldTagKey)
-		}
-		idx := strings.IndexByte(tag, tagSep)
-		if idx == -1 {
-			idx = len(tag)
-		}
-		if idx != 0 {
-			name = tag[:idx]
 		}
 		switch fieldType {
 		case boolType, intType, floatType, timeType, textType, geoType:
@@ -1020,6 +1012,14 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 				return fmt.Errorf("unsupported data type")
 			}
 			continue
+		}
+		idx := strings.IndexByte(tag, tagSep)
+		if idx == -1 {
+			idx = len(tag)
+		}
+		name := field.Name
+		if idx != 0 {
+			name = tag[:idx]
 		}
 		if err := checkColumnName(name); err != nil {
 			return err
