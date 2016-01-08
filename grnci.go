@@ -1382,7 +1382,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 // to represent vector values.
 //
 // The field name is used as the column name by default, but if the field has
-// "groonga" tag, the tag value is used as the column name.
+// a grnci tag, its value before the first ';' is used as the column name.
 //
 // Load() uses all the acceptable fields.
 // If you want to use a subset of the struct, specify --columns with
@@ -1614,7 +1614,16 @@ func (db *DB) loadExCreateColumns(tbl string, structType reflect.Type) error {
 
 // LoadEx() executes `table_create`, `column_create` and `load`.
 //
-// LoadEx() is experimental.
+// LoadEx() calls TableCreate(), ColumnCreate() and Load().
+// See each function for details.
+//
+// The grnci tag format is as follows:
+//
+//  - grnci:"_key;key_type;flags;default_tokenizer;normalizer;token_filters"
+//  - grnci:"_value;value_type"
+//  - grnci:"name;type;flags"
+//
+// Note that the separator is ';' because some values use ',' as its separator.
 func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, error) {
 	if err := db.check(); err != nil {
 		return 0, err
