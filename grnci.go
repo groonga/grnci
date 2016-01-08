@@ -762,7 +762,7 @@ func (time Time) Unix() (sec, nsec int64) {
 
 // MarshalJSON() returns a JSON-encoded value.
 func (val Time) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprint(float64(int64(val))/1000000.0)), nil
+	return []byte(fmt.Sprint(float64(int64(val)) / 1000000.0)), nil
 }
 
 // MarshalJSON() returns a JSON-encoded value.
@@ -974,8 +974,8 @@ type LoadOptions struct {
 	Columns  string // --columns
 	IfExists string // --ifexists
 
-	ids      []int    // Target field IDs.
-	names    []string // Target column names.
+	ids   []int    // Target field IDs.
+	names []string // Target column names.
 }
 
 // NewLoadOptions() returns default options.
