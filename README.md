@@ -112,6 +112,7 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 データ型が `grnci.Bool`, `grnci.Int` などになっているフィールドのみが `load` に渡されます．
 基本的にはフィールド名がカラム名として採用されます．
 フィールドに `grnci` タグを付与することで，フィールド名とは異なるカラム名を指定することもできます．
+先頭の `;` までがカラム名として採用されます．
 
 以下，構造体と使い方の例です．
 
