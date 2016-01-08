@@ -754,9 +754,9 @@ func Now() Time {
 }
 
 // Unix() returns sec and nsec for time.Unix().
-func (time Time) Unix() (sec, nsec int64) {
-	sec = int64(time) / 1000000
-	nsec = (int64(time) % 1000000) * 1000
+func (val Time) Unix() (sec, nsec int64) {
+	sec = int64(val) / 1000000
+	nsec = (int64(val) % 1000000) * 1000
 	return
 }
 
