@@ -721,7 +721,8 @@ func (val *Time) writeTo(buf *bytes.Buffer) error {
 		_, err := buf.WriteString("null")
 		return err
 	}
-	_, err := fmt.Fprint(buf, float64(*val)/1000000.0)
+	str := strconv.FormatFloat(float64(*val) / 1000000.0, 'f', -1, 64)
+	_, err := buf.WriteString(str)
 	return err
 }
 
@@ -747,22 +748,9 @@ func (val *Geo) writeTo(buf *bytes.Buffer) error {
 	return err
 }
 
-// Now() returns the current time.
-func Now() Time {
-	now := time.Now()
-	return Time((now.Unix() * 1000000) + (now.UnixNano() / 1000))
-}
-
-// Unix() returns sec and nsec for time.Unix().
-func (val Time) Unix() (sec, nsec int64) {
-	sec = int64(val) / 1000000
-	nsec = (int64(val) % 1000000) * 1000
-	return
-}
-
 // MarshalJSON() returns JSON bytes.
 func (val Time) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprint(float64(val) / 1000000.0)), nil
+	return []byte(strconv.FormatFloat(float64(val) / 1000000.0, 'f', -1, 64)), nil
 }
 
 // MarshalJSON() returns JSON bytes.
@@ -815,6 +803,19 @@ func (val *Geo) UnmarshalJSON(bytes []byte) error {
 		val.Long = int32(long)
 	}
 	return nil
+}
+
+// Now() returns the current time.
+func Now() Time {
+	now := time.Now()
+	return Time((now.Unix() * 1000000) + (now.UnixNano() / 1000))
+}
+
+// Unix() returns sec and nsec for time.Unix().
+func (val Time) Unix() (sec, nsec int64) {
+	sec = int64(val) / 1000000
+	nsec = (int64(val) % 1000000) * 1000
+	return
 }
 
 //
