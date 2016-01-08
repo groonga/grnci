@@ -791,18 +791,26 @@ func (val *Geo) UnmarshalJSON(bytes []byte) error {
 	if idx == -1 {
 		return fmt.Errorf("Geo needs a separator 'x' or ',' in JSON")
 	}
-	lat, err := strconv.ParseFloat(str[:idx], 64)
-	if err != nil {
-		return err
-	}
-	long, err := strconv.ParseFloat(str[idx+1:], 64)
-	if err != nil {
-		return err
-	}
 	if strings.Contains(str, ".") {
+		lat, err := strconv.ParseFloat(str[:idx], 64)
+		if err != nil {
+			return err
+		}
+		long, err := strconv.ParseFloat(str[idx+1:], 64)
+		if err != nil {
+			return err
+		}
 		val.Lat = int32(lat * 60 * 60 * 1000)
 		val.Long = int32(long * 60 * 60 * 1000)
 	} else {
+		lat, err := strconv.ParseInt(str[:idx], 10, 32)
+		if err != nil {
+			return err
+		}
+		long, err := strconv.ParseInt(str[idx+1:], 10, 32)
+		if err != nil {
+			return err
+		}
 		val.Lat = int32(lat)
 		val.Long = int32(long)
 	}
