@@ -721,7 +721,7 @@ func (val *Time) writeTo(buf *bytes.Buffer) error {
 		_, err := buf.WriteString("null")
 		return err
 	}
-	_, err := fmt.Fprint(buf, float64(int64(*val))/1000000.0)
+	_, err := fmt.Fprint(buf, float64(*val)/1000000.0)
 	return err
 }
 
@@ -762,7 +762,7 @@ func (time Time) Unix() (sec, nsec int64) {
 
 // MarshalJSON() returns a JSON-encoded value.
 func (val Time) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprint(float64(int64(val)) / 1000000.0)), nil
+	return []byte(fmt.Sprint(float64(val) / 1000000.0)), nil
 }
 
 // MarshalJSON() returns a JSON-encoded value.
