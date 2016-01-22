@@ -632,8 +632,8 @@ func (db *DB) query(cmd string) (string, error) {
 // qureyEx() executes a command with separated arguments.
 func (db *DB) queryEx(name string, args map[string]string) (string, error) {
 	if err := db.sendEx(name, args); err != nil {
-		bytes, _ := db.recv()
-		return bytes, err
+		res, _ := db.recv()
+		return res, err
 	}
 	return db.recv()
 }
@@ -759,8 +759,8 @@ func (val Geo) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON() decodes JSON bytes.
-func (val *Time) UnmarshalJSON(bytes []byte) error {
-	sec, err := strconv.ParseFloat(string(bytes), 64)
+func (val *Time) UnmarshalJSON(data []byte) error {
+	sec, err := strconv.ParseFloat(string(data), 64)
 	if err != nil {
 		return err
 	}
@@ -769,8 +769,8 @@ func (val *Time) UnmarshalJSON(bytes []byte) error {
 }
 
 // UnmarshalJSON() decodes JSON bytes.
-func (val *Geo) UnmarshalJSON(bytes []byte) error {
-	str := string(bytes)
+func (val *Geo) UnmarshalJSON(data []byte) error {
+	str := string(data)
 	if (len(str) < 2) || (str[0] != '"') || (str[len(str)-1] != '"') {
 		return fmt.Errorf("Geo must be a string in JSON")
 	}
