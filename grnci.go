@@ -1752,6 +1752,56 @@ func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error
 }
 
 //
+// `column_rename`
+//
+
+// ColumnRenameOptions is a set of options for `column_rename`.
+//
+// http://groonga.org/docs/reference/commands/column_rename.html
+type ColumnRenameOptions struct {
+}
+
+// NewColumnRenameOptions() returns the default options.
+func NewColumnRenameOptions() *ColumnRenameOptions {
+	return &ColumnRenameOptions{}
+}
+
+// ColumnRename() executes `column_rename`.
+//
+// If options is nil, ColumnRename() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/column_rename.html
+func (db *DB) ColumnRename(tbl, name, newName string, options *ColumnRenameOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if err := checkTableName(tbl); err != nil {
+		return err
+	}
+	if err := checkColumnName(name); err != nil {
+		return err
+	}
+	if err := checkColumnName(newName); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewColumnRenameOptions()
+	}
+	args := make(map[string]string)
+	args["table"] = tbl
+	args["name"] = name
+	args["new_name"] = newName
+	str, err := db.queryEx("column_rename", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("column_rename failed")
+	}
+	return nil
+}
+
+//
 // `table_remove`
 //
 

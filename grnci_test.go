@@ -347,6 +347,28 @@ func TestColumnRemove(t *testing.T) {
 	}
 }
 
+// TestColumnRename() tests DB.ColumnRename().
+func TestColumnRename(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+	if err := db.TableCreate("tbl", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+
+	if err := db.ColumnRename("tbl", "val", "val2", nil); err != nil {
+		t.Fatalf("DB.ColumnRename() failed: %v", err)
+	}
+	if err := db.ColumnRename("tbl", "val", "val2", nil); err == nil {
+		t.Fatalf("DB.ColumnRename() succeeded")
+	}
+	if err := db.ColumnRename("tbl", "val2", "val3", nil); err != nil {
+		t.Fatalf("DB.ColumnRename() failed: %v", err)
+	}
+}
+
 // TestTableRemove() tests DB.TableRemove().
 func TestTableRemove(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
