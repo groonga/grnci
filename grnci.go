@@ -1888,3 +1888,42 @@ func (db *DB) TableRename(name, newName string, options *TableRenameOptions) err
 	}
 	return nil
 }
+
+//
+// `object_exist`
+//
+
+// ObjectExistOptions is a set of options for `object_exist`.
+//
+// http://groonga.org/docs/reference/commands/object_exist.html
+type ObjectExistOptions struct {
+}
+
+// NewObjectExistOptions() returns the default options.
+func NewObjectExistOptions() *ObjectExistOptions {
+	return &ObjectExistOptions{}
+}
+
+// ObjectExist() executes `object_exist`.
+//
+// If options is nil, ObjectExist() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/object_exist.html
+func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewObjectExistOptions()
+	}
+	args := make(map[string]string)
+	args["name"] = name
+	str, err := db.queryEx("object_exist", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("object_exist failed")
+	}
+	return nil
+}

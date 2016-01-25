@@ -404,6 +404,32 @@ func TestTableRename(t *testing.T) {
 	}
 }
 
+// TestObjectExist() tests DB.ObjectExist().
+func TestObjectExist(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+
+	if err := db.ObjectExist("tbl", nil); err == nil {
+		t.Fatalf("DB.ObjectExist() succeeded")
+	}
+	if err := db.TableCreate("tbl", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+	if err := db.ObjectExist("tbl", nil); err != nil {
+		t.Fatalf("DB.ObjectExist() failed: %v", err)
+	}
+
+	if err := db.ObjectExist("tbl.val", nil); err == nil {
+		t.Fatalf("DB.ObjectExist() succeeded")
+	}
+	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+	if err := db.ObjectExist("tbl.val", nil); err != nil {
+		t.Fatalf("DB.ObjectExist() failed: %v", err)
+	}
+}
+
 // TestMarshalJSON() tests MarshalJSON().
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {
