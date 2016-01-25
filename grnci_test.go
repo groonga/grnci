@@ -449,6 +449,20 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+// TestThreadLimit() tests DB.ThreadLimit().
+func TestThreadLimit(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+
+	n, err := db.ThreadLimit(nil)
+	if err != nil {
+		t.Fatalf("DB.ThreadLimit() failed: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("failed: %d", n)
+	}
+}
+
 // TestMarshalJSON() tests MarshalJSON().
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {

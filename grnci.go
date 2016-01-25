@@ -9,6 +9,7 @@ package grnci
 // #cgo pkg-config: groonga
 // #include <groonga.h>
 // #include <stdlib.h>
+// #include "grnci.h"
 import "C"
 
 import (
@@ -281,6 +282,7 @@ func refLib() error {
 		if rc := C.grn_init(); rc != C.GRN_SUCCESS {
 			return fmt.Errorf("grn_init() failed: rc = %s", rc)
 		}
+		C.grnci_init_thread_limit()
 	}
 	grnCnt++
 	return nil
@@ -1965,6 +1967,52 @@ func (db *DB) Truncate(name string, options *TruncateOptions) error {
 		return fmt.Errorf("truncate failed")
 	}
 	return nil
+}
+
+//
+// `thread_limit`
+//
+
+// ThreadLimitOptions is a set of options for `thread_limit`.
+//
+// http://groonga.org/docs/reference/commands/thread_limit.html
+type ThreadLimitOptions struct {
+	Max int // --max
+}
+
+// NewThreadLimitOptions() returns the default options.
+func NewThreadLimitOptions() *ThreadLimitOptions {
+	return &ThreadLimitOptions{}
+}
+
+// ThreadLimit() executes `thread_limit`.
+//
+// If options is nil, ThreadLimit() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/thread_limit.html
+func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
+	if err := db.check(); err != nil {
+		return 0, err
+	}
+	if options == nil {
+		options = NewThreadLimitOptions()
+	}
+	args := make(map[string]string)
+	if options.Max > 0 {
+		args["max"] = strconv.Itoa(options.Max)
+	}
+	str, err := db.queryEx("thread_limit", args)
+	if err != nil {
+		return 0, err
+	}
+	n, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, err
+	}
+	if n <= 0 {
+		return n, fmt.Errorf("thread_limit failed")
+	}
+	return n, nil
 }
 
 //
