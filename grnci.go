@@ -1750,3 +1750,45 @@ func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error
 	}
 	return nil
 }
+
+//
+// `table_remove`
+//
+
+// TableRemoveOptions is a set of options for `table_remove`.
+//
+// http://groonga.org/docs/reference/commands/table_remove.html
+type TableRemoveOptions struct {
+}
+
+// NewTableRemoveOptions() returns the default options.
+func NewTableRemoveOptions() *TableRemoveOptions {
+	return &TableRemoveOptions{}
+}
+
+// TableRemove() executes `table_remove`.
+//
+// If options is nil, TableRemove() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/table_remove.html
+func (db *DB) TableRemove(name string, options *TableRemoveOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if err := checkTableName(name); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewTableRemoveOptions()
+	}
+	args := make(map[string]string)
+	args["name"] = name
+	str, err := db.queryEx("table_remove", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("table_remove failed")
+	}
+	return nil
+}

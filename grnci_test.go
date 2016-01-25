@@ -347,6 +347,22 @@ func TestColumnRemove(t *testing.T) {
 	}
 }
 
+// TestTableRemove() tests DB.TableRemove().
+func TestTableRemove(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+	if err := db.TableCreate("tbl", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+
+	if err := db.TableRemove("tbl", nil); err != nil {
+		t.Fatalf("DB.TableRemove() failed: %v", err)
+	}
+	if err := db.TableRemove("tbl", nil); err == nil {
+		t.Fatalf("DB.TableRemove() succeeded")
+	}
+}
+
 // TestMarshalJSON() tests MarshalJSON().
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {
