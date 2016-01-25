@@ -463,6 +463,16 @@ func TestThreadLimit(t *testing.T) {
 	}
 }
 
+// TestDatabaseUnmap() tests DB.DatabaseUnmap().
+func TestDatabaseUnmap(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+
+	if err := db.DatabaseUnmap(nil); err != nil {
+		t.Fatalf("DB.DatabaseUnmap() failed: %v", err)
+	}
+}
+
 // TestMarshalJSON() tests MarshalJSON().
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {

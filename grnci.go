@@ -2016,6 +2016,44 @@ func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
 }
 
 //
+// `database_unmap`
+//
+
+// DatabaseUnmapOptions is a set of options for `database_unmap`.
+//
+// http://groonga.org/docs/reference/commands/database_unmap.html
+type DatabaseUnmapOptions struct {
+}
+
+// NewDatabaseUnmapOptions() returns the default options.
+func NewDatabaseUnmapOptions() *DatabaseUnmapOptions {
+	return &DatabaseUnmapOptions{}
+}
+
+// DatabaseUnmap() executes `database_unmap`.
+//
+// If options is nil, DatabaseUnmap() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/database_unmap.html
+func (db *DB) DatabaseUnmap(options *DatabaseUnmapOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewDatabaseUnmapOptions()
+	}
+	args := make(map[string]string)
+	str, err := db.queryEx("database_unmap", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("database_unmap failed")
+	}
+	return nil
+}
+
+//
 // `plugin_register`
 //
 
