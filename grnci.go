@@ -1929,6 +1929,45 @@ func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
 }
 
 //
+// `truncate`
+//
+
+// TruncateOptions is a set of options for `truncate`.
+//
+// http://groonga.org/docs/reference/commands/truncate.html
+type TruncateOptions struct {
+}
+
+// NewTruncateOptions() returns the default options.
+func NewTruncateOptions() *TruncateOptions {
+	return &TruncateOptions{}
+}
+
+// Truncate() executes `truncate`.
+//
+// If options is nil, Truncate() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/truncate.html
+func (db *DB) Truncate(name string, options *TruncateOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewTruncateOptions()
+	}
+	args := make(map[string]string)
+	args["target_name"] = name
+	str, err := db.queryEx("truncate", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("truncate failed")
+	}
+	return nil
+}
+
+//
 // `plugin_register`
 //
 

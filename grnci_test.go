@@ -430,6 +430,25 @@ func TestObjectExist(t *testing.T) {
 	}
 }
 
+// TestTruncate() tests DB.ObjectExist().
+func TestTruncate(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+	if err := db.TableCreate("tbl", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+
+	if err := db.Truncate("tbl.val", nil); err != nil {
+		t.Fatalf("DB.Truncate() failed: %v", err)
+	}
+	if err := db.Truncate("tbl", nil); err != nil {
+		t.Fatalf("DB.Truncate() failed: %v", err)
+	}
+}
+
 // TestMarshalJSON() tests MarshalJSON().
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {
