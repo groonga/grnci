@@ -328,6 +328,25 @@ func TestLoadEx(t *testing.T) {
 	}
 }
 
+// TestColumnRemove() tests DB.ColumnRemove().
+func TestColumnRemove(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+	if err := db.TableCreate("tbl", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
+		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+	}
+
+	if err := db.ColumnRemove("tbl", "val", nil); err != nil {
+		t.Fatalf("DB.ColumnRemove() failed: %v", err)
+	}
+	if err := db.ColumnRemove("tbl", "val", nil); err == nil {
+		t.Fatalf("DB.ColumnRemove() succeeded")
+	}
+}
+
 // TestMarshalJSON() tests MarshalJSON().
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {

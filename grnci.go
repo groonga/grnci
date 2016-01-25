@@ -1704,3 +1704,49 @@ func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, e
 	}
 	return db.Load(tbl, vals, options)
 }
+
+//
+// `column_remove`
+//
+
+// ColumnRemoveOptions is a set of options for `column_remove`.
+//
+// http://groonga.org/docs/reference/commands/column_remove.html
+type ColumnRemoveOptions struct {
+}
+
+// NewColumnRemoveOptions() returns the default options.
+func NewColumnRemoveOptions() *ColumnRemoveOptions {
+	return &ColumnRemoveOptions{}
+}
+
+// ColumnRemove() executes `column_remove`.
+//
+// If options is nil, ColumnRemove() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/column_remove.html
+func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if err := checkTableName(tbl); err != nil {
+		return err
+	}
+	if err := checkColumnName(name); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewColumnRemoveOptions()
+	}
+	args := make(map[string]string)
+	args["table"] = tbl
+	args["name"] = name
+	str, err := db.queryEx("column_remove", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("column_remove failed")
+	}
+	return nil
+}
