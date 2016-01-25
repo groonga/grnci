@@ -430,7 +430,7 @@ func TestObjectExist(t *testing.T) {
 	}
 }
 
-// TestTruncate() tests DB.ObjectExist().
+// TestTruncate() tests DB.Truncate().
 func TestTruncate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
