@@ -1842,3 +1842,49 @@ func (db *DB) TableRemove(name string, options *TableRemoveOptions) error {
 	}
 	return nil
 }
+
+//
+// `table_rename`
+//
+
+// TableRenameOptions is a set of options for `table_rename`.
+//
+// http://groonga.org/docs/reference/commands/table_rename.html
+type TableRenameOptions struct {
+}
+
+// NewTableRenameOptions() returns the default options.
+func NewTableRenameOptions() *TableRenameOptions {
+	return &TableRenameOptions{}
+}
+
+// TableRename() executes `table_rename`.
+//
+// If options is nil, TableRename() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/table_rename.html
+func (db *DB) TableRename(name, newName string, options *TableRenameOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if err := checkTableName(name); err != nil {
+		return err
+	}
+	if err := checkTableName(newName); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewTableRenameOptions()
+	}
+	args := make(map[string]string)
+	args["name"] = name
+	args["new_name"] = newName
+	str, err := db.queryEx("table_rename", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("table_rename failed")
+	}
+	return nil
+}

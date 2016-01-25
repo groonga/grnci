@@ -385,6 +385,25 @@ func TestTableRemove(t *testing.T) {
 	}
 }
 
+// TestTableRename() tests DB.TableRename().
+func TestTableRename(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+	if err := db.TableCreate("tbl", nil); err != nil {
+		t.Fatalf("DB.TableCreate() failed: %v", err)
+	}
+
+	if err := db.TableRename("tbl", "tbl2", nil); err != nil {
+		t.Fatalf("DB.TableRename() failed: %v", err)
+	}
+	if err := db.TableRename("tbl", "tbl2", nil); err == nil {
+		t.Fatalf("DB.TableRename() succeeded")
+	}
+	if err := db.TableRename("tbl2", "tbl3", nil); err != nil {
+		t.Fatalf("DB.TableRename() failed: %v", err)
+	}
+}
+
 // TestMarshalJSON() tests MarshalJSON().
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {
