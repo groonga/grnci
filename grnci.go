@@ -1927,3 +1927,81 @@ func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
 	}
 	return nil
 }
+
+//
+// `plugin_register`
+//
+
+// PluginRegisterOptions is a set of options for `plugin_register`.
+//
+// http://groonga.org/docs/reference/commands/plugin_register.html
+type PluginRegisterOptions struct {
+}
+
+// NewPluginRegisterOptions() returns the default options.
+func NewPluginRegisterOptions() *PluginRegisterOptions {
+	return &PluginRegisterOptions{}
+}
+
+// PluginRegister() executes `plugin_register`.
+//
+// If options is nil, PluginRegister() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/plugin_register.html
+func (db *DB) PluginRegister(name string, options *PluginRegisterOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewPluginRegisterOptions()
+	}
+	args := make(map[string]string)
+	args["name"] = name
+	str, err := db.queryEx("plugin_register", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("plugin_register failed")
+	}
+	return nil
+}
+
+//
+// `plugin_unregister`
+//
+
+// PluginUnregisterOptions is a set of options for `plugin_unregister`.
+//
+// http://groonga.org/docs/reference/commands/plugin_unregister.html
+type PluginUnregisterOptions struct {
+}
+
+// NewPluginUnregisterOptions() returns the default options.
+func NewPluginUnregisterOptions() *PluginUnregisterOptions {
+	return &PluginUnregisterOptions{}
+}
+
+// PluginUnregister() executes `plugin_unregister`.
+//
+// If options is nil, PluginUnregister() uses the default options.
+//
+// http://groonga.org/docs/reference/commands/plugin_unregister.html
+func (db *DB) PluginUnregister(name string, options *PluginUnregisterOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewPluginUnregisterOptions()
+	}
+	args := make(map[string]string)
+	args["name"] = name
+	str, err := db.queryEx("plugin_unregister", args)
+	if err != nil {
+		return err
+	}
+	if str != "true" {
+		return fmt.Errorf("plugin_unregister failed")
+	}
+	return nil
+}
