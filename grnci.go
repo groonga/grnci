@@ -1989,6 +1989,9 @@ func NewThreadLimitOptions() *ThreadLimitOptions {
 //
 // If options is nil, ThreadLimit() uses the default options.
 //
+// FIXME: Note that if db is a handle, ThreadLimit() returns 1 even though
+// DB.Dup() is used. This is a limitation of grnci.
+//
 // http://groonga.org/docs/reference/commands/thread_limit.html
 func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
 	if err := db.check(); err != nil {
