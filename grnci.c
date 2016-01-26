@@ -1,5 +1,7 @@
 #include "grnci.h"
 
+#include <stddef.h>
+
 #include <groonga.h>
 
 static uint32_t
