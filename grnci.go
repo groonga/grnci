@@ -592,23 +592,23 @@ func (db *DB) sendEx(name string, args map[string]string) error {
 }
 
 // recv() receives the result of a command sent by send().
-func (db *DB) recv() (string, error) {
+func (db *DB) recv() ([]byte, error) {
 	var res *C.char
 	var resLen C.uint
 	var resFlags C.int
 	rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return "", db.errorf("grn_ctx_recv() failed: rc = %s", rc)
+		return nil, db.errorf("grn_ctx_recv() failed: rc = %s", rc)
 	}
 	if (resFlags & C.GRN_CTX_MORE) == 0 {
-		return C.GoStringN(res, C.int(resLen)), nil
+		return C.GoBytes(unsafe.Pointer(res), C.int(resLen)), nil
 	}
 	buf := bytes.NewBuffer(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
 	var bufErr error
 	for {
 		rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 		if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-			return "", db.errorf("grn_ctx_recv() failed: rc = %s", rc)
+			return nil, db.errorf("grn_ctx_recv() failed: rc = %s", rc)
 		}
 		if bufErr == nil {
 			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
@@ -618,22 +618,22 @@ func (db *DB) recv() (string, error) {
 		}
 	}
 	if bufErr != nil {
-		return "", bufErr
+		return nil, bufErr
 	}
-	return buf.String(), nil
+	return buf.Bytes(), nil
 }
 
 // query() executes a command.
-func (db *DB) query(cmd string) (string, error) {
+func (db *DB) query(cmd string) ([]byte, error) {
 	if err := db.send(cmd); err != nil {
-		str, _ := db.recv()
-		return str, err
+		res, _ := db.recv()
+		return res, err
 	}
 	return db.recv()
 }
 
 // qureyEx() executes a command with separated arguments.
-func (db *DB) queryEx(name string, args map[string]string) (string, error) {
+func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
 	if err := db.sendEx(name, args); err != nil {
 		res, _ := db.recv()
 		return res, err
@@ -915,11 +915,11 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	if len(options.TokenFilters) != 0 {
 		args["token_filters"] = options.TokenFilters
 	}
-	str, err := db.queryEx("table_create", args)
+	res, err := db.queryEx("table_create", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("table_create failed")
 	}
 	return nil
@@ -1002,11 +1002,11 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 	if len(src) != 0 {
 		args["source"] = src
 	}
-	str, err := db.queryEx("column_create", args)
+	res, err := db.queryEx("column_create", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return db.errorf("column_create failed")
 	}
 	return nil
@@ -1489,11 +1489,11 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		db.recv()
 		return 0, err
 	}
-	str, err := db.recv()
+	res, err := db.recv()
 	if err != nil {
 		return 0, err
 	}
-	cnt, err := strconv.Atoi(str)
+	cnt, err := strconv.Atoi(string(res))
 	if err != nil {
 		return 0, err
 	}
@@ -1936,11 +1936,11 @@ func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error
 	args := make(map[string]string)
 	args["table"] = tbl
 	args["name"] = name
-	str, err := db.queryEx("column_remove", args)
+	res, err := db.queryEx("column_remove", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("column_remove failed")
 	}
 	return nil
@@ -1986,11 +1986,11 @@ func (db *DB) ColumnRename(tbl, name, newName string, options *ColumnRenameOptio
 	args["table"] = tbl
 	args["name"] = name
 	args["new_name"] = newName
-	str, err := db.queryEx("column_rename", args)
+	res, err := db.queryEx("column_rename", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("column_rename failed")
 	}
 	return nil
@@ -2028,11 +2028,11 @@ func (db *DB) TableRemove(name string, options *TableRemoveOptions) error {
 	}
 	args := make(map[string]string)
 	args["name"] = name
-	str, err := db.queryEx("table_remove", args)
+	res, err := db.queryEx("table_remove", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("table_remove failed")
 	}
 	return nil
@@ -2074,11 +2074,11 @@ func (db *DB) TableRename(name, newName string, options *TableRenameOptions) err
 	args := make(map[string]string)
 	args["name"] = name
 	args["new_name"] = newName
-	str, err := db.queryEx("table_rename", args)
+	res, err := db.queryEx("table_rename", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("table_rename failed")
 	}
 	return nil
@@ -2113,11 +2113,11 @@ func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
 	}
 	args := make(map[string]string)
 	args["name"] = name
-	str, err := db.queryEx("object_exist", args)
+	res, err := db.queryEx("object_exist", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("object_exist failed")
 	}
 	return nil
@@ -2152,11 +2152,11 @@ func (db *DB) Truncate(name string, options *TruncateOptions) error {
 	}
 	args := make(map[string]string)
 	args["target_name"] = name
-	str, err := db.queryEx("truncate", args)
+	res, err := db.queryEx("truncate", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("truncate failed")
 	}
 	return nil
@@ -2197,11 +2197,11 @@ func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
 	if options.Max > 0 {
 		args["max"] = strconv.Itoa(options.Max)
 	}
-	str, err := db.queryEx("thread_limit", args)
+	res, err := db.queryEx("thread_limit", args)
 	if err != nil {
 		return 0, err
 	}
-	n, err := strconv.Atoi(str)
+	n, err := strconv.Atoi(string(res))
 	if err != nil {
 		return 0, err
 	}
@@ -2239,11 +2239,11 @@ func (db *DB) DatabaseUnmap(options *DatabaseUnmapOptions) error {
 		options = NewDatabaseUnmapOptions()
 	}
 	args := make(map[string]string)
-	str, err := db.queryEx("database_unmap", args)
+	res, err := db.queryEx("database_unmap", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("database_unmap failed")
 	}
 	return nil
@@ -2278,11 +2278,11 @@ func (db *DB) PluginRegister(name string, options *PluginRegisterOptions) error 
 	}
 	args := make(map[string]string)
 	args["name"] = name
-	str, err := db.queryEx("plugin_register", args)
+	res, err := db.queryEx("plugin_register", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("plugin_register failed")
 	}
 	return nil
@@ -2317,11 +2317,11 @@ func (db *DB) PluginUnregister(name string, options *PluginUnregisterOptions) er
 	}
 	args := make(map[string]string)
 	args["name"] = name
-	str, err := db.queryEx("plugin_unregister", args)
+	res, err := db.queryEx("plugin_unregister", args)
 	if err != nil {
 		return err
 	}
-	if str != "true" {
+	if string(res) != "true" {
 		return fmt.Errorf("plugin_unregister failed")
 	}
 	return nil
