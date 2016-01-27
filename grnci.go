@@ -14,6 +14,7 @@ import "C"
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -723,7 +724,7 @@ func (val *Time) writeTo(buf *bytes.Buffer) error {
 		_, err := buf.WriteString("null")
 		return err
 	}
-	str := strconv.FormatFloat(float64(*val) / 1000000.0, 'f', -1, 64)
+	str := strconv.FormatFloat(float64(*val)/1000000.0, 'f', -1, 64)
 	_, err := buf.WriteString(str)
 	return err
 }
@@ -752,7 +753,7 @@ func (val *Geo) writeTo(buf *bytes.Buffer) error {
 
 // MarshalJSON() returns JSON bytes.
 func (val Time) MarshalJSON() ([]byte, error) {
-	return []byte(strconv.FormatFloat(float64(val) / 1000000.0, 'f', -1, 64)), nil
+	return []byte(strconv.FormatFloat(float64(val)/1000000.0, 'f', -1, 64)), nil
 }
 
 // MarshalJSON() returns JSON bytes.
@@ -1705,6 +1706,198 @@ func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, e
 		return 0, err
 	}
 	return db.Load(tbl, vals, options)
+}
+
+//
+// `select`
+//
+
+// SelectOptions is a set of options for `select`.
+//
+// --output_columns and --drilldown are not supported.
+//
+// http://groonga.org/docs/reference/commands/select.html
+type SelectOptions struct {
+	MatchColumns             string // --match_columns
+	Query                    string // --query
+	Filter                   string // --filter
+	Scorer                   string // --scorer
+	Sortby                   string // --sortby
+	Offset                   int    // --offset
+	Limit                    int    // --limit
+	Cache                    bool   // --cache
+	MatchEscalationThreshold int    // --match_escalation_threshold
+	QueryFlags               string // --query_flags
+	QueryExpander            string // --query_expander
+	Adjuster                 string // --adjuster
+
+	ids   []int    // Target field IDs.
+	names []string // Target column names.
+}
+
+// NewSelectOptions() returns the default options.
+func NewSelectOptions() *SelectOptions {
+	return &SelectOptions{
+		Limit: 10,
+		Cache: true,
+	}
+}
+
+// selectScanFields() scans the struct of vals and fills options.ids and
+// options.names.
+func (db *DB) selectScanFields(vals interface{}, options *SelectOptions) error {
+	typ := reflect.TypeOf(vals)
+	if typ.Kind() != reflect.Ptr {
+		return fmt.Errorf("unsupported value type")
+	}
+	typ = typ.Elem()
+	if typ.Kind() != reflect.Slice {
+		return fmt.Errorf("unsupported value type")
+	}
+	typ = typ.Elem()
+	if typ.Kind() != reflect.Struct {
+		return fmt.Errorf("unsupported value type")
+	}
+	structType := typ
+
+	ids := make([]int, 0, structType.NumField())
+	names := make([]string, 0, structType.NumField())
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		if len(field.PkgPath) != 0 {
+			continue
+		}
+		fieldType := field.Type
+		for {
+			if (fieldType.Kind() == reflect.Slice) ||
+				(fieldType.Kind() == reflect.Ptr) {
+				fieldType = fieldType.Elem()
+			} else {
+				break
+			}
+		}
+		tag := field.Tag.Get(tagKey)
+		if len(tag) == 0 {
+			tag = field.Tag.Get(oldTagKey)
+		}
+		idx := strings.IndexByte(tag, tagSep)
+		if idx == -1 {
+			idx = len(tag)
+		}
+		name := field.Name
+		if idx != 0 {
+			name = tag[:idx]
+		}
+		ids = append(ids, i)
+		names = append(names, name)
+	}
+	options.ids = ids
+	options.names = names
+	return nil
+}
+
+// selectParse() parses the result of `select`.
+func (db *DB) selectParse(data []byte, vals interface{}, options *SelectOptions) error {
+	var raw [][][]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	var nHits int
+	if err := json.Unmarshal(raw[0][0][0], &nHits); err != nil {
+		return err
+	}
+	fmt.Println("nHits:", nHits) // for debug
+
+	rawHead := raw[0][1]
+	nCols := len(rawHead)
+	fmt.Println("nCols:", nCols) // for debug
+	nameTypes := make([][]string, nCols)
+	for i, msg := range rawHead {
+		if err := json.Unmarshal(msg, &nameTypes[i]); err != nil {
+			return err
+		}
+	}
+	fmt.Println("nameTypes:", nameTypes) // for debug
+
+	rawBody := raw[0][2:]
+	nRecs := len(rawBody)
+	fmt.Println("nRecs:", nRecs) // for debug
+
+	// TODO: parse the body.
+	return nil
+}
+
+// Select() executes `select`.
+//
+// If options is nil, Select() uses the default options.
+//
+// Note that Select() is experimental.
+//
+// http://groonga.org/docs/reference/commands/select.html
+func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	if err := checkTableName(tbl); err != nil {
+		return err
+	}
+	if options == nil {
+		options = NewSelectOptions()
+	}
+	if err := db.selectScanFields(vals, options); err != nil {
+		return err
+	}
+	args := make(map[string]string)
+	args["table"] = tbl
+	args["output_columns"] = strings.Join(options.names, ",")
+	if len(options.MatchColumns) != 0 {
+		args["match_columns"] = options.MatchColumns
+	}
+	if len(options.Query) != 0 {
+		args["query"] = options.Query
+	}
+	if len(options.Filter) != 0 {
+		args["filter"] = options.Filter
+	}
+	if len(options.Scorer) != 0 {
+		args["scorer"] = options.Scorer
+	}
+	if len(options.Sortby) != 0 {
+		args["sortby"] = options.Sortby
+	}
+	if options.Offset != 0 {
+		args["offset"] = strconv.Itoa(options.Offset)
+	}
+	if options.Limit != 10 {
+		args["limit"] = strconv.Itoa(options.Limit)
+	}
+	if !options.Cache {
+		args["cache"] = "no"
+	}
+	if options.MatchEscalationThreshold != 0 {
+		args["match_escalation_threshold"] =
+			strconv.Itoa(options.MatchEscalationThreshold)
+	}
+	if len(options.QueryFlags) != 0 {
+		args["query_flags"] = options.QueryFlags
+	}
+	if len(options.QueryExpander) != 0 {
+		args["query_expander"] = options.QueryExpander
+	}
+	if len(options.Adjuster) != 0 {
+		args["adjuster"] = options.Adjuster
+	}
+	// FIXME: queryEx() should return []byte.
+	str, err := db.queryEx("select", args)
+	if err != nil {
+		return err
+	}
+	fmt.Println(str) // for debug
+	if err := db.selectParse([]byte(str), vals, options); err != nil {
+		return err
+	}
+	return fmt.Errorf("not implemented yet")
 }
 
 //
