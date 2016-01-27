@@ -315,16 +315,16 @@ func TestLoadEx(t *testing.T) {
 
 	cnt, err := db.LoadEx("tbl", []tblRec(nil), nil)
 	if err != nil {
-		t.Fatalf("DB.Load() failed: %v", err)
+		t.Fatalf("DB.LoadEx() failed: %v", err)
 	} else if cnt != 0 {
-		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+		t.Fatalf("DB.LoadEx() failed: cnt = %d", cnt)
 	}
 
 	cnt, err = db.LoadEx("tbl2", recs, nil)
 	if err != nil {
-		t.Fatalf("DB.Load() failed: %v", err)
+		t.Fatalf("DB.LoadEx() failed: %v", err)
 	} else if cnt != 2 {
-		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+		t.Fatalf("DB.LoadEx() failed: cnt = %d", cnt)
 	}
 }
 
