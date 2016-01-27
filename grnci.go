@@ -1024,9 +1024,6 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 type LoadOptions struct {
 	Columns  string // --columns
 	IfExists string // --ifexists
-
-	ids   []int    // Target field IDs.
-	names []string // Target column names.
 }
 
 // NewLoadOptions() returns default options.
@@ -1037,10 +1034,10 @@ func NewLoadOptions() *LoadOptions {
 
 // loadScanFields() scans the struct of vals and fill options.ids and
 // options.names.
-func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
+func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) ([]int, []string, error) {
 	structType, err := getStructType(vals)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	var listed map[string]bool
 	if len(options.Columns) != 0 {
@@ -1048,7 +1045,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		names := splitValues(options.Columns, ',')
 		for _, name := range names {
 			if err := checkColumnName(name); err != nil {
-				return err
+				return nil, nil, err
 			}
 			listed[name] = true
 		}
@@ -1077,7 +1074,7 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		case boolType, intType, floatType, timeType, textType, geoType:
 		default:
 			if len(tag) != 0 {
-				return fmt.Errorf("unsupported data type")
+				return nil, nil, fmt.Errorf("unsupported data type")
 			}
 			continue
 		}
@@ -1090,10 +1087,10 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 			name = tag[:idx]
 		}
 		if err := checkColumnName(name); err != nil {
-			return err
+			return nil, nil, err
 		}
 		if isVector && ((name == "_key") || (name == "_value")) {
-			return fmt.Errorf("%s must not be vector", name)
+			return nil, nil, fmt.Errorf("%s must not be vector", name)
 		}
 		if (listed != nil) && !listed[name] {
 			continue
@@ -1101,13 +1098,11 @@ func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) error {
 		ids = append(ids, i)
 		names = append(names, name)
 	}
-	options.ids = ids
-	options.names = names
-	return nil
+	return ids, names, nil
 }
 
 // loadGenHead() generates the `load` header.
-func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (string, error) {
+func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions, names []string) (string, error) {
 	buf := new(bytes.Buffer)
 	if _, err := fmt.Fprintf(buf, "load --table '%s'", tbl); err != nil {
 		return "", err
@@ -1119,11 +1114,11 @@ func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions) (s
 			return "", err
 		}
 	}
-	if len(options.names) != 0 {
+	if len(names) != 0 {
 		if _, err := buf.WriteString(" --columns '"); err != nil {
 			return "", err
 		}
-		for i, name := range options.names {
+		for i, name := range names {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return "", err
@@ -1357,11 +1352,11 @@ func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 }
 
 // loadWriteValue() writes a value.
-func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, options *LoadOptions) error {
+func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, ids []int) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
-	for i, fieldId := range options.ids {
+	for i, fieldId := range ids {
 		if i != 0 {
 			if err := buf.WriteByte(','); err != nil {
 				return err
@@ -1392,7 +1387,7 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, options *Loa
 }
 
 // loadGenBody() generates the `load` body.
-func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (string, error) {
+func (db *DB) loadGenBody(tbl string, vals interface{}, ids []int) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
@@ -1400,7 +1395,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 	val := reflect.ValueOf(vals)
 	switch val.Kind() {
 	case reflect.Struct:
-		if err := db.loadWriteValue(buf, &val, options); err != nil {
+		if err := db.loadWriteValue(buf, &val, ids); err != nil {
 			return "", err
 		}
 	case reflect.Ptr:
@@ -1408,7 +1403,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 			return "", fmt.Errorf("vals is nil")
 		}
 		elem := val.Elem()
-		if err := db.loadWriteValue(buf, &elem, options); err != nil {
+		if err := db.loadWriteValue(buf, &elem, ids); err != nil {
 			return "", err
 		}
 	case reflect.Slice:
@@ -1419,7 +1414,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, options *LoadOptions) (s
 				}
 			}
 			idxVal := val.Index(i)
-			if err := db.loadWriteValue(buf, &idxVal, options); err != nil {
+			if err := db.loadWriteValue(buf, &idxVal, ids); err != nil {
 				return "", err
 			}
 		}
@@ -1465,14 +1460,15 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if options == nil {
 		options = NewLoadOptions()
 	}
-	if err := db.loadScanFields(vals, options); err != nil {
-		return 0, err
-	}
-	headCmd, err := db.loadGenHead(tbl, vals, options)
+	ids, names, err := db.loadScanFields(vals, options)
 	if err != nil {
 		return 0, err
 	}
-	bodyCmd, err := db.loadGenBody(tbl, vals, options)
+	headCmd, err := db.loadGenHead(tbl, vals, options, names)
+	if err != nil {
+		return 0, err
+	}
+	bodyCmd, err := db.loadGenBody(tbl, vals, ids)
 	if err != nil {
 		return 0, err
 	}
