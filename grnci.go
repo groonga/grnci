@@ -1726,9 +1726,6 @@ type SelectOptions struct {
 	QueryFlags               string // --query_flags
 	QueryExpander            string // --query_expander
 	Adjuster                 string // --adjuster
-
-	ids   []int    // Target field IDs.
-	names []string // Target column names.
 }
 
 // NewSelectOptions() returns the default options.
@@ -1741,18 +1738,18 @@ func NewSelectOptions() *SelectOptions {
 
 // selectScanFields() scans the struct of vals and fills options.ids and
 // options.names.
-func (db *DB) selectScanFields(vals interface{}, options *SelectOptions) error {
+func (db *DB) selectScanFields(vals interface{}, options *SelectOptions) ([]int, []string, error) {
 	typ := reflect.TypeOf(vals)
 	if typ.Kind() != reflect.Ptr {
-		return fmt.Errorf("unsupported value type")
+		return nil, nil, fmt.Errorf("unsupported value type")
 	}
 	typ = typ.Elem()
 	if typ.Kind() != reflect.Slice {
-		return fmt.Errorf("unsupported value type")
+		return nil, nil, fmt.Errorf("unsupported value type")
 	}
 	typ = typ.Elem()
 	if typ.Kind() != reflect.Struct {
-		return fmt.Errorf("unsupported value type")
+		return nil, nil, fmt.Errorf("unsupported value type")
 	}
 	structType := typ
 
@@ -1787,13 +1784,11 @@ func (db *DB) selectScanFields(vals interface{}, options *SelectOptions) error {
 		ids = append(ids, i)
 		names = append(names, name)
 	}
-	options.ids = ids
-	options.names = names
-	return nil
+	return ids, names, nil
 }
 
 // selectParse() parses the result of `select`.
-func (db *DB) selectParse(data []byte, vals interface{}, options *SelectOptions) error {
+func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []string) error {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -1841,12 +1836,13 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) error
 	if options == nil {
 		options = NewSelectOptions()
 	}
-	if err := db.selectScanFields(vals, options); err != nil {
+	ids, names, err := db.selectScanFields(vals, options)
+	if err != nil {
 		return err
 	}
 	args := make(map[string]string)
 	args["table"] = tbl
-	args["output_columns"] = strings.Join(options.names, ",")
+	args["output_columns"] = strings.Join(names, ",")
 	if len(options.MatchColumns) != 0 {
 		args["match_columns"] = options.MatchColumns
 	}
@@ -1890,7 +1886,7 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) error
 		return err
 	}
 	fmt.Println(str) // for debug
-	if err := db.selectParse([]byte(str), vals, options); err != nil {
+	if err := db.selectParse([]byte(str), vals, ids, names); err != nil {
 		return err
 	}
 	return fmt.Errorf("not implemented yet")
