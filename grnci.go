@@ -1878,7 +1878,6 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) error
 	if len(options.Adjuster) != 0 {
 		args["adjuster"] = options.Adjuster
 	}
-	// FIXME: queryEx() should return []byte.
 	str, err := db.queryEx("select", args)
 	if err != nil {
 		return err
