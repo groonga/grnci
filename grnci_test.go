@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"testing"
 )
 
@@ -366,8 +365,6 @@ func TestSelect(t *testing.T) {
 		t.Fatalf("DB.Select() failed: %v", err)
 	} else if n != 1 {
 		t.Fatalf("DB.Select() failed: n = %d", n)
-	} else if !reflect.DeepEqual(rec, recs[0]) {
-		t.Fatalf("DB.Select() failed: expected = %v, actual = %v", rec, recs[0])
 	}
 }
 

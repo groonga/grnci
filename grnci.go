@@ -724,8 +724,9 @@ func (val *Time) writeTo(buf *bytes.Buffer) error {
 		_, err := buf.WriteString("null")
 		return err
 	}
-	str := strconv.FormatFloat(float64(*val)/1000000.0, 'f', -1, 64)
-	_, err := buf.WriteString(str)
+	sec := int64(*val) / 1000000
+	usec := int64(*val) % 1000000
+	_, err := fmt.Fprintf(buf, "%d.%06d", sec, usec)
 	return err
 }
 
@@ -753,7 +754,9 @@ func (val *Geo) writeTo(buf *bytes.Buffer) error {
 
 // MarshalJSON() returns JSON bytes.
 func (val Time) MarshalJSON() ([]byte, error) {
-	return []byte(strconv.FormatFloat(float64(val)/1000000.0, 'f', -1, 64)), nil
+	sec := int64(val) / 1000000
+	usec := int64(val) % 1000000
+	return []byte(fmt.Sprintf("%d.%06d", sec, usec)), nil
 }
 
 // MarshalJSON() returns JSON bytes.
@@ -763,11 +766,25 @@ func (val Geo) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON() decodes JSON bytes.
 func (val *Time) UnmarshalJSON(data []byte) error {
-	sec, err := strconv.ParseFloat(string(data), 64)
+	str := string(data)
+	idx := strings.IndexByte(str, '.')
+	if idx == -1 {
+		sec, err := strconv.ParseInt(str, 10, 64)
+		if err != nil {
+			return err
+		}
+		*val = Time(sec * 1000000)
+		return nil
+	}
+	sec, err := strconv.ParseInt(str[:idx], 10, 64)
 	if err != nil {
 		return err
 	}
-	*val = Time(int64(sec * 1000000.0))
+	usec, err := strconv.ParseInt(str[idx+1:], 10, 64)
+	if err != nil {
+		return err
+	}
+	*val = Time(sec * 1000000 + usec)
 	return nil
 }
 
