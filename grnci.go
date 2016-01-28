@@ -1727,7 +1727,7 @@ func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, e
 
 // SelectOptions is a set of options for `select`.
 //
-// --drilldown are not supported.
+// --drilldown is not supported.
 //
 // http://groonga.org/docs/reference/commands/select.html
 type SelectOptions struct {
@@ -1883,11 +1883,18 @@ func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []stri
 	return nHits, nil
 }
 
-// Select() executes `select`.
+// Select() executes `select` (experimental).
+//
+// Select() creates a new slice to store the result and then overwrites *vals
+// with the new slice.
+//
+// vals accepts a pointer to a slice of struct.
+// See Load() for details about how struct fields are handled.
+//
+// If you want to use a subset of the struct, specify --output_columns with
+// options.OutputColumns.
 //
 // If options is nil, Select() uses the default options.
-//
-// Note that Select() is experimental.
 //
 // http://groonga.org/docs/reference/commands/select.html
 func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int, error) {
