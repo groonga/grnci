@@ -1821,35 +1821,49 @@ func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) (
 }
 
 // selectParse() parses the result of `select`.
-func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []string) error {
+func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []string) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
+		return 0, err
 	}
 
 	var nHits int
 	if err := json.Unmarshal(raw[0][0][0], &nHits); err != nil {
-		return err
+		return 0, err
 	}
-	fmt.Println("nHits:", nHits) // for debug
 
-	rawHead := raw[0][1]
-	nCols := len(rawHead)
-	fmt.Println("nCols:", nCols) // for debug
-	nameTypes := make([][]string, nCols)
-	for i, msg := range rawHead {
-		if err := json.Unmarshal(msg, &nameTypes[i]); err != nil {
-			return err
+	rawCols := raw[0][1]
+	nCols := len(rawCols)
+	if nCols != len(names) {
+		return 0, fmt.Errorf("%d columns expected but %d columns actual",
+			len(names), nCols)
+	}
+	for i, rawCol := range rawCols {
+		var nameType []string
+		if err := json.Unmarshal(rawCol, &nameType); err != nil {
+			return 0, err
+		}
+		if nameType[0] != names[i] {
+			return 0, fmt.Errorf("column %#v expected but column %#v actual",
+				names[i], nameType[0])
 		}
 	}
-	fmt.Println("nameTypes:", nameTypes) // for debug
 
-	rawBody := raw[0][2:]
-	nRecs := len(rawBody)
-	fmt.Println("nRecs:", nRecs) // for debug
+	rawRecs := raw[0][2:]
+	nRecs := len(rawRecs)
 
-	// TODO: parse the body.
-	return nil
+	recs := reflect.ValueOf(vals).Elem()
+	recs.Set(reflect.MakeSlice(recs.Type(), nRecs, nRecs))
+	for i := 0; i < nRecs; i++ {
+		rec := recs.Index(i)
+		for j := 0; j < len(ids); j++ {
+			ptr := rec.Field(ids[j]).Addr()
+			if err := json.Unmarshal(rawRecs[i][j], ptr.Interface()); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return nHits, nil
 }
 
 // Select() executes `select`.
@@ -1859,19 +1873,19 @@ func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []stri
 // Note that Select() is experimental.
 //
 // http://groonga.org/docs/reference/commands/select.html
-func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) error {
+func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int, error) {
 	if err := db.check(); err != nil {
-		return err
+		return 0, err
 	}
 	if err := checkTableName(tbl); err != nil {
-		return err
+		return 0, err
 	}
 	if options == nil {
 		options = NewSelectOptions()
 	}
 	ids, names, err := db.selectFindTargetFields(vals, options)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	args := make(map[string]string)
 	args["table"] = tbl
@@ -1915,13 +1929,13 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) error
 	}
 	str, err := db.queryEx("select", args)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	fmt.Println(str) // for debug
-	if err := db.selectParse([]byte(str), vals, ids, names); err != nil {
-		return err
+	n, err := db.selectParse([]byte(str), vals, ids, names)
+	if err != nil {
+		return 0, err
 	}
-	return fmt.Errorf("not implemented yet")
+	return n, nil
 }
 
 //

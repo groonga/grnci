@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -328,42 +329,47 @@ func TestLoadEx(t *testing.T) {
 	}
 }
 
-//// TestSelect() tests DB.Select().
-//func TestSelect(t *testing.T) {
-//	dirPath, _, db := createTempDB(t)
-//	defer removeTempDB(t, dirPath, db)
+// TestSelect() tests DB.Select().
+func TestSelect(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
 
-//	type tblRec struct {
-//		Key    Text    `grnci:"_key;;TABLE_PAT_KEY"`
-//		Bool   Bool    `grnci:"bool"`
-//		Int    Int     `grnci:"int;Int32"`
-//		Float  Float   `grnci:"float"`
-//		Time   Time    `grnci:"time"`
-//		Text   Text    `grnci:"text"`
-//		Geo    Geo     `grnci:"geo;TokyoGeoPoint"`
-//		VBool  []Bool  `grnci:"vbool"`
-//		VInt   []Int   `grnci:"vint"`
-//		VFloat []Float `grnci:"vfloat"`
-//		VTime  []Time  `grnci:"vtime"`
-//		VText  []Text  `grnci:"vtext;[]ShortText"`
-//		VGeo   []Geo   `grnci:"vgeo"`
-//	}
-//	rec := tblRec{
-//		Key: "Banana", Bool: true, Int: 456, Float: 4.56,
-//		Time: Now(), Text: "Foo, var!", Geo: Geo{456, 789},
-//		VBool: []Bool{false, true}, VInt: []Int{100, 200},
-//		VFloat: []Float{-1.25, 1.25}, VTime: []Time{Now(), Now() + 1000000},
-//		VText: []Text{"one", "two"}, VGeo: []Geo{{100, 200}, {300, 400}},
-//	}
-//	if _, err := db.LoadEx("tbl", rec, nil); err != nil {
-//		t.Fatalf("DB.LoadEx() failed: %v", err)
-//	}
+	type tblRec struct {
+		Key    Text    `grnci:"_key;;TABLE_PAT_KEY"`
+		Bool   Bool    `grnci:"bool"`
+		Int    Int     `grnci:"int;Int32"`
+		Float  Float   `grnci:"float"`
+		Time   Time    `grnci:"time"`
+		Text   Text    `grnci:"text"`
+		Geo    Geo     `grnci:"geo;TokyoGeoPoint"`
+		VBool  []Bool  `grnci:"vbool"`
+		VInt   []Int   `grnci:"vint"`
+		VFloat []Float `grnci:"vfloat"`
+		VTime  []Time  `grnci:"vtime"`
+		VText  []Text  `grnci:"vtext;[]ShortText"`
+		VGeo   []Geo   `grnci:"vgeo"`
+	}
+	rec := tblRec{
+		Key: "Banana", Bool: true, Int: 456, Float: 4.56,
+		Time: Now(), Text: "Foo, var!", Geo: Geo{456, 789},
+		VBool: []Bool{false, true}, VInt: []Int{100, 200},
+		VFloat: []Float{-1.25, 1.25}, VTime: []Time{Now(), Now() + 1000000},
+		VText: []Text{"one", "two"}, VGeo: []Geo{{100, 200}, {300, 400}},
+	}
+	if _, err := db.LoadEx("tbl", rec, nil); err != nil {
+		t.Fatalf("DB.LoadEx() failed: %v", err)
+	}
 
-//	var recs []tblRec
-//	if err := db.Select("tbl", &recs, nil); err != nil {
-//		t.Fatalf("DB.Select() failed: %v", err)
-//	}
-//}
+	var recs []tblRec
+	n, err := db.Select("tbl", &recs, nil)
+	if err != nil {
+		t.Fatalf("DB.Select() failed: %v", err)
+	} else if n != 1 {
+		t.Fatalf("DB.Select() failed: n = %d", n)
+	} else if !reflect.DeepEqual(rec, recs[0]) {
+		t.Fatalf("DB.Select() failed: expected = %v, actual = %v", rec, recs[0])
+	}
+}
 
 // TestColumnRemove() tests DB.ColumnRemove().
 func TestColumnRemove(t *testing.T) {
