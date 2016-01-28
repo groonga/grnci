@@ -1032,8 +1032,7 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// loadScanFields() scans the struct of vals and fill options.ids and
-// options.names.
+// loadScanFields() scans the struct of vals and extracts fields to be used.
 func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) ([]int, []string, error) {
 	structType, err := getStructType(vals)
 	if err != nil {
@@ -1736,8 +1735,7 @@ func NewSelectOptions() *SelectOptions {
 	}
 }
 
-// selectScanFields() scans the struct of vals and fills options.ids and
-// options.names.
+// selectScanFields() scans the struct of vals and extracts fields to be used.
 func (db *DB) selectScanFields(vals interface{}, options *SelectOptions) ([]int, []string, error) {
 	typ := reflect.TypeOf(vals)
 	if typ.Kind() != reflect.Ptr {
