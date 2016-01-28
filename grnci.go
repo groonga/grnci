@@ -1032,8 +1032,9 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// loadScanFields() scans the struct of vals and extracts fields to be used.
-func (db *DB) loadScanFields(vals interface{}, options *LoadOptions) ([]int, []string, error) {
+// loadFindTargetFields() scans the struct of vals and extracts fields to be
+// used.
+func (db *DB) loadFindTargetFields(vals interface{}, options *LoadOptions) ([]int, []string, error) {
 	structType, err := getStructType(vals)
 	if err != nil {
 		return nil, nil, err
@@ -1459,7 +1460,7 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if options == nil {
 		options = NewLoadOptions()
 	}
-	ids, names, err := db.loadScanFields(vals, options)
+	ids, names, err := db.loadFindTargetFields(vals, options)
 	if err != nil {
 		return 0, err
 	}
@@ -1735,8 +1736,9 @@ func NewSelectOptions() *SelectOptions {
 	}
 }
 
-// selectScanFields() scans the struct of vals and extracts fields to be used.
-func (db *DB) selectScanFields(vals interface{}, options *SelectOptions) ([]int, []string, error) {
+// selectFindTargetFields() scans the struct of vals and extracts fields to be
+// used.
+func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) ([]int, []string, error) {
 	typ := reflect.TypeOf(vals)
 	if typ.Kind() != reflect.Ptr {
 		return nil, nil, fmt.Errorf("unsupported value type")
@@ -1834,7 +1836,7 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) error
 	if options == nil {
 		options = NewSelectOptions()
 	}
-	ids, names, err := db.selectScanFields(vals, options)
+	ids, names, err := db.selectFindTargetFields(vals, options)
 	if err != nil {
 		return err
 	}
