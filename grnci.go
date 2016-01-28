@@ -1710,7 +1710,7 @@ func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, e
 
 // SelectOptions is a set of options for `select`.
 //
-// --output_columns and --drilldown are not supported.
+// --drilldown are not supported.
 //
 // http://groonga.org/docs/reference/commands/select.html
 type SelectOptions struct {
@@ -1719,6 +1719,7 @@ type SelectOptions struct {
 	Filter                   string // --filter
 	Scorer                   string // --scorer
 	Sortby                   string // --sortby
+	OutputColumns            string // --output_columns
 	Offset                   int    // --offset
 	Limit                    int    // --limit
 	Cache                    bool   // --cache
@@ -1738,6 +1739,8 @@ func NewSelectOptions() *SelectOptions {
 
 // selectFindTargetFields() scans the struct of vals and extracts fields to be
 // used.
+//
+// FIXME: functions in --output_columns are not supported.
 func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) ([]int, []string, error) {
 	typ := reflect.TypeOf(vals)
 	if typ.Kind() != reflect.Ptr {
@@ -1753,6 +1756,14 @@ func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) (
 	}
 	structType := typ
 
+	var listed map[string]bool
+	if len(options.OutputColumns) != 0 {
+		listed = make(map[string]bool)
+		names := splitValues(options.OutputColumns, ',')
+		for _, name := range names {
+			listed[name] = true
+		}
+	}
 	ids := make([]int, 0, structType.NumField())
 	names := make([]string, 0, structType.NumField())
 	for i := 0; i < structType.NumField(); i++ {
@@ -1761,9 +1772,12 @@ func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) (
 			continue
 		}
 		fieldType := field.Type
+		depth := 0
 		for {
-			if (fieldType.Kind() == reflect.Slice) ||
-				(fieldType.Kind() == reflect.Ptr) {
+			if fieldType.Kind() == reflect.Slice {
+				fieldType = fieldType.Elem()
+				depth++
+			} else if fieldType.Kind() == reflect.Ptr {
 				fieldType = fieldType.Elem()
 			} else {
 				break
@@ -1773,6 +1787,14 @@ func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) (
 		if len(tag) == 0 {
 			tag = field.Tag.Get(oldTagKey)
 		}
+		switch fieldType {
+		case boolType, intType, floatType, timeType, textType, geoType:
+		default:
+			if len(tag) != 0 {
+				return nil, nil, fmt.Errorf("unsupported data type")
+			}
+			continue
+		}
 		idx := strings.IndexByte(tag, tagSep)
 		if idx == -1 {
 			idx = len(tag)
@@ -1780,6 +1802,17 @@ func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) (
 		name := field.Name
 		if idx != 0 {
 			name = tag[:idx]
+		}
+		if err := checkColumnName(name); err != nil {
+			return nil, nil, err
+		}
+		if depth != 0 {
+			if (name == "_id") || (name == "_key") || (name == "_value") {
+				return nil, nil, fmt.Errorf("%s must not be vector", name)
+			}
+		}
+		if (listed != nil) && !listed[name] {
+			continue
 		}
 		ids = append(ids, i)
 		names = append(names, name)
