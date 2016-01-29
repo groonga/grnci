@@ -545,3 +545,34 @@ func TestMarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetStructInfo(t *testing.T) {
+	info := GetStructInfo(nil)
+	if err := info.Error(); err == nil {
+		t.Fatal("GetStructInfo() succeeded")
+	}
+	info = GetStructInfo(0)
+	if err := info.Error(); err == nil {
+		t.Fatal("GetStructInfo() succeeded")
+	}
+
+	type tblRec struct {
+		Key    Text    `grnci:"_key;;TABLE_PAT_KEY"`
+		Bool   Bool    `grnci:"bool"`
+		Int    Int     `grnci:"int;Int32"`
+		Float  Float   `grnci:"float"`
+		Time   Time    `grnci:"time"`
+		Text   Text    `grnci:"text"`
+		Geo    Geo     `grnci:"geo;TokyoGeoPoint"`
+		VBool  []Bool  `grnci:"vbool"`
+		VInt   []Int   `grnci:"vint"`
+		VFloat []Float `grnci:"vfloat"`
+		VTime  []Time  `grnci:"vtime"`
+		VText  []Text  `grnci:"vtext;[]ShortText"`
+		VGeo   []Geo   `grnci:"vgeo"`
+	}
+	info = GetStructInfo((*tblRec)(nil))
+	if err := info.Error(); err != nil {
+		t.Fatalf("GetStructInfo() failed: %v", err)
+	}
+}

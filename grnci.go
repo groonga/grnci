@@ -649,7 +649,7 @@ func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
 type StructField struct {
 	id   int      // Field ID
 	name string   // Field name
-	tag  []string // Field tag semicolon-separated values
+	tags []string // Field tag semicolon-separated values
 }
 
 // ID() returns the field ID.
@@ -664,21 +664,21 @@ func (field *StructField) Name() string {
 
 // Tag() returns the i-th tag value.
 func (field *StructField) Tag(i int) string {
-	if i >= len(field.tag) {
+	if i >= len(field.tags) {
 		return ""
 	}
-	return field.tag[i]
+	return field.tags[i]
 }
 
 // ColumnName() returns the name of the associated column.
 func (field *StructField) ColumnName() string {
-	if (len(field.tag) == 0) || (len(field.tag[0]) == 0) {
+	if (len(field.tags) == 0) || (len(field.tags[0]) == 0) {
 		return field.name
 	}
-	return field.tag[0]
+	return field.tags[0]
 }
 
-// StructField stores information of a struct.
+// StructInfo stores information of a struct.
 type StructInfo struct {
 	typ    reflect.Type  // Struct type
 	fields []StructField // Struct fields
@@ -710,16 +710,44 @@ var structInfos = map[reflect.Type]*StructInfo{
 	nil: &StructInfo{err: fmt.Errorf("not a struct type")},
 }
 
-// getStructTypeInfo() returns information of a struct.
-func getStructTypeInfo(typ reflect.Type) *StructInfo {
+// getStructInfoFromType() returns information of a struct.
+func getStructInfoFromType(typ reflect.Type) *StructInfo {
 	if info, ok := structInfos[typ]; ok {
 		return info
 	}
 	if typ.Kind() != reflect.Struct {
 		return structInfos[nil]
 	}
-	// TODO: check the struct fields.
-	return nil
+	var fields []StructField
+	var err error
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if len(field.PkgPath) != 0 {
+			continue
+		}
+		typ := field.Type
+		for {
+			switch typ.Kind() {
+			case reflect.Ptr, reflect.Slice, reflect.Array:
+				typ = typ.Elem()
+				continue
+			}
+			break
+		}
+		switch typ {
+		case boolType, intType, floatType, timeType, textType, geoType:
+		default:
+			continue
+		}
+		name := field.Name
+		tag := field.Tag.Get(tagKey)
+		if len(tag) == 0 {
+			tag = field.Tag.Get(oldTagKey)
+		}
+		tags := splitValues(tag, tagSep)
+		fields = append(fields, StructField{i, name, tags})
+	}
+	return &StructInfo{typ, fields, err}
 }
 
 // GetStructInfo() returns information of a struct.
@@ -733,7 +761,7 @@ func GetStructInfo(v interface{}) *StructInfo {
 		case reflect.Ptr, reflect.Slice, reflect.Array:
 			typ = typ.Elem()
 		default:
-			return getStructTypeInfo(typ)
+			return getStructInfoFromType(typ)
 		}
 	}
 }
@@ -881,7 +909,7 @@ func (val *Time) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*val = Time(sec * 1000000 + usec)
+	*val = Time(sec*1000000 + usec)
 	return nil
 }
 
