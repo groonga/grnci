@@ -642,6 +642,103 @@ func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
 }
 
 //
+// Struct
+//
+
+// StructField stores information of a target field.
+type StructField struct {
+	id   int      // Field ID
+	name string   // Field name
+	tag  []string // Field tag semicolon-separated values
+}
+
+// ID() returns the field ID.
+func (field *StructField) ID() int {
+	return field.id
+}
+
+// Name() returns the field name.
+func (field *StructField) Name() string {
+	return field.name
+}
+
+// Tag() returns the i-th tag value.
+func (field *StructField) Tag(i int) string {
+	if i >= len(field.tag) {
+		return ""
+	}
+	return field.tag[i]
+}
+
+// ColumnName() returns the name of the associated column.
+func (field *StructField) ColumnName() string {
+	if (len(field.tag) == 0) || (len(field.tag[0]) == 0) {
+		return field.name
+	}
+	return field.tag[0]
+}
+
+// StructField stores information of a struct.
+type StructInfo struct {
+	typ    reflect.Type  // Struct type
+	fields []StructField // Struct fields
+	err    error         // Error
+}
+
+// Type() returns the source type.
+func (info *StructInfo) Type() reflect.Type {
+	return info.typ
+}
+
+// NumField() returns the number of target fields.
+func (info *StructInfo) NumField() int {
+	return len(info.fields)
+}
+
+// Field() returns the i-th target field.
+func (info *StructInfo) Field(i int) StructField {
+	return info.fields[i]
+}
+
+// Error() returns the error.
+func (info *StructInfo) Error() error {
+	return info.err
+}
+
+// Registered struct information.
+var structInfos = map[reflect.Type]*StructInfo{
+	nil: &StructInfo{err: fmt.Errorf("not a struct type")},
+}
+
+// getStructTypeInfo() returns information of a struct.
+func getStructTypeInfo(typ reflect.Type) *StructInfo {
+	if info, ok := structInfos[typ]; ok {
+		return info
+	}
+	if typ.Kind() != reflect.Struct {
+		return structInfos[nil]
+	}
+	// TODO: check the struct fields.
+	return nil
+}
+
+// GetStructInfo() returns information of a struct.
+func GetStructInfo(v interface{}) *StructInfo {
+	if v == nil {
+		return structInfos[nil]
+	}
+	typ := reflect.TypeOf(v)
+	for {
+		switch typ.Kind() {
+		case reflect.Ptr, reflect.Slice, reflect.Array:
+			typ = typ.Elem()
+		default:
+			return getStructTypeInfo(typ)
+		}
+	}
+}
+
+//
 // Built-in data types
 //
 
