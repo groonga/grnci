@@ -555,20 +555,6 @@ func (db *DB) Close() error {
 // Low-level command interface
 //
 
-// send() sends a command.
-func (db *DB) send(cmd string) error {
-	if len(cmd) == 0 {
-		return fmt.Errorf("cmd is empty")
-	}
-	cCmd := C.CString(cmd)
-	defer C.free(unsafe.Pointer(cCmd))
-	rc := C.grn_rc(C.grn_ctx_send(db.ctx, cCmd, C.uint(len(cmd)), C.int(0)))
-	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return db.errorf("grn_ctx_send() failed: rc = %s", rc)
-	}
-	return nil
-}
-
 // checkCmdName() checks whether a string is valid as a command name.
 func checkCmdName(s string) error {
 	if len(s) == 0 {
@@ -601,24 +587,38 @@ func checkArgKey(s string) error {
 	return nil
 }
 
-// sendEx() sends a command with separated arguments.
-func (db *DB) sendEx(name string, args map[string]string) error {
+// composeCommand() composes a command from a name and arguments.
+func (db *DB) composeCommand(name string, args map[string]string) (string, error) {
 	if err := checkCmdName(name); err != nil {
-		return err
+		return "", err
 	}
 	buf := new(bytes.Buffer)
 	if _, err := buf.WriteString(name); err != nil {
-		return err
+		return "", err
 	}
 	for key, val := range args {
 		if err := checkArgKey(key); err != nil {
-			return err
+			return "", err
 		}
 		val = strings.Replace(val, "\\", "\\\\", -1)
 		val = strings.Replace(val, "'", "\\'", -1)
 		fmt.Fprintf(buf, " --%s '%s'", key, val)
 	}
-	return db.send(buf.String())
+	return buf.String(), nil
+}
+
+// send() sends a command.
+func (db *DB) send(cmd string) error {
+	if len(cmd) == 0 {
+		return fmt.Errorf("cmd is empty")
+	}
+	cCmd := C.CString(cmd)
+	defer C.free(unsafe.Pointer(cCmd))
+	rc := C.grn_rc(C.grn_ctx_send(db.ctx, cCmd, C.uint(len(cmd)), C.int(0)))
+	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
+		return db.errorf("grn_ctx_send() failed: rc = %s", rc)
+	}
+	return nil
 }
 
 // recv() receives the result of a command sent by send().
@@ -664,11 +664,11 @@ func (db *DB) query(cmd string) ([]byte, error) {
 
 // qureyEx() executes a command with separated arguments.
 func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
-	if err := db.sendEx(name, args); err != nil {
-		res, _ := db.recv()
-		return res, err
+	cmd, err := db.composeCommand(name, args)
+	if err != nil {
+		return nil, err
 	}
-	return db.recv()
+	return db.query(cmd)
 }
 
 //
