@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -308,11 +309,23 @@ func unrefLib() error {
 // DB handle
 //
 
+// refCount is a reference counter for DB.obj.
+type refCount struct {
+	cnt   int        // Count.
+	mutex sync.Mutex // Mutex for the reference count.
+}
+
+// newRefCount() creates a reference counter.
+func newRefCount() *refCount {
+	return &refCount{}
+}
+
 // DB is a handle to a database or a connection to a server.
 type DB struct {
 	ctx  *C.grn_ctx // Context.
 	obj  *C.grn_obj // Database object (handle).
 	path string     // Database path (handle).
+	ref  *refCount  // Reference counter for obj.
 	host string     // Server host name (connection).
 	port int        // Server port number (connection).
 }
@@ -341,8 +354,17 @@ func (db *DB) fin() error {
 		return nil
 	}
 	if db.obj != nil {
-		C.grn_obj_unlink(db.ctx, db.obj)
+		if db.ref == nil {
+			return fmt.Errorf("ref is nil")
+		}
+		db.ref.mutex.Lock()
+		db.ref.cnt--
+		if db.ref.cnt == 0 {
+			C.grn_obj_close(db.ctx, db.obj)
+		}
+		db.ref.mutex.Unlock()
 		db.obj = nil
+		db.ref = nil
 	} else {
 		db.host = ""
 		db.port = 0
@@ -434,6 +456,8 @@ func Create(path string) (*DB, error) {
 		db.fin()
 		return nil, fmt.Errorf("grn_db_create() failed")
 	}
+	db.ref = newRefCount()
+	db.ref.cnt++
 	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
 	if cAbsPath == nil {
 		db.fin()
@@ -460,6 +484,8 @@ func Open(path string) (*DB, error) {
 		db.fin()
 		return nil, fmt.Errorf("grn_db_open() failed")
 	}
+	db.ref = newRefCount()
+	db.ref.cnt++
 	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
 	if cAbsPath == nil {
 		db.fin()
@@ -509,6 +535,10 @@ func (db *DB) Dup() (*DB, error) {
 		return nil, db.errorf("grn_ctx_use() failed: rc = %s", rc)
 	}
 	dupDB.obj = db.obj
+	dupDB.ref = db.ref
+	dupDB.ref.mutex.Lock()
+	dupDB.ref.cnt++
+	dupDB.ref.mutex.Unlock()
 	dupDB.path = db.path
 	return dupDB, nil
 }
@@ -755,7 +785,7 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 			tag = field.Tag.Get(oldTagKey)
 		}
 		structField := StructField{
-			id: i,
+			id:   i,
 			name: field.Name,
 			tags: splitValues(tag, tagSep),
 		}
