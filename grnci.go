@@ -1865,91 +1865,8 @@ func NewSelectOptions() *SelectOptions {
 	}
 }
 
-// selectFindTargetFields() scans the struct of vals and extracts fields to be
-// used.
-//
-// FIXME: functions in --output_columns are not supported.
-func (db *DB) selectFindTargetFields(vals interface{}, options *SelectOptions) ([]int, []string, error) {
-	typ := reflect.TypeOf(vals)
-	if typ.Kind() != reflect.Ptr {
-		return nil, nil, fmt.Errorf("unsupported value type")
-	}
-	typ = typ.Elem()
-	if typ.Kind() != reflect.Slice {
-		return nil, nil, fmt.Errorf("unsupported value type")
-	}
-	typ = typ.Elem()
-	if typ.Kind() != reflect.Struct {
-		return nil, nil, fmt.Errorf("unsupported value type")
-	}
-	structType := typ
-
-	var listed map[string]bool
-	if len(options.OutputColumns) != 0 {
-		listed = make(map[string]bool)
-		names := splitValues(options.OutputColumns, ',')
-		for _, name := range names {
-			listed[name] = true
-		}
-	}
-	ids := make([]int, 0, structType.NumField())
-	names := make([]string, 0, structType.NumField())
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		if len(field.PkgPath) != 0 {
-			continue
-		}
-		fieldType := field.Type
-		depth := 0
-		for {
-			if fieldType.Kind() == reflect.Slice {
-				fieldType = fieldType.Elem()
-				depth++
-			} else if fieldType.Kind() == reflect.Ptr {
-				fieldType = fieldType.Elem()
-			} else {
-				break
-			}
-		}
-		tag := field.Tag.Get(tagKey)
-		if len(tag) == 0 {
-			tag = field.Tag.Get(oldTagKey)
-		}
-		switch fieldType {
-		case boolType, intType, floatType, timeType, textType, geoType:
-		default:
-			if len(tag) != 0 {
-				return nil, nil, fmt.Errorf("unsupported data type")
-			}
-			continue
-		}
-		idx := strings.IndexByte(tag, tagSep)
-		if idx == -1 {
-			idx = len(tag)
-		}
-		name := field.Name
-		if idx != 0 {
-			name = tag[:idx]
-		}
-		if err := checkColumnName(name); err != nil {
-			return nil, nil, err
-		}
-		if depth != 0 {
-			if (name == "_id") || (name == "_key") || (name == "_value") {
-				return nil, nil, fmt.Errorf("%s must not be vector", name)
-			}
-		}
-		if (listed != nil) && !listed[name] {
-			continue
-		}
-		ids = append(ids, i)
-		names = append(names, name)
-	}
-	return ids, names, nil
-}
-
 // selectParse() parses the result of `select`.
-func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []string) (int, error) {
+func (db *DB) selectParse(data []byte, vals interface{}, fields []StructField) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return 0, err
@@ -1962,18 +1879,18 @@ func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []stri
 
 	rawCols := raw[0][1]
 	nCols := len(rawCols)
-	if nCols != len(names) {
+	if nCols != len(fields) {
 		return 0, fmt.Errorf("%d columns expected but %d columns actual",
-			len(names), nCols)
+			len(fields), nCols)
 	}
 	for i, rawCol := range rawCols {
 		var nameType []string
 		if err := json.Unmarshal(rawCol, &nameType); err != nil {
 			return 0, err
 		}
-		if nameType[0] != names[i] {
+		if nameType[0] != fields[i].ColumnName() {
 			return 0, fmt.Errorf("column %#v expected but column %#v actual",
-				names[i], nameType[0])
+				fields[i].ColumnName(), nameType[0])
 		}
 	}
 
@@ -1984,8 +1901,8 @@ func (db *DB) selectParse(data []byte, vals interface{}, ids []int, names []stri
 	recs.Set(reflect.MakeSlice(recs.Type(), nRecs, nRecs))
 	for i := 0; i < nRecs; i++ {
 		rec := recs.Index(i)
-		for j := 0; j < len(ids); j++ {
-			ptr := rec.Field(ids[j]).Addr()
+		for j, field := range fields {
+			ptr := rec.Field(field.ID()).Addr()
 			if err := json.Unmarshal(rawRecs[i][j], ptr.Interface()); err != nil {
 				return 0, err
 			}
@@ -2018,13 +1935,28 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 	if options == nil {
 		options = NewSelectOptions()
 	}
-	ids, names, err := db.selectFindTargetFields(vals, options)
-	if err != nil {
-		return 0, err
+	info := GetStructInfo(vals)
+	var fields []StructField
+	cols := splitValues(options.OutputColumns, ',')
+	if len(cols) == 0 {
+		fields = make([]StructField, info.NumField())
+		for i := 0; i < info.NumField(); i++ {
+			fields[i] = info.Field(i)
+			cols = append(cols, fields[i].ColumnName())
+		}
+	} else {
+		fields = make([]StructField, 0, len(cols))
+		for i, col := range cols {
+			var ok bool
+			fields[i], ok = info.FieldByColumnName(col)
+			if !ok {
+				return 0, fmt.Errorf("column name %#v not found", col)
+			}
+		}
 	}
 	args := make(map[string]string)
 	args["table"] = tbl
-	args["output_columns"] = strings.Join(names, ",")
+	args["output_columns"] = strings.Join(cols, ",")
 	if len(options.MatchColumns) != 0 {
 		args["match_columns"] = options.MatchColumns
 	}
@@ -2066,7 +1998,7 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 	if err != nil {
 		return 0, err
 	}
-	n, err := db.selectParse([]byte(str), vals, ids, names)
+	n, err := db.selectParse([]byte(str), vals, fields)
 	if err != nil {
 		return 0, err
 	}
