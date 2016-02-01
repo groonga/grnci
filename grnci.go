@@ -1608,20 +1608,12 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if err != nil {
 		return 0, err
 	}
-	if err := db.send(headCmd); err != nil {
-		db.recv()
+	if res, err := db.query(headCmd); err != nil {
 		return 0, err
-	}
-	if str, err := db.recv(); err != nil {
-		return 0, err
-	} else if len(str) != 0 {
+	} else if len(res) != 0 {
 		return 0, db.errorf("load failed")
 	}
-	if err := db.send(bodyCmd); err != nil {
-		db.recv()
-		return 0, err
-	}
-	res, err := db.recv()
+	res, err := db.query(bodyCmd)
 	if err != nil {
 		return 0, err
 	}
