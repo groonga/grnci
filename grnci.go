@@ -710,10 +710,10 @@ func (field *StructField) ColumnName() string {
 
 // StructInfo stores information of a struct.
 type StructInfo struct {
-	typ          reflect.Type            // Struct type
-	fields       []*StructField          // Struct fields
-	fieldsByName map[string]*StructField // Struct fields by name
-	err          error                   // Error
+	typ             reflect.Type            // Struct type
+	fields          []*StructField          // Struct fields
+	fieldsByColName map[string]*StructField // Struct fields by column name
+	err             error                   // Error
 }
 
 // Type() returns the source type.
@@ -731,9 +731,9 @@ func (info *StructInfo) Field(i int) StructField {
 	return *info.fields[i]
 }
 
-// FieldByName() returns the target field with the given column name.
-func (info *StructInfo) FieldByName(name string) (StructField, bool) {
-	field, ok := info.fieldsByName[name]
+// FieldByColumnName() returns the target field with the given column name.
+func (info *StructInfo) FieldByColumnName(name string) (StructField, bool) {
+	field, ok := info.fieldsByColName[name]
 	if !ok {
 		return StructField{}, ok
 	}
@@ -759,7 +759,7 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 		return structInfos[nil]
 	}
 	fields := make([]*StructField, 0)
-	fieldsByName := make(map[string]*StructField)
+	fieldsByColName := make(map[string]*StructField)
 	var err error
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
@@ -790,9 +790,13 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 			tags: splitValues(tag, tagSep),
 		}
 		fields = append(fields, &structField)
-		fieldsByName[structField.ColumnName()] = &structField
+		if _, ok := fieldsByColName[structField.ColumnName()]; ok {
+			err = fmt.Errorf("duplicate column name %#v", structField.ColumnName())
+		} else {
+			fieldsByColName[structField.ColumnName()] = &structField
+		}
 	}
-	return &StructInfo{typ, fields, fieldsByName, err}
+	return &StructInfo{typ, fields, fieldsByColName, err}
 }
 
 // GetStructInfo() returns information of a struct.

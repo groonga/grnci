@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -574,5 +575,16 @@ func TestGetStructInfo(t *testing.T) {
 	info = GetStructInfo((*tblRec)(nil))
 	if err := info.Error(); err != nil {
 		t.Fatalf("GetStructInfo() failed: %v", err)
+	}
+	if info.Type() != reflect.TypeOf(tblRec{}) {
+		t.Fatalf("GetStructInfo() failed: Type() = %v", info.Type())
+	}
+	if info.NumField() != 13 {
+		t.Fatalf("GetStructInfo() failed: NumField() = %d", info.NumField())
+	}
+	if field, ok := info.FieldByColumnName("_key"); !ok {
+		t.Fatalf("GetStructInfo() failed: ok = %v", ok)
+	} else if field.ColumnName() != "_key" {
+		t.Fatalf("GetStructInfo() failed: field = %v", field)
 	}
 }
