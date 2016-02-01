@@ -1223,40 +1223,6 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// loadGenHead() generates the `load` header.
-func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions, fields []StructField) (string, error) {
-	buf := new(bytes.Buffer)
-	if _, err := fmt.Fprintf(buf, "load --table '%s'", tbl); err != nil {
-		return "", err
-	}
-	if len(options.IfExists) != 0 {
-		val := strings.Replace(options.IfExists, "\\", "\\\\", -1)
-		val = strings.Replace(val, "'", "\\'", -1)
-		if _, err := fmt.Fprintf(buf, " --ifexists '%s'", val); err != nil {
-			return "", err
-		}
-	}
-	if len(fields) != 0 {
-		if _, err := buf.WriteString(" --columns '"); err != nil {
-			return "", err
-		}
-		for i, field := range fields {
-			if i != 0 {
-				if err := buf.WriteByte(','); err != nil {
-					return "", err
-				}
-			}
-			if _, err := buf.WriteString(field.ColumnName()); err != nil {
-				return "", err
-			}
-		}
-		if err := buf.WriteByte('\''); err != nil {
-			return "", err
-		}
-	}
-	return buf.String(), nil
-}
-
 // loadWriteScalar() writes a scalar value.
 func (db *DB) loadWriteScalar(buf *bytes.Buffer, any interface{}) error {
 	switch val := any.(type) {
@@ -1589,6 +1555,7 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		fields = make([]StructField, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
 			fields[i] = info.Field(i)
+			cols = append(cols, fields[i].ColumnName())
 		}
 	} else {
 		fields = make([]StructField, 0, len(cols))
@@ -1600,7 +1567,13 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 			}
 		}
 	}
-	headCmd, err := db.loadGenHead(tbl, vals, options, fields)
+	args := make(map[string]string)
+	args["table"] = tbl
+	if len(options.IfExists) != 0 {
+		args["ifexists"] = options.IfExists
+	}
+	args["columns"] = strings.Join(cols, ",")
+	headCmd, err := db.composeCommand("load", args)
 	if err != nil {
 		return 0, err
 	}
