@@ -1223,77 +1223,8 @@ func NewLoadOptions() *LoadOptions {
 	return options
 }
 
-// loadFindTargetFields() scans the struct of vals and extracts fields to be
-// used.
-func (db *DB) loadFindTargetFields(vals interface{}, options *LoadOptions) ([]int, []string, error) {
-	structType, err := getStructType(vals)
-	if err != nil {
-		return nil, nil, err
-	}
-	var listed map[string]bool
-	if len(options.Columns) != 0 {
-		listed = make(map[string]bool)
-		names := splitValues(options.Columns, ',')
-		for _, name := range names {
-			if err := checkColumnName(name); err != nil {
-				return nil, nil, err
-			}
-			listed[name] = true
-		}
-	}
-	ids := make([]int, 0, structType.NumField())
-	names := make([]string, 0, structType.NumField())
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		if len(field.PkgPath) != 0 {
-			continue
-		}
-		fieldType := field.Type
-		isVector := false
-		if fieldType.Kind() == reflect.Slice {
-			fieldType = fieldType.Elem()
-			isVector = true
-		}
-		if fieldType.Kind() == reflect.Ptr {
-			fieldType = fieldType.Elem()
-		}
-		tag := field.Tag.Get(tagKey)
-		if len(tag) == 0 {
-			tag = field.Tag.Get(oldTagKey)
-		}
-		switch fieldType {
-		case boolType, intType, floatType, timeType, textType, geoType:
-		default:
-			if len(tag) != 0 {
-				return nil, nil, fmt.Errorf("unsupported data type")
-			}
-			continue
-		}
-		idx := strings.IndexByte(tag, tagSep)
-		if idx == -1 {
-			idx = len(tag)
-		}
-		name := field.Name
-		if idx != 0 {
-			name = tag[:idx]
-		}
-		if err := checkColumnName(name); err != nil {
-			return nil, nil, err
-		}
-		if isVector && ((name == "_key") || (name == "_value")) {
-			return nil, nil, fmt.Errorf("%s must not be vector", name)
-		}
-		if (listed != nil) && !listed[name] {
-			continue
-		}
-		ids = append(ids, i)
-		names = append(names, name)
-	}
-	return ids, names, nil
-}
-
 // loadGenHead() generates the `load` header.
-func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions, names []string) (string, error) {
+func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions, fields []StructField) (string, error) {
 	buf := new(bytes.Buffer)
 	if _, err := fmt.Fprintf(buf, "load --table '%s'", tbl); err != nil {
 		return "", err
@@ -1305,17 +1236,17 @@ func (db *DB) loadGenHead(tbl string, vals interface{}, options *LoadOptions, na
 			return "", err
 		}
 	}
-	if len(names) != 0 {
+	if len(fields) != 0 {
 		if _, err := buf.WriteString(" --columns '"); err != nil {
 			return "", err
 		}
-		for i, name := range names {
+		for i, field := range fields {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
 					return "", err
 				}
 			}
-			if _, err := buf.WriteString(name); err != nil {
+			if _, err := buf.WriteString(field.ColumnName()); err != nil {
 				return "", err
 			}
 		}
@@ -1543,17 +1474,17 @@ func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 }
 
 // loadWriteValue() writes a value.
-func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, ids []int) error {
+func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []StructField) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
-	for i, fieldId := range ids {
+	for i, fieldInfo := range fields {
 		if i != 0 {
 			if err := buf.WriteByte(','); err != nil {
 				return err
 			}
 		}
-		field := val.Field(fieldId)
+		field := val.Field(fieldInfo.ID())
 		switch field.Kind() {
 		case reflect.Slice:
 			if field.Len() == 0 {
@@ -1578,7 +1509,7 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, ids []int) e
 }
 
 // loadGenBody() generates the `load` body.
-func (db *DB) loadGenBody(tbl string, vals interface{}, ids []int) (string, error) {
+func (db *DB) loadGenBody(tbl string, vals interface{}, fields []StructField) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
@@ -1586,7 +1517,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, ids []int) (string, erro
 	val := reflect.ValueOf(vals)
 	switch val.Kind() {
 	case reflect.Struct:
-		if err := db.loadWriteValue(buf, &val, ids); err != nil {
+		if err := db.loadWriteValue(buf, &val, fields); err != nil {
 			return "", err
 		}
 	case reflect.Ptr:
@@ -1594,7 +1525,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, ids []int) (string, erro
 			return "", fmt.Errorf("vals is nil")
 		}
 		elem := val.Elem()
-		if err := db.loadWriteValue(buf, &elem, ids); err != nil {
+		if err := db.loadWriteValue(buf, &elem, fields); err != nil {
 			return "", err
 		}
 	case reflect.Slice:
@@ -1605,7 +1536,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, ids []int) (string, erro
 				}
 			}
 			idxVal := val.Index(i)
-			if err := db.loadWriteValue(buf, &idxVal, ids); err != nil {
+			if err := db.loadWriteValue(buf, &idxVal, fields); err != nil {
 				return "", err
 			}
 		}
@@ -1651,15 +1582,29 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 	if options == nil {
 		options = NewLoadOptions()
 	}
-	ids, names, err := db.loadFindTargetFields(vals, options)
+	info := GetStructInfo(vals)
+	var fields []StructField
+	cols := splitValues(options.Columns, ',')
+	if len(cols) == 0 {
+		fields = make([]StructField, info.NumField())
+		for i := 0; i < info.NumField(); i++ {
+			fields[i] = info.Field(i)
+		}
+	} else {
+		fields = make([]StructField, 0, len(cols))
+		for i, col := range cols {
+			var ok bool
+			fields[i], ok = info.FieldByColumnName(col)
+			if !ok {
+				return 0, fmt.Errorf("column name %#v not found", col)
+			}
+		}
+	}
+	headCmd, err := db.loadGenHead(tbl, vals, options, fields)
 	if err != nil {
 		return 0, err
 	}
-	headCmd, err := db.loadGenHead(tbl, vals, options, names)
-	if err != nil {
-		return 0, err
-	}
-	bodyCmd, err := db.loadGenBody(tbl, vals, ids)
+	bodyCmd, err := db.loadGenBody(tbl, vals, fields)
 	if err != nil {
 		return 0, err
 	}
