@@ -680,9 +680,10 @@ func (field *StructField) ColumnName() string {
 
 // StructInfo stores information of a struct.
 type StructInfo struct {
-	typ    reflect.Type  // Struct type
-	fields []StructField // Struct fields
-	err    error         // Error
+	typ          reflect.Type            // Struct type
+	fields       []*StructField          // Struct fields
+	fieldsByName map[string]*StructField // Struct fields by name
+	err          error                   // Error
 }
 
 // Type() returns the source type.
@@ -697,7 +698,16 @@ func (info *StructInfo) NumField() int {
 
 // Field() returns the i-th target field.
 func (info *StructInfo) Field(i int) StructField {
-	return info.fields[i]
+	return *info.fields[i]
+}
+
+// FieldByName() returns the target field with the given column name.
+func (info *StructInfo) FieldByName(name string) (StructField, bool) {
+	field, ok := info.fieldsByName[name]
+	if !ok {
+		return StructField{}, ok
+	}
+	return *field, ok
 }
 
 // Error() returns the error.
@@ -718,7 +728,8 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 	if typ.Kind() != reflect.Struct {
 		return structInfos[nil]
 	}
-	var fields []StructField
+	fields := make([]*StructField, 0)
+	fieldsByName := make(map[string]*StructField)
 	var err error
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
@@ -739,15 +750,19 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 		default:
 			continue
 		}
-		name := field.Name
 		tag := field.Tag.Get(tagKey)
 		if len(tag) == 0 {
 			tag = field.Tag.Get(oldTagKey)
 		}
-		tags := splitValues(tag, tagSep)
-		fields = append(fields, StructField{i, name, tags})
+		structField := StructField{
+			id: i,
+			name: field.Name,
+			tags: splitValues(tag, tagSep),
+		}
+		fields = append(fields, &structField)
+		fieldsByName[structField.ColumnName()] = &structField
 	}
-	return &StructInfo{typ, fields, err}
+	return &StructInfo{typ, fields, fieldsByName, err}
 }
 
 // GetStructInfo() returns information of a struct.
