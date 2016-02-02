@@ -677,35 +677,35 @@ func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
 
 // FieldInfo stores information of a target field.
 type FieldInfo struct {
-	id   int      // Field ID
-	name string   // Field name
-	tags []string // Field tag semicolon-separated values
+	id    int                  // Field ID
+  field *reflect.StructField // Field
+	tags  []string             // Field tag semicolon-separated values
 }
 
 // ID() returns the field ID.
-func (field *FieldInfo) ID() int {
-	return field.id
+func (info *FieldInfo) ID() int {
+	return info.id
 }
 
 // Name() returns the field name.
-func (field *FieldInfo) Name() string {
-	return field.name
+func (info *FieldInfo) Name() string {
+	return info.field.Name
 }
 
 // Tag() returns the i-th tag value.
-func (field *FieldInfo) Tag(i int) string {
-	if i >= len(field.tags) {
+func (info *FieldInfo) Tag(i int) string {
+	if i >= len(info.tags) {
 		return ""
 	}
-	return field.tags[i]
+	return info.tags[i]
 }
 
 // ColumnName() returns the name of the associated column.
-func (field *FieldInfo) ColumnName() string {
-	if (len(field.tags) == 0) || (len(field.tags[0]) == 0) {
-		return field.name
+func (info *FieldInfo) ColumnName() string {
+	if (len(info.tags) == 0) || (len(info.tags[0]) == 0) {
+		return info.Name()
 	}
-	return field.tags[0]
+	return info.tags[0]
 }
 
 // StructInfo stores information of a struct.
@@ -785,9 +785,9 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 			tag = field.Tag.Get(oldTagKey)
 		}
 		fieldInfo := FieldInfo{
-			id:   i,
-			name: field.Name,
-			tags: splitValues(tag, tagSep),
+			id:    i,
+			field: &field,
+			tags:  splitValues(tag, tagSep),
 		}
 		fields = append(fields, &fieldInfo)
 		if _, ok := fieldsByColName[fieldInfo.ColumnName()]; ok {
