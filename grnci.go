@@ -251,21 +251,6 @@ func splitValues(s string, sep byte) []string {
 	}
 }
 
-// getStructType() returns the struct type.
-func getStructType(vals interface{}) (reflect.Type, error) {
-	typ := reflect.TypeOf(vals)
-	switch typ.Kind() {
-	case reflect.Ptr:
-		typ = typ.Elem()
-	case reflect.Slice:
-		typ = typ.Elem()
-	}
-	if typ.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("unsupported value type")
-	}
-	return typ, nil
-}
-
 //
 // Library management
 //
@@ -723,6 +708,11 @@ func (info *FieldInfo) ID() int {
 // Name() returns the field name.
 func (info *FieldInfo) Name() string {
 	return info.field.Name
+}
+
+// Type() returns the field type.
+func (info *FieldInfo) Type() reflect.Type {
+	return info.field.Type
 }
 
 // Tag() returns the i-th tag value.
@@ -1605,84 +1595,68 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 //
 
 // loadExCreateTable() creates a table.
-func (db *DB) loadExCreateTable(tbl string, structType reflect.Type) error {
+func (db *DB) loadExCreateTable(tbl string, info *StructInfo) error {
 	options := NewTableCreateOptions()
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		if len(field.PkgPath) != 0 {
-			continue
+	for i := 0; i < info.NumField(); i++ {
+		field := info.Field(i)
+		typ := field.Type()
+		if typ.Kind() == reflect.Ptr {
+			typ = typ.Elem()
 		}
-		tag := field.Tag.Get(tagKey)
-		if len(tag) == 0 {
-			tag = field.Tag.Get(oldTagKey)
-			if len(tag) == 0 {
-				continue
-			}
-		}
-		name := ""
-		if idx := strings.IndexByte(tag, tagSep); idx != -1 {
-			name = tag[:idx]
-		} else {
-			name = tag
-		}
-		fieldType := field.Type
-		if fieldType.Kind() == reflect.Ptr {
-			fieldType = fieldType.Elem()
-		}
-		switch name {
+		switch field.ColumnName() {
 		case "_key":
-			switch fieldType {
-			case boolType:
-				options.KeyType = "Bool"
-			case intType:
-				options.KeyType = "Int64"
-			case floatType:
-				options.KeyType = "Float"
-			case timeType:
-				options.KeyType = "Time"
-			case textType:
-				options.KeyType = "ShortText"
-			case geoType:
-				options.KeyType = "WGS84GeoPoint"
-			default:
-				return fmt.Errorf("unsupported key type")
-			}
 			// grnci:"name;key_type;flags;default_tokenizer;normalizer;token_filters"
-			tags := splitValues(tag, tagSep)
-			if (len(tags) >= 2) && (len(tags[1]) != 0) {
-				options.KeyType = tags[1]
+			if len(field.Tag(1)) != 0 {
+				options.KeyType = field.Tag(1)
+			} else {
+				switch typ {
+				case boolType:
+					options.KeyType = "Bool"
+				case intType:
+					options.KeyType = "Int64"
+				case floatType:
+					options.KeyType = "Float"
+				case timeType:
+					options.KeyType = "Time"
+				case textType:
+					options.KeyType = "ShortText"
+				case geoType:
+					options.KeyType = "WGS84GeoPoint"
+				default:
+					return fmt.Errorf("unsupported key type")
+				}
 			}
-			if (len(tags) >= 3) && (len(tags[2]) != 0) {
-				options.Flags = tags[2]
+			if len(field.Tag(2)) != 0 {
+				options.Flags = field.Tag(2)
 			}
-			if (len(tags) >= 4) && (len(tags[3]) != 0) {
-				options.DefaultTokenizer = tags[3]
+			if len(field.Tag(3)) != 0 {
+				options.DefaultTokenizer = field.Tag(3)
 			}
-			if (len(tags) >= 5) && (len(tags[4]) != 0) {
-				options.Normalizer = tags[4]
+			if len(field.Tag(4)) != 0 {
+				options.Normalizer = field.Tag(4)
 			}
-			if (len(tags) >= 6) && (len(tags[5]) != 0) {
-				options.TokenFilters = tags[5]
+			if len(field.Tag(5)) != 0 {
+				options.TokenFilters = field.Tag(5)
 			}
 		case "_value":
-			switch fieldType {
-			case boolType:
-				options.ValueType = "Bool"
-			case intType:
-				options.ValueType = "Int64"
-			case floatType:
-				options.ValueType = "Float"
-			case timeType:
-				options.ValueType = "Time"
-			case geoType:
-				options.ValueType = "WGS84GeoPoint"
-			default:
-				return fmt.Errorf("unsupported value type")
-			}
 			// grnci:"name;value_type"
-			tags := splitValues(tag, tagSep)
-			if (len(tags) >= 2) && (len(tags[1]) != 0) {
-				options.ValueType = tags[1]
+			if len(field.Tag(1)) != 0 {
+				options.ValueType = field.Tag(1)
+			} else {
+				switch typ {
+				case boolType:
+					options.ValueType = "Bool"
+				case intType:
+					options.ValueType = "Int64"
+				case floatType:
+					options.ValueType = "Float"
+				case timeType:
+					options.ValueType = "Time"
+				case geoType:
+					options.ValueType = "WGS84GeoPoint"
+				default:
+					return fmt.Errorf("unsupported value type")
+				}
 			}
 		}
 	}
@@ -1690,83 +1664,67 @@ func (db *DB) loadExCreateTable(tbl string, structType reflect.Type) error {
 }
 
 // loadExCreateColumns() creates columns.
-func (db *DB) loadExCreateColumns(tbl string, structType reflect.Type) error {
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		if len(field.PkgPath) != 0 {
+func (db *DB) loadExCreateColumns(tbl string, info *StructInfo) error {
+	for i := 0; i < info.NumField(); i++ {
+		// grnci:"name;type;flags"
+		field := info.Field(i)
+		name := field.ColumnName()
+		switch name {
+		case "_id", "_key", "_value":
 			continue
 		}
-		tag := field.Tag.Get(tagKey)
-		if len(tag) == 0 {
-			tag = field.Tag.Get(oldTagKey)
-		}
-		idx := strings.IndexByte(tag, tagSep)
-		if idx == -1 {
-			idx = len(tag)
-		}
-		name := field.Name
-		if idx != 0 {
-			name = tag[:idx]
-		}
-		if (name == "_key") || (name == "_value") {
-			continue
-		}
-		fieldType := field.Type
-		switch fieldType.Kind() {
-		case reflect.Ptr:
-			fieldType = fieldType.Elem()
-		case reflect.Slice:
-			fieldType = fieldType.Elem()
-			if fieldType.Kind() == reflect.Ptr {
-				fieldType = fieldType.Elem()
+		typeName := ""
+		if len(field.Tag(1)) != 0 {
+			typeName = field.Tag(1)
+		} else {
+			typ := field.Type()
+			switch typ.Kind() {
+			case reflect.Ptr:
+				typ = typ.Elem()
+			case reflect.Slice:
+				typ = typ.Elem()
+				if typ.Kind() == reflect.Ptr {
+					typ = typ.Elem()
+				}
+				typ = reflect.SliceOf(typ)
 			}
-			fieldType = reflect.SliceOf(fieldType)
-		}
-		typ := ""
-		switch fieldType {
-		case boolType:
-			typ = "Bool"
-		case intType:
-			typ = "Int64"
-		case floatType:
-			typ = "Float"
-		case timeType:
-			typ = "Time"
-		case textType:
-			typ = "Text"
-		case geoType:
-			typ = "WGS84GeoPoint"
-		case vBoolType:
-			typ = "[]Bool"
-		case vIntType:
-			typ = "[]Int64"
-		case vFloatType:
-			typ = "[]Float"
-		case vTimeType:
-			typ = "[]Time"
-		case vTextType:
-			typ = "[]Text"
-		case vGeoType:
-			typ = "[]WGS84GeoPoint"
-		default:
-			if len(tag) != 0 {
+			switch typ {
+			case boolType:
+				typeName = "Bool"
+			case intType:
+				typeName = "Int64"
+			case floatType:
+				typeName = "Float"
+			case timeType:
+				typeName = "Time"
+			case textType:
+				typeName = "Text"
+			case geoType:
+				typeName = "WGS84GeoPoint"
+			case vBoolType:
+				typeName = "[]Bool"
+			case vIntType:
+				typeName = "[]Int64"
+			case vFloatType:
+				typeName = "[]Float"
+			case vTimeType:
+				typeName = "[]Time"
+			case vTextType:
+				typeName = "[]Text"
+			case vGeoType:
+				typeName = "[]WGS84GeoPoint"
+			default:
 				return fmt.Errorf("unsupported data type")
 			}
-			continue
 		}
 		if err := checkColumnName(name); err != nil {
 			return err
 		}
-		// grnci:"name;type;flags"
 		options := NewColumnCreateOptions()
-		tags := splitValues(tag, tagSep)
-		if (len(tags) >= 2) && (len(tags[1]) != 0) {
-			typ = tags[1]
+		if len(field.Tag(2)) != 0 {
+			options.Flags = field.Tag(2)
 		}
-		if (len(tags) >= 3) && (len(tags[2]) != 0) {
-			options.Flags = tags[2]
-		}
-		if err := db.ColumnCreate(tbl, name, typ, options); err != nil {
+		if err := db.ColumnCreate(tbl, name, typeName, options); err != nil {
 			return err
 		}
 	}
@@ -1795,14 +1753,14 @@ func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, e
 	if vals == nil {
 		return 0, fmt.Errorf("vals is nil")
 	}
-	structType, err := getStructType(vals)
-	if err != nil {
+	info := GetStructInfo(vals)
+	if err := info.Error(); err != nil {
 		return 0, err
 	}
-	if err := db.loadExCreateTable(tbl, structType); err != nil {
+	if err := db.loadExCreateTable(tbl, info); err != nil {
 		return 0, err
 	}
-	if err := db.loadExCreateColumns(tbl, structType); err != nil {
+	if err := db.loadExCreateColumns(tbl, info); err != nil {
 		return 0, err
 	}
 	return db.Load(tbl, vals, options)
