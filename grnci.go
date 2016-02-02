@@ -750,17 +750,13 @@ func (info *StructInfo) NumField() int {
 }
 
 // Field() returns the i-th target field.
-func (info *StructInfo) Field(i int) FieldInfo {
-	return *info.fields[i]
+func (info *StructInfo) Field(i int) *FieldInfo {
+	return info.fields[i]
 }
 
 // FieldByColumnName() returns the target field with the given column name.
-func (info *StructInfo) FieldByColumnName(name string) (FieldInfo, bool) {
-	field, ok := info.fieldsByColName[name]
-	if !ok {
-		return FieldInfo{}, ok
-	}
-	return *field, ok
+func (info *StructInfo) FieldByColumnName(name string) *FieldInfo {
+	return info.fieldsByColName[name]
 }
 
 // Error() returns the error.
@@ -1444,7 +1440,7 @@ func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 }
 
 // loadWriteValue() writes a value.
-func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []FieldInfo) error {
+func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []*FieldInfo) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
@@ -1479,7 +1475,7 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []Fie
 }
 
 // loadGenBody() generates the `load` body.
-func (db *DB) loadGenBody(tbl string, vals interface{}, fields []FieldInfo) (string, error) {
+func (db *DB) loadGenBody(tbl string, vals interface{}, fields []*FieldInfo) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
@@ -1553,20 +1549,18 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		options = NewLoadOptions()
 	}
 	info := GetStructInfo(vals)
-	var fields []FieldInfo
+	var fields []*FieldInfo
 	cols := splitValues(options.Columns, ',')
 	if len(cols) == 0 {
-		fields = make([]FieldInfo, info.NumField())
+		fields = make([]*FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
 			fields[i] = info.Field(i)
 			cols = append(cols, fields[i].ColumnName())
 		}
 	} else {
-		fields = make([]FieldInfo, 0, len(cols))
+		fields = make([]*FieldInfo, 0, len(cols))
 		for i, col := range cols {
-			var ok bool
-			fields[i], ok = info.FieldByColumnName(col)
-			if !ok {
+			if fields[i] = info.FieldByColumnName(col); fields[i] == nil {
 				return 0, fmt.Errorf("column name %#v not found", col)
 			}
 		}
@@ -1843,7 +1837,7 @@ func NewSelectOptions() *SelectOptions {
 }
 
 // selectParse() parses the result of `select`.
-func (db *DB) selectParse(data []byte, vals interface{}, fields []FieldInfo) (int, error) {
+func (db *DB) selectParse(data []byte, vals interface{}, fields []*FieldInfo) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return 0, err
@@ -1913,20 +1907,18 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 		options = NewSelectOptions()
 	}
 	info := GetStructInfo(vals)
-	var fields []FieldInfo
+	var fields []*FieldInfo
 	cols := splitValues(options.OutputColumns, ',')
 	if len(cols) == 0 {
-		fields = make([]FieldInfo, info.NumField())
+		fields = make([]*FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
 			fields[i] = info.Field(i)
 			cols = append(cols, fields[i].ColumnName())
 		}
 	} else {
-		fields = make([]FieldInfo, 0, len(cols))
+		fields = make([]*FieldInfo, 0, len(cols))
 		for i, col := range cols {
-			var ok bool
-			fields[i], ok = info.FieldByColumnName(col)
-			if !ok {
+			if fields[i] = info.FieldByColumnName(col); fields[i] == nil {
 				return 0, fmt.Errorf("column name %#v not found", col)
 			}
 		}

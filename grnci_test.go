@@ -582,8 +582,8 @@ func TestGetStructInfo(t *testing.T) {
 	if info.NumField() != 13 {
 		t.Fatalf("GetStructInfo() failed: NumField() = %d", info.NumField())
 	}
-	if field, ok := info.FieldByColumnName("_key"); !ok {
-		t.Fatalf("GetStructInfo() failed: ok = %v", ok)
+	if field := info.FieldByColumnName("_key"); field == nil {
+		t.Fatalf("GetStructInfo() failed")
 	} else if field.ColumnName() != "_key" {
 		t.Fatalf("GetStructInfo() failed: field = %v", field)
 	}
