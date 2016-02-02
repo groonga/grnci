@@ -678,8 +678,31 @@ func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
 // FieldInfo stores information of a target field.
 type FieldInfo struct {
 	id    int                  // Field ID
-  field *reflect.StructField // Field
+	field *reflect.StructField // Field
 	tags  []string             // Field tag semicolon-separated values
+}
+
+// newFieldInfo() returns a FieldInfo.
+func newFieldInfo(id int, field *reflect.StructField) *FieldInfo {
+	typ := field.Type
+	for {
+		switch typ.Kind() {
+		case reflect.Ptr, reflect.Slice:
+			typ = typ.Elem()
+			continue
+		}
+		break
+	}
+	switch typ {
+	case boolType, intType, floatType, timeType, textType, geoType:
+	default:
+		return nil
+	}
+	tag := field.Tag.Get(tagKey)
+	if len(tag) == 0 {
+		tag = field.Tag.Get(oldTagKey)
+	}
+	return &FieldInfo{id: id, field: field, tags: splitValues(tag, tagSep)}
 }
 
 // ID() returns the field ID.
@@ -758,45 +781,26 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 	if typ.Kind() != reflect.Struct {
 		return structInfos[nil]
 	}
-	fields := make([]*FieldInfo, 0)
-	fieldsByColName := make(map[string]*FieldInfo)
+	fieldInfos := make([]*FieldInfo, 0)
+	fieldInfosByColName := make(map[string]*FieldInfo)
 	var err error
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		if len(field.PkgPath) != 0 {
 			continue
 		}
-		typ := field.Type
-		for {
-			switch typ.Kind() {
-			case reflect.Ptr, reflect.Slice, reflect.Array:
-				typ = typ.Elem()
-				continue
-			}
-			break
-		}
-		switch typ {
-		case boolType, intType, floatType, timeType, textType, geoType:
-		default:
+		fieldInfo := newFieldInfo(i, &field)
+		if fieldInfo == nil {
 			continue
 		}
-		tag := field.Tag.Get(tagKey)
-		if len(tag) == 0 {
-			tag = field.Tag.Get(oldTagKey)
-		}
-		fieldInfo := FieldInfo{
-			id:    i,
-			field: &field,
-			tags:  splitValues(tag, tagSep),
-		}
-		fields = append(fields, &fieldInfo)
-		if _, ok := fieldsByColName[fieldInfo.ColumnName()]; ok {
+		fieldInfos = append(fieldInfos, fieldInfo)
+		if _, ok := fieldInfosByColName[fieldInfo.ColumnName()]; ok {
 			err = fmt.Errorf("duplicate column name %#v", fieldInfo.ColumnName())
 		} else {
-			fieldsByColName[fieldInfo.ColumnName()] = &fieldInfo
+			fieldInfosByColName[fieldInfo.ColumnName()] = fieldInfo
 		}
 	}
-	return &StructInfo{typ, fields, fieldsByColName, err}
+	return &StructInfo{typ, fieldInfos, fieldInfosByColName, err}
 }
 
 // GetStructInfo() returns information of a struct.
