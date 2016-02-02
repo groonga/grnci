@@ -673,30 +673,34 @@ type FieldInfo struct {
 	id    int                  // Field ID
 	field *reflect.StructField // Field
 	tags  []string             // Field tag semicolon-separated values
+	typ   reflect.Type         // Terminal type
+	dim   int                  // Vector dimension
 }
 
 // newFieldInfo() returns a FieldInfo.
 func newFieldInfo(id int, field *reflect.StructField) *FieldInfo {
 	info := FieldInfo{id: id, field: field}
-	typ := field.Type
-	for {
-		switch typ.Kind() {
-		case reflect.Ptr, reflect.Slice:
-			typ = typ.Elem()
-			continue
-		}
-		break
-	}
-	switch typ {
-	case boolType, intType, floatType, timeType, textType, geoType:
-	default:
-		return nil
-	}
 	tag := field.Tag.Get(tagKey)
 	if len(tag) == 0 {
 		tag = field.Tag.Get(oldTagKey)
 	}
 	info.tags = splitValues(tag, tagSep)
+	info.typ = field.Type
+	for {
+		if info.typ.Kind() == reflect.Ptr {
+			info.typ = info.typ.Elem()
+		} else if info.typ.Kind() == reflect.Slice {
+			info.typ = info.typ.Elem()
+			info.dim++
+		} else {
+			break
+		}
+	}
+	switch info.typ {
+	case boolType, intType, floatType, timeType, textType, geoType:
+	default:
+		return nil
+	}
 	return &info
 }
 
@@ -721,6 +725,16 @@ func (info *FieldInfo) Tag(i int) string {
 		return ""
 	}
 	return info.tags[i]
+}
+
+// TerminalType() returns the terminal type.
+func (info *FieldInfo) TerminalType() reflect.Type {
+	return info.typ
+}
+
+// Dimension() returns the vector dimension.
+func (info *FieldInfo) Dimension() int {
+	return info.dim
 }
 
 // ColumnName() returns the name of the associated column.

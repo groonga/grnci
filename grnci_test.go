@@ -587,4 +587,11 @@ func TestGetStructInfo(t *testing.T) {
 	} else if field.ColumnName() != "_key" {
 		t.Fatalf("GetStructInfo() failed: field = %v", field)
 	}
+	if field := info.FieldByColumnName("vgeo"); field == nil {
+		t.Fatalf("GetStructInfo() failed")
+	} else if field.TerminalType() != reflect.TypeOf(Geo{}) {
+		t.Fatalf("GetStructInfo() failed: field = %v", field)
+	} else if field.Dimension() != 1 {
+		t.Fatalf("GetStructInfo() failed: field = %v", field)
+	}
 }
