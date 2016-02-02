@@ -1615,17 +1615,16 @@ func (db *DB) loadExCreateTable(tbl string, info *StructInfo) error {
 	options := NewTableCreateOptions()
 	for i := 0; i < info.NumField(); i++ {
 		field := info.Field(i)
-		typ := field.Type()
-		if typ.Kind() == reflect.Ptr {
-			typ = typ.Elem()
-		}
 		switch field.ColumnName() {
 		case "_key":
 			// grnci:"name;key_type;flags;default_tokenizer;normalizer;token_filters"
+			if field.Dimension() != 0 {
+				return fmt.Errorf("vector key is not supported")
+			}
 			if len(field.Tag(1)) != 0 {
 				options.KeyType = field.Tag(1)
 			} else {
-				switch typ {
+				switch field.TerminalType() {
 				case boolType:
 					options.KeyType = "Bool"
 				case intType:
@@ -1656,10 +1655,13 @@ func (db *DB) loadExCreateTable(tbl string, info *StructInfo) error {
 			}
 		case "_value":
 			// grnci:"name;value_type"
+			if field.Dimension() != 0 {
+				return fmt.Errorf("vector value is not supported")
+			}
 			if len(field.Tag(1)) != 0 {
 				options.ValueType = field.Tag(1)
 			} else {
-				switch typ {
+				switch field.TerminalType() {
 				case boolType:
 					options.ValueType = "Bool"
 				case intType:
@@ -1693,44 +1695,27 @@ func (db *DB) loadExCreateColumns(tbl string, info *StructInfo) error {
 		if len(field.Tag(1)) != 0 {
 			typeName = field.Tag(1)
 		} else {
-			typ := field.Type()
-			switch typ.Kind() {
-			case reflect.Ptr:
-				typ = typ.Elem()
-			case reflect.Slice:
-				typ = typ.Elem()
-				if typ.Kind() == reflect.Ptr {
-					typ = typ.Elem()
-				}
-				typ = reflect.SliceOf(typ)
+			if field.Dimension() >= 2 {
+				return fmt.Errorf("%d-dimensional vector column is not supported")
 			}
-			switch typ {
+			if field.Dimension() == 1 {
+				typeName = "[]"
+			}
+			switch field.TerminalType() {
 			case boolType:
-				typeName = "Bool"
+				typeName += "Bool"
 			case intType:
-				typeName = "Int64"
+				typeName += "Int64"
 			case floatType:
-				typeName = "Float"
+				typeName += "Float"
 			case timeType:
-				typeName = "Time"
+				typeName += "Time"
 			case textType:
-				typeName = "Text"
+				typeName += "Text"
 			case geoType:
-				typeName = "WGS84GeoPoint"
-			case vBoolType:
-				typeName = "[]Bool"
-			case vIntType:
-				typeName = "[]Int64"
-			case vFloatType:
-				typeName = "[]Float"
-			case vTimeType:
-				typeName = "[]Time"
-			case vTextType:
-				typeName = "[]Text"
-			case vGeoType:
-				typeName = "[]WGS84GeoPoint"
+				typeName += "WGS84GeoPoint"
 			default:
-				return fmt.Errorf("unsupported data type")
+				return fmt.Errorf("unsupported column type")
 			}
 		}
 		if err := checkColumnName(name); err != nil {
