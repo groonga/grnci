@@ -684,6 +684,7 @@ type FieldInfo struct {
 
 // newFieldInfo() returns a FieldInfo.
 func newFieldInfo(id int, field *reflect.StructField) *FieldInfo {
+	info := FieldInfo{id: id, field: field}
 	typ := field.Type
 	for {
 		switch typ.Kind() {
@@ -702,7 +703,8 @@ func newFieldInfo(id int, field *reflect.StructField) *FieldInfo {
 	if len(tag) == 0 {
 		tag = field.Tag.Get(oldTagKey)
 	}
-	return &FieldInfo{id: id, field: field, tags: splitValues(tag, tagSep)}
+	info.tags = splitValues(tag, tagSep)
+	return &info
 }
 
 // ID() returns the field ID.
