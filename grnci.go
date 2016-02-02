@@ -675,25 +675,25 @@ func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
 // Struct
 //
 
-// StructField stores information of a target field.
-type StructField struct {
+// FieldInfo stores information of a target field.
+type FieldInfo struct {
 	id   int      // Field ID
 	name string   // Field name
 	tags []string // Field tag semicolon-separated values
 }
 
 // ID() returns the field ID.
-func (field *StructField) ID() int {
+func (field *FieldInfo) ID() int {
 	return field.id
 }
 
 // Name() returns the field name.
-func (field *StructField) Name() string {
+func (field *FieldInfo) Name() string {
 	return field.name
 }
 
 // Tag() returns the i-th tag value.
-func (field *StructField) Tag(i int) string {
+func (field *FieldInfo) Tag(i int) string {
 	if i >= len(field.tags) {
 		return ""
 	}
@@ -701,7 +701,7 @@ func (field *StructField) Tag(i int) string {
 }
 
 // ColumnName() returns the name of the associated column.
-func (field *StructField) ColumnName() string {
+func (field *FieldInfo) ColumnName() string {
 	if (len(field.tags) == 0) || (len(field.tags[0]) == 0) {
 		return field.name
 	}
@@ -710,10 +710,10 @@ func (field *StructField) ColumnName() string {
 
 // StructInfo stores information of a struct.
 type StructInfo struct {
-	typ             reflect.Type            // Struct type
-	fields          []*StructField          // Struct fields
-	fieldsByColName map[string]*StructField // Struct fields by column name
-	err             error                   // Error
+	typ             reflect.Type          // Struct type
+	fields          []*FieldInfo          // Struct fields
+	fieldsByColName map[string]*FieldInfo // Struct fields by column name
+	err             error                 // Error
 }
 
 // Type() returns the source type.
@@ -727,15 +727,15 @@ func (info *StructInfo) NumField() int {
 }
 
 // Field() returns the i-th target field.
-func (info *StructInfo) Field(i int) StructField {
+func (info *StructInfo) Field(i int) FieldInfo {
 	return *info.fields[i]
 }
 
 // FieldByColumnName() returns the target field with the given column name.
-func (info *StructInfo) FieldByColumnName(name string) (StructField, bool) {
+func (info *StructInfo) FieldByColumnName(name string) (FieldInfo, bool) {
 	field, ok := info.fieldsByColName[name]
 	if !ok {
-		return StructField{}, ok
+		return FieldInfo{}, ok
 	}
 	return *field, ok
 }
@@ -758,8 +758,8 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 	if typ.Kind() != reflect.Struct {
 		return structInfos[nil]
 	}
-	fields := make([]*StructField, 0)
-	fieldsByColName := make(map[string]*StructField)
+	fields := make([]*FieldInfo, 0)
+	fieldsByColName := make(map[string]*FieldInfo)
 	var err error
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
@@ -784,16 +784,16 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 		if len(tag) == 0 {
 			tag = field.Tag.Get(oldTagKey)
 		}
-		structField := StructField{
+		fieldInfo := FieldInfo{
 			id:   i,
 			name: field.Name,
 			tags: splitValues(tag, tagSep),
 		}
-		fields = append(fields, &structField)
-		if _, ok := fieldsByColName[structField.ColumnName()]; ok {
-			err = fmt.Errorf("duplicate column name %#v", structField.ColumnName())
+		fields = append(fields, &fieldInfo)
+		if _, ok := fieldsByColName[fieldInfo.ColumnName()]; ok {
+			err = fmt.Errorf("duplicate column name %#v", fieldInfo.ColumnName())
 		} else {
-			fieldsByColName[structField.ColumnName()] = &structField
+			fieldsByColName[fieldInfo.ColumnName()] = &fieldInfo
 		}
 	}
 	return &StructInfo{typ, fields, fieldsByColName, err}
@@ -1440,7 +1440,7 @@ func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 }
 
 // loadWriteValue() writes a value.
-func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []StructField) error {
+func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []FieldInfo) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
 	}
@@ -1475,7 +1475,7 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []Str
 }
 
 // loadGenBody() generates the `load` body.
-func (db *DB) loadGenBody(tbl string, vals interface{}, fields []StructField) (string, error) {
+func (db *DB) loadGenBody(tbl string, vals interface{}, fields []FieldInfo) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
 		return "", err
@@ -1549,16 +1549,16 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		options = NewLoadOptions()
 	}
 	info := GetStructInfo(vals)
-	var fields []StructField
+	var fields []FieldInfo
 	cols := splitValues(options.Columns, ',')
 	if len(cols) == 0 {
-		fields = make([]StructField, info.NumField())
+		fields = make([]FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
 			fields[i] = info.Field(i)
 			cols = append(cols, fields[i].ColumnName())
 		}
 	} else {
-		fields = make([]StructField, 0, len(cols))
+		fields = make([]FieldInfo, 0, len(cols))
 		for i, col := range cols {
 			var ok bool
 			fields[i], ok = info.FieldByColumnName(col)
@@ -1839,7 +1839,7 @@ func NewSelectOptions() *SelectOptions {
 }
 
 // selectParse() parses the result of `select`.
-func (db *DB) selectParse(data []byte, vals interface{}, fields []StructField) (int, error) {
+func (db *DB) selectParse(data []byte, vals interface{}, fields []FieldInfo) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return 0, err
@@ -1909,16 +1909,16 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 		options = NewSelectOptions()
 	}
 	info := GetStructInfo(vals)
-	var fields []StructField
+	var fields []FieldInfo
 	cols := splitValues(options.OutputColumns, ',')
 	if len(cols) == 0 {
-		fields = make([]StructField, info.NumField())
+		fields = make([]FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
 			fields[i] = info.Field(i)
 			cols = append(cols, fields[i].ColumnName())
 		}
 	} else {
-		fields = make([]StructField, 0, len(cols))
+		fields = make([]FieldInfo, 0, len(cols))
 		for i, col := range cols {
 			var ok bool
 			fields[i], ok = info.FieldByColumnName(col)
