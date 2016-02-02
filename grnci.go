@@ -1551,6 +1551,9 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		options = NewLoadOptions()
 	}
 	info := GetStructInfo(vals)
+	if err := info.Error(); err != nil {
+		return 0, err
+	}
 	var fields []*FieldInfo
 	cols := splitValues(options.Columns, ',')
 	if len(cols) == 0 {
@@ -1909,6 +1912,9 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 		options = NewSelectOptions()
 	}
 	info := GetStructInfo(vals)
+	if err := info.Error(); err != nil {
+		return 0, err
+	}
 	var fields []*FieldInfo
 	cols := splitValues(options.OutputColumns, ',')
 	if len(cols) == 0 {
