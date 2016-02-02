@@ -675,6 +675,14 @@ func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
 // Struct
 //
 
+// tagKey is the key of a struct field tag that specifies details of the
+// associated Groonga column.
+const tagKey = "grnci"
+const oldTagKey = "groonga"
+
+// tagSep is the separator of a struct field tag value.
+const tagSep = ';'
+
 // FieldInfo stores information of a target field.
 type FieldInfo struct {
 	id    int                  // Field ID
@@ -820,14 +828,6 @@ func GetStructInfo(v interface{}) *StructInfo {
 //
 // Built-in data types
 //
-
-// tagKey is the key of a struct field tag that specifies details of the
-// associated Groonga column.
-const tagKey = "grnci"
-const oldTagKey = "groonga"
-
-// tagSep is the separator of a struct field tag value.
-const tagSep = ';'
 
 // Bool represents Bool.
 type Bool bool
