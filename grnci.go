@@ -840,19 +840,21 @@ type Geo struct {
 	Long int32 // Longitude in milliseconds.
 }
 
-var boolType = reflect.TypeOf(Bool(false))
-var intType = reflect.TypeOf(Int(0))
-var floatType = reflect.TypeOf(Float(0.0))
-var timeType = reflect.TypeOf(Time(0))
-var textType = reflect.TypeOf(Text(""))
-var geoType = reflect.TypeOf(Geo{0, 0})
+var (
+	boolType  = reflect.TypeOf(Bool(false))
+	intType   = reflect.TypeOf(Int(0))
+	floatType = reflect.TypeOf(Float(0.0))
+	timeType  = reflect.TypeOf(Time(0))
+	textType  = reflect.TypeOf(Text(""))
+	geoType   = reflect.TypeOf(Geo{0, 0})
 
-var vBoolType = reflect.TypeOf([]Bool(nil))
-var vIntType = reflect.TypeOf([]Int(nil))
-var vFloatType = reflect.TypeOf([]Float(nil))
-var vTimeType = reflect.TypeOf([]Time(nil))
-var vTextType = reflect.TypeOf([]Text(nil))
-var vGeoType = reflect.TypeOf([]Geo(nil))
+	vBoolType  = reflect.TypeOf([]Bool(nil))
+	vIntType   = reflect.TypeOf([]Int(nil))
+	vFloatType = reflect.TypeOf([]Float(nil))
+	vTimeType  = reflect.TypeOf([]Time(nil))
+	vTextType  = reflect.TypeOf([]Text(nil))
+	vGeoType   = reflect.TypeOf([]Geo(nil))
+)
 
 // writeTo() writes val to buf.
 func (val *Bool) writeTo(buf *bytes.Buffer) error {
