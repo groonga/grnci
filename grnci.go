@@ -779,17 +779,21 @@ func (info *StructInfo) Error() error {
 }
 
 // Registered struct information.
-var structInfos = map[reflect.Type]*StructInfo{
-	nil: &StructInfo{err: fmt.Errorf("not a struct type")},
-}
+var (
+	structInfoNil    = StructInfo{err: fmt.Errorf("not a struct type")}
+	structInfos      = make(map[reflect.Type]*StructInfo)
+	structInfosMutex sync.Mutex
+)
 
 // getStructInfoFromType() returns information of a struct.
 func getStructInfoFromType(typ reflect.Type) *StructInfo {
+	structInfosMutex.Lock()
+	defer structInfosMutex.Unlock()
 	if info, ok := structInfos[typ]; ok {
 		return info
 	}
 	if typ.Kind() != reflect.Struct {
-		return structInfos[nil]
+		return &structInfoNil
 	}
 	fieldInfos := make([]*FieldInfo, 0)
 	fieldInfosByColName := make(map[string]*FieldInfo)
@@ -818,7 +822,7 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 // GetStructInfo() returns information of a struct.
 func GetStructInfo(v interface{}) *StructInfo {
 	if v == nil {
-		return structInfos[nil]
+		return &structInfoNil
 	}
 	typ := reflect.TypeOf(v)
 	for {
