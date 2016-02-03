@@ -810,7 +810,9 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 			fieldInfosByColName[fieldInfo.ColumnName()] = fieldInfo
 		}
 	}
-	return &StructInfo{typ, fieldInfos, fieldInfosByColName, err}
+	info := &StructInfo{typ, fieldInfos, fieldInfosByColName, err}
+	structInfos[typ] = info
+	return info
 }
 
 // GetStructInfo() returns information of a struct.
