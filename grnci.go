@@ -259,9 +259,14 @@ func splitValues(s string, sep byte) []string {
 // Init() increments grnCnt and Fin() decrements grnCnt.
 var grnCnt uint32
 
+// grnCntMutex is a mutex for grnCnt.
+var grnCntMutex sync.Mutex
+
 // refLib() increments grnCnt.
 // The Groonga library is initialized if grnCnt changes from 0 to 1.
 func refLib() error {
+	grnCntMutex.Lock()
+	defer grnCntMutex.Unlock()
 	if grnCnt == math.MaxUint32 {
 		return fmt.Errorf("grnCnt overflow")
 	}
@@ -278,6 +283,8 @@ func refLib() error {
 // unrefLib() decrements grnCnt.
 // The Groonga library is finalized if grnCnt changes from 1 to 0.
 func unrefLib() error {
+	grnCntMutex.Lock()
+	defer grnCntMutex.Unlock()
 	if grnCnt == 0 {
 		return fmt.Errorf("grnCnt underflow")
 	}
