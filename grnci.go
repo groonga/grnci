@@ -1,6 +1,9 @@
 // Package grnci operates Groonga DBs via Groonga commands.
 //
 // This package is experimental and supports only a subset of Groonga commands.
+//
+// See http://groonga.org/docs/reference/command.html for details about Groonga
+// commands.
 package grnci
 
 // #cgo pkg-config: groonga
@@ -944,19 +947,30 @@ func (val *Geo) writeTo(buf *bytes.Buffer) error {
 	return err
 }
 
-// MarshalJSON() returns JSON bytes.
+// MarshalJSON() encodes Time to JSON bytes.
+//
+// Time is represented by the number of seconds elapsed since the Unix Epoch in
+// JSON.
+//
+// http://groonga.org/docs/tutorial/data.html#date-and-time-type
 func (val Time) MarshalJSON() ([]byte, error) {
 	sec := int64(val) / 1000000
 	usec := int64(val) % 1000000
 	return []byte(fmt.Sprintf("%d.%06d", sec, usec)), nil
 }
 
-// MarshalJSON() returns JSON bytes.
+// MarshalJSON() encodes Geo to JSON bytes.
+//
+// Geo is represented by a string with the format "Lat,Long" in JSON.
+//
+// http://groonga.org/docs/tutorial/data.html#longitude-and-latitude-types
 func (val Geo) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%d,%d\"", val.Lat, val.Long)), nil
 }
 
-// UnmarshalJSON() decodes JSON bytes.
+// UnmarshalJSON() decodes JSON bytes to Time.
+//
+// http://groonga.org/docs/tutorial/data.html#date-and-time-type
 func (val *Time) UnmarshalJSON(data []byte) error {
 	str := string(data)
 	idx := strings.IndexByte(str, '.')
@@ -980,7 +994,9 @@ func (val *Time) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON() decodes JSON bytes.
+// UnmarshalJSON() decodes JSON bytes to Geo.
+//
+// http://groonga.org/docs/tutorial/data.html#longitude-and-latitude-types
 func (val *Geo) UnmarshalJSON(data []byte) error {
 	str := string(data)
 	if (len(str) < 2) || (str[0] != '"') || (str[len(str)-1] != '"') {
@@ -1235,7 +1251,7 @@ type LoadOptions struct {
 	IfExists string // --ifexists
 }
 
-// NewLoadOptions() returns default options.
+// NewLoadOptions() returns the default options.
 func NewLoadOptions() *LoadOptions {
 	options := new(LoadOptions)
 	return options
