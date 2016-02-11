@@ -294,6 +294,72 @@ func parseFieldTag(s string) ([]string, error) {
 	return vals, nil
 }
 
+// parseColumnNames() parses comma-separated column names.
+func parseColumnNames(s string) ([]string, error) {
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return nil, nil
+	}
+	var vals []string
+	for len(s) != 0 {
+		var stack []byte
+		i := 0
+		for i < len(s) {
+			if (len(stack) != 0) && (stack[len(stack)-1] == '"') {
+				// In a string.
+				switch s[i] {
+				case '"':
+					stack = stack[:len(stack)-1]
+				case '\\':
+					if i == (len(stack) - 1) {
+						return nil, fmt.Errorf("invalid '\\' in column names")
+					}
+					i++
+				}
+			} else {
+				// Not in a string.
+				switch s[i] {
+				case '(':
+					stack = append(stack, ')')
+				case '[':
+					stack = append(stack, ']')
+				case '{':
+					stack = append(stack, '}')
+				case ')', ']', '}':
+					if (len(stack) == 0) || (stack[len(stack)-1] != s[i]) {
+						return nil, fmt.Errorf("invalid '%c' in column names", s[i])
+					}
+					stack = stack[:len(stack)-1]
+				case '"':
+					stack = append(stack, '"')
+				case '\\':
+					if i == (len(stack) - 1) {
+						return nil, fmt.Errorf("invalid '\\' in column names")
+					}
+					i++
+				}
+				if s[i] == ',' {
+					break
+				}
+			}
+			i++
+		}
+		if len(stack) != 0 {
+			err := fmt.Errorf("invalid '%c' in column names", stack[len(stack)-1])
+			return nil, err
+		}
+		vals = append(vals, s[:i])
+		if i < len(s) {
+			i++
+		}
+		s = s[i:]
+	}
+	for i, _ := range vals {
+		vals[i] = strings.TrimSpace(vals[i])
+	}
+	return vals, nil
+}
+
 //
 // Library management
 //
@@ -1631,7 +1697,8 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		return 0, err
 	}
 	var fields []*FieldInfo
-	cols := splitValues(options.Columns, ',')
+	// TODO: error handling.
+	cols, _ := parseColumnNames(options.Columns)
 	if len(cols) == 0 {
 		fields = make([]*FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
@@ -1945,7 +2012,8 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 		return 0, err
 	}
 	var fields []*FieldInfo
-	cols := splitValues(options.OutputColumns, ',')
+	// TODO: error handling.
+	cols, _ := parseColumnNames(options.OutputColumns)
 	if len(cols) == 0 {
 		fields = make([]*FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
