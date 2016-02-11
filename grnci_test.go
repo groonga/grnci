@@ -327,6 +327,15 @@ func TestLoadEx(t *testing.T) {
 	} else if cnt != 2 {
 		t.Fatalf("DB.LoadEx() failed: cnt = %d", cnt)
 	}
+
+	options := NewLoadOptions()
+	options.Columns = "_key,int,time,geo"
+	cnt, err = db.LoadEx("tbl3", recs, options)
+	if err != nil {
+		t.Fatalf("DB.LoadEx() failed: %v", err)
+	} else if cnt != 2 {
+		t.Fatalf("DB.LoadEx() failed: cnt = %d", cnt)
+	}
 }
 
 // TestSelect() tests DB.Select().
