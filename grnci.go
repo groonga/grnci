@@ -1706,7 +1706,7 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 			cols = append(cols, fields[i].ColumnName())
 		}
 	} else {
-		fields = make([]*FieldInfo, 0, len(cols))
+		fields = make([]*FieldInfo, len(cols))
 		for i, col := range cols {
 			if fields[i] = info.FieldByColumnName(col); fields[i] == nil {
 				return 0, fmt.Errorf("column name %#v not found", col)
@@ -2021,7 +2021,7 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 			cols = append(cols, fields[i].ColumnName())
 		}
 	} else {
-		fields = make([]*FieldInfo, 0, len(cols))
+		fields = make([]*FieldInfo, len(cols))
 		for i, col := range cols {
 			if fields[i] = info.FieldByColumnName(col); fields[i] == nil {
 				return 0, fmt.Errorf("column name %#v not found", col)
