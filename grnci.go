@@ -251,6 +251,49 @@ func splitValues(s string, sep byte) []string {
 	}
 }
 
+// parseFieldTag() parses a struct field tag value.
+func parseFieldTag(s string) ([]string, error) {
+	s = strings.TrimSpace(s)
+	var vals []string
+	for len(s) != 0 {
+		i := 0
+		for i < len(s) {
+			if s[i] == '"' {
+				for i++; i < len(s); i++ {
+					if s[i] == '"' {
+						break
+					} else if s[i] == '\\' {
+						if i == (len(s) - 1) {
+							return nil, fmt.Errorf("invalid '\\' in field tag")
+						}
+						i++
+					}
+				}
+				if i == len(s) {
+					return nil, fmt.Errorf("invalid '\"' in field tag")
+				}
+			} else if s[i] == '\\' {
+				if i == (len(s) - 1) {
+					return nil, fmt.Errorf("invalid '\\' in field tag")
+				}
+				i++
+			} else if s[i] == ';' {
+				break
+			}
+			i++
+		}
+		vals = append(vals, s[:i])
+		if i < len(s) {
+			i++
+		}
+		s = s[i:]
+	}
+	for i, _ := range vals {
+		vals[i] = strings.TrimSpace(vals[i])
+	}
+	return vals, nil
+}
+
 //
 // Library management
 //
@@ -691,7 +734,8 @@ func newFieldInfo(id int, field *reflect.StructField) *FieldInfo {
 	if len(tag) == 0 {
 		tag = field.Tag.Get(oldTagKey)
 	}
-	info.tags = splitValues(tag, tagSep)
+	// TODO: error handling.
+	info.tags, _ = parseFieldTag(tag)
 	info.typ = field.Type
 	for {
 		if info.typ.Kind() == reflect.Ptr {
