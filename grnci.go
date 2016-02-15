@@ -1700,8 +1700,10 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		return 0, err
 	}
 	var fields []*FieldInfo
-	// TODO: error handling.
-	cols, _ := parseColumnNames(options.Columns)
+	cols, err := parseColumnNames(options.Columns)
+	if err != nil {
+		return 0, err
+	}
 	if len(cols) == 0 {
 		fields = make([]*FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
@@ -2015,8 +2017,10 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 		return 0, err
 	}
 	var fields []*FieldInfo
-	// TODO: error handling.
-	cols, _ := parseColumnNames(options.OutputColumns)
+	cols, err := parseColumnNames(options.OutputColumns)
+	if err != nil {
+		return 0, err
+	}
 	if len(cols) == 0 {
 		fields = make([]*FieldInfo, info.NumField())
 		for i := 0; i < info.NumField(); i++ {
