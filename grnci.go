@@ -290,6 +290,9 @@ func parseFieldTag(s string) ([]string, error) {
 	}
 	for i, _ := range vals {
 		vals[i] = strings.TrimSpace(vals[i])
+		if strings.HasSuffix(vals[i], "*") {
+			return nil, fmt.Errorf("invalid '*' in field tag")
+		}
 	}
 	return vals, nil
 }
@@ -797,14 +800,18 @@ type FieldInfo struct {
 }
 
 // newFieldInfo() returns a FieldInfo.
-func newFieldInfo(id int, field *reflect.StructField) *FieldInfo {
+// If field is non-target, newFieldInfo() returns nil.
+func newFieldInfo(id int, field *reflect.StructField) (*FieldInfo, error) {
 	info := FieldInfo{id: id, field: field}
 	tag := field.Tag.Get(tagKey)
 	if len(tag) == 0 {
 		tag = field.Tag.Get(oldTagKey)
 	}
-	// TODO: error handling.
-	info.tags, _ = parseFieldTag(tag)
+	tags, err := parseFieldTag(tag)
+	if err != nil {
+		return nil, err
+	}
+	info.tags = tags
 	info.typ = field.Type
 	for {
 		if info.typ.Kind() == reflect.Ptr {
@@ -819,9 +826,9 @@ func newFieldInfo(id int, field *reflect.StructField) *FieldInfo {
 	switch info.typ {
 	case boolType, intType, floatType, timeType, textType, geoType:
 	default:
-		return nil
+		return nil, nil
 	}
-	return &info
+	return &info, nil
 }
 
 // ID() returns the field ID.
@@ -923,13 +930,18 @@ func getStructInfoFromType(typ reflect.Type) *StructInfo {
 		if len(field.PkgPath) != 0 {
 			continue
 		}
-		fieldInfo := newFieldInfo(i, &field)
+		var fieldInfo *FieldInfo
+		fieldInfo, err = newFieldInfo(i, &field)
+		if err != nil {
+			break
+		}
 		if fieldInfo == nil {
 			continue
 		}
 		fieldInfos = append(fieldInfos, fieldInfo)
 		if _, ok := fieldInfosByColName[fieldInfo.ColumnName()]; ok {
 			err = fmt.Errorf("duplicate column name %#v", fieldInfo.ColumnName())
+			break
 		} else {
 			fieldInfosByColName[fieldInfo.ColumnName()] = fieldInfo
 		}
