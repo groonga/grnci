@@ -356,6 +356,9 @@ func parseColumnNames(s string) ([]string, error) {
 	}
 	for i, _ := range vals {
 		vals[i] = strings.TrimSpace(vals[i])
+		if strings.HasSuffix(vals[i], "*") {
+			return nil, fmt.Errorf("invalid '*' in column names")
+		}
 	}
 	return vals, nil
 }
