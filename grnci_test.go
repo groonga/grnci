@@ -376,6 +376,23 @@ func TestSelect(t *testing.T) {
 	} else if n != 1 {
 		t.Fatalf("DB.Select() failed: n = %d", n)
 	}
+
+	type tblRec2 struct {
+		Key    Text    `grnci:"_key;;TABLE_PAT_KEY"`
+		Bool   Bool    `grnci:"!bool"`
+		Int    Int     `grnci:"int+2;Int32"`
+		Float  Float   `grnci:"float*2.0"`
+	}
+
+	options := NewSelectOptions()
+	options.Filter = "?"
+	var recs2 []tblRec2
+	n, err = db.Select("tbl", &recs2, options)
+	if err != nil {
+		t.Fatalf("DB.Select() failed: %v", err)
+	} else if n != 1 {
+		t.Fatalf("DB.Select() failed: n = %d", n)
+	}
 }
 
 // TestColumnRemove() tests DB.ColumnRemove().
