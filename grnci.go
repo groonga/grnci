@@ -1972,16 +1972,17 @@ func (db *DB) selectParse(data []byte, vals interface{}, fields []*FieldInfo) (i
 		return 0, fmt.Errorf("%d columns expected but %d columns actual",
 			len(fields), nCols)
 	}
-	for i, rawCol := range rawCols {
-		var nameType []string
-		if err := json.Unmarshal(rawCol, &nameType); err != nil {
-			return 0, err
-		}
-		if nameType[0] != fields[i].ColumnName() {
-			return 0, fmt.Errorf("column %#v expected but column %#v actual",
-				fields[i].ColumnName(), nameType[0])
-		}
-	}
+	// FIXME: the following check disallows functions.
+//	for i, rawCol := range rawCols {
+//		var nameType []string
+//		if err := json.Unmarshal(rawCol, &nameType); err != nil {
+//			return 0, err
+//		}
+//		if nameType[0] != fields[i].ColumnName() {
+//			return 0, fmt.Errorf("column %#v expected but column %#v actual",
+//				fields[i].ColumnName(), nameType[0])
+//		}
+//	}
 
 	rawRecs := raw[0][2:]
 	nRecs := len(rawRecs)
