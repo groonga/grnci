@@ -2088,6 +2088,7 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 	if len(options.Adjuster) != 0 {
 		args["adjuster"] = options.Adjuster
 	}
+	args["command_version"] = "2"
 	str, err := db.queryEx("select", args)
 	if err != nil {
 		return 0, err
