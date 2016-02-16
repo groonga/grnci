@@ -1898,6 +1898,10 @@ func (db *DB) loadExCreateColumns(tbl string, info *StructInfo) error {
 //  - grnci:"name;type;flags"
 //
 // Note that the separator is ';' because some values use ',' as its separator.
+//
+// http://groonga.org/docs/reference/commands/table_create.html
+// http://groonga.org/docs/reference/commands/column_create.html
+// http://groonga.org/docs/reference/commands/load.html
 func (db *DB) LoadEx(tbl string, vals interface{}, options *LoadOptions) (int, error) {
 	if err := db.check(); err != nil {
 		return 0, err
