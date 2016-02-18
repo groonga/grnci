@@ -296,8 +296,13 @@ func checkArgKey(s string) error {
 	return nil
 }
 
+type cmdArg struct {
+	Key   string
+	Value string
+}
+
 // composeCommand() composes a command from a name and arguments.
-func (db *DB) composeCommand(name string, args map[string]string) (string, error) {
+func (db *DB) composeCommand(name string, args []cmdArg) (string, error) {
 	if err := checkCmdName(name); err != nil {
 		return "", err
 	}
@@ -305,13 +310,13 @@ func (db *DB) composeCommand(name string, args map[string]string) (string, error
 	if _, err := buf.WriteString(name); err != nil {
 		return "", err
 	}
-	for key, val := range args {
-		if err := checkArgKey(key); err != nil {
+	for _, arg := range args {
+		if err := checkArgKey(arg.Key); err != nil {
 			return "", err
 		}
-		val = strings.Replace(val, "\\", "\\\\", -1)
+		val := strings.Replace(arg.Value, "\\", "\\\\", -1)
 		val = strings.Replace(val, "'", "\\'", -1)
-		fmt.Fprintf(buf, " --%s '%s'", key, val)
+		fmt.Fprintf(buf, " --%s '%s'", arg.Key, val)
 	}
 	return buf.String(), nil
 }
@@ -372,7 +377,7 @@ func (db *DB) query(cmd string) ([]byte, error) {
 }
 
 // qureyEx() executes a command with separated arguments.
-func (db *DB) queryEx(name string, args map[string]string) ([]byte, error) {
+func (db *DB) queryEx(name string, args []cmdArg) ([]byte, error) {
 	cmd, err := db.composeCommand(name, args)
 	if err != nil {
 		return nil, err

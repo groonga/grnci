@@ -356,12 +356,11 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	if options == nil {
 		options = NewTableCreateOptions()
 	}
-	args := make(map[string]string)
-	args["name"] = name
-	keyFlag := ""
+	var args []cmdArg
+	args = append(args, cmdArg{"name", name})
+	flags, keyFlag := "", ""
 	if len(options.Flags) != 0 {
-		flags := splitValues(options.Flags, '|')
-		for _, flag := range flags {
+		for _, flag := range splitValues(options.Flags, '|') {
 			switch flag {
 			case "TABLE_NO_KEY":
 				if len(keyFlag) != 0 {
@@ -381,7 +380,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 				keyFlag = flag
 			}
 		}
-		args["flags"] = options.Flags
+		flags = options.Flags
 	}
 	if len(keyFlag) == 0 {
 		if len(options.KeyType) == 0 {
@@ -389,26 +388,29 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 		} else {
 			keyFlag = "TABLE_HASH_KEY"
 		}
-		if len(args["flags"]) == 0 {
-			args["flags"] = keyFlag
+		if len(flags) == 0 {
+			flags = keyFlag
 		} else {
-			args["flags"] += "|" + keyFlag
+			flags += "|" + keyFlag
 		}
 	}
+	if len(flags) != 0 {
+		args = append(args, cmdArg{"flags", flags})
+	}
 	if len(options.KeyType) != 0 {
-		args["key_type"] = options.KeyType
+		args = append(args, cmdArg{"key_type", options.KeyType})
 	}
 	if len(options.ValueType) != 0 {
-		args["value_type"] = options.ValueType
+		args = append(args, cmdArg{"value_type", options.ValueType})
 	}
 	if len(options.DefaultTokenizer) != 0 {
-		args["default_tokenizer"] = options.DefaultTokenizer
+		args = append(args, cmdArg{"default_tokenizer", options.DefaultTokenizer})
 	}
 	if len(options.Normalizer) != 0 {
-		args["normalizer"] = options.Normalizer
+		args = append(args, cmdArg{"normalizer", options.Normalizer})
 	}
 	if len(options.TokenFilters) != 0 {
-		args["token_filters"] = options.TokenFilters
+		args = append(args, cmdArg{"token_filters", options.TokenFilters})
 	}
 	res, err := db.queryEx("table_create", args)
 	if err != nil {
@@ -480,22 +482,26 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 	if options == nil {
 		options = NewColumnCreateOptions()
 	}
-	args := make(map[string]string)
-	args["table"] = tbl
-	args["name"] = name
+	var args []cmdArg
+	args = append(args, cmdArg{"table", tbl})
+	args = append(args, cmdArg{"name", name})
+	flags := ""
 	if len(options.Flags) != 0 {
-		args["flags"] = options.Flags
+		flags = options.Flags
 	}
 	if len(typFlag) != 0 {
-		if len(args["flags"]) == 0 {
-			args["flags"] = typFlag
+		if len(flags) == 0 {
+			flags = typFlag
 		} else {
-			args["flags"] += "|" + typFlag
+			flags += "|" + typFlag
 		}
 	}
-	args["type"] = typ
+	if len(flags) != 0 {
+		args = append(args, cmdArg{"flags", flags})
+	}
+	args = append(args, cmdArg{"type", typ})
 	if len(src) != 0 {
-		args["source"] = src
+		args = append(args, cmdArg{"source", src})
 	}
 	res, err := db.queryEx("column_create", args)
 	if err != nil {
@@ -875,12 +881,12 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 			}
 		}
 	}
-	args := make(map[string]string)
-	args["table"] = tbl
+	var args []cmdArg
+	args = append(args, cmdArg{"table", tbl})
 	if len(options.IfExists) != 0 {
-		args["ifexists"] = options.IfExists
+		args = append(args, cmdArg{"ifexists", options.IfExists})
 	}
-	args["columns"] = strings.Join(cols, ",")
+	args = append(args, cmdArg{"columns", strings.Join(cols, ",")})
 	headCmd, err := db.composeCommand("load", args)
 	if err != nil {
 		return 0, err
@@ -1197,47 +1203,49 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 			}
 		}
 	}
-	args := make(map[string]string)
-	args["table"] = tbl
-	args["output_columns"] = strings.Join(cols, ",")
+	var args []cmdArg
+	args = append(args, cmdArg{"table", tbl})
+	args = append(args, cmdArg{"output_columns", strings.Join(cols, ",")})
 	if len(options.MatchColumns) != 0 {
-		args["match_columns"] = options.MatchColumns
+		args = append(args, cmdArg{"match_columns", options.MatchColumns})
 	}
 	if len(options.Query) != 0 {
-		args["query"] = options.Query
+		args = append(args, cmdArg{"query", options.Query})
 	}
 	if len(options.Filter) != 0 {
-		args["filter"] = options.Filter
+		args = append(args, cmdArg{"filter", options.Filter})
 	}
 	if len(options.Scorer) != 0 {
-		args["scorer"] = options.Scorer
+		args = append(args, cmdArg{"scorer", options.Scorer})
 	}
 	if len(options.Sortby) != 0 {
-		args["sortby"] = options.Sortby
+		args = append(args, cmdArg{"sortby", options.Sortby})
 	}
 	if options.Offset != 0 {
-		args["offset"] = strconv.Itoa(options.Offset)
+		args = append(args, cmdArg{"offset", strconv.Itoa(options.Offset)})
 	}
 	if options.Limit != 10 {
-		args["limit"] = strconv.Itoa(options.Limit)
+		args = append(args, cmdArg{"limit", strconv.Itoa(options.Limit)})
 	}
 	if !options.Cache {
-		args["cache"] = "no"
+		args = append(args, cmdArg{"cache", "no"})
 	}
 	if options.MatchEscalationThreshold != 0 {
-		args["match_escalation_threshold"] =
-			strconv.Itoa(options.MatchEscalationThreshold)
+		args = append(args, cmdArg{
+			"match_escalation_threshold",
+			strconv.Itoa(options.MatchEscalationThreshold),
+		})
 	}
 	if len(options.QueryFlags) != 0 {
-		args["query_flags"] = options.QueryFlags
+		args = append(args, cmdArg{"query_flags", options.QueryFlags})
 	}
 	if len(options.QueryExpander) != 0 {
-		args["query_expander"] = options.QueryExpander
+		args = append(args, cmdArg{"query_expander", options.QueryExpander})
 	}
 	if len(options.Adjuster) != 0 {
-		args["adjuster"] = options.Adjuster
+		args = append(args, cmdArg{"adjuster", options.Adjuster})
 	}
-	args["command_version"] = "2"
+	args = append(args, cmdArg{"command_version", "2"})
 	str, err := db.queryEx("select", args)
 	if err != nil {
 		return 0, err
@@ -1282,9 +1290,9 @@ func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error
 	if options == nil {
 		options = NewColumnRemoveOptions()
 	}
-	args := make(map[string]string)
-	args["table"] = tbl
-	args["name"] = name
+	var args []cmdArg
+	args = append(args, cmdArg{"table", tbl})
+	args = append(args, cmdArg{"name", name})
 	res, err := db.queryEx("column_remove", args)
 	if err != nil {
 		return err
@@ -1331,10 +1339,10 @@ func (db *DB) ColumnRename(tbl, name, newName string, options *ColumnRenameOptio
 	if options == nil {
 		options = NewColumnRenameOptions()
 	}
-	args := make(map[string]string)
-	args["table"] = tbl
-	args["name"] = name
-	args["new_name"] = newName
+	var args []cmdArg
+	args = append(args, cmdArg{"table", tbl})
+	args = append(args, cmdArg{"name", name})
+	args = append(args, cmdArg{"new_name", newName})
 	res, err := db.queryEx("column_rename", args)
 	if err != nil {
 		return err
@@ -1375,8 +1383,8 @@ func (db *DB) TableRemove(name string, options *TableRemoveOptions) error {
 	if options == nil {
 		options = NewTableRemoveOptions()
 	}
-	args := make(map[string]string)
-	args["name"] = name
+	var args []cmdArg
+	args = append(args, cmdArg{"name", name})
 	res, err := db.queryEx("table_remove", args)
 	if err != nil {
 		return err
@@ -1420,9 +1428,9 @@ func (db *DB) TableRename(name, newName string, options *TableRenameOptions) err
 	if options == nil {
 		options = NewTableRenameOptions()
 	}
-	args := make(map[string]string)
-	args["name"] = name
-	args["new_name"] = newName
+	var args []cmdArg
+	args = append(args, cmdArg{"name", name})
+	args = append(args, cmdArg{"new_name", newName})
 	res, err := db.queryEx("table_rename", args)
 	if err != nil {
 		return err
@@ -1460,8 +1468,8 @@ func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
 	if options == nil {
 		options = NewObjectExistOptions()
 	}
-	args := make(map[string]string)
-	args["name"] = name
+	var args []cmdArg
+	args = append(args, cmdArg{"name", name})
 	res, err := db.queryEx("object_exist", args)
 	if err != nil {
 		return err
@@ -1499,8 +1507,8 @@ func (db *DB) Truncate(name string, options *TruncateOptions) error {
 	if options == nil {
 		options = NewTruncateOptions()
 	}
-	args := make(map[string]string)
-	args["target_name"] = name
+	var args []cmdArg
+	args = append(args, cmdArg{"target_name", name})
 	res, err := db.queryEx("truncate", args)
 	if err != nil {
 		return err
@@ -1542,9 +1550,9 @@ func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
 	if options == nil {
 		options = NewThreadLimitOptions()
 	}
-	args := make(map[string]string)
+	var args []cmdArg
 	if options.Max > 0 {
-		args["max"] = strconv.Itoa(options.Max)
+		args = append(args, cmdArg{"max", strconv.Itoa(options.Max)})
 	}
 	res, err := db.queryEx("thread_limit", args)
 	if err != nil {
@@ -1587,7 +1595,7 @@ func (db *DB) DatabaseUnmap(options *DatabaseUnmapOptions) error {
 	if options == nil {
 		options = NewDatabaseUnmapOptions()
 	}
-	args := make(map[string]string)
+	var args []cmdArg
 	res, err := db.queryEx("database_unmap", args)
 	if err != nil {
 		return err
@@ -1625,8 +1633,8 @@ func (db *DB) PluginRegister(name string, options *PluginRegisterOptions) error 
 	if options == nil {
 		options = NewPluginRegisterOptions()
 	}
-	args := make(map[string]string)
-	args["name"] = name
+	var args []cmdArg
+	args = append(args, cmdArg{"name", name})
 	res, err := db.queryEx("plugin_register", args)
 	if err != nil {
 		return err
@@ -1664,8 +1672,8 @@ func (db *DB) PluginUnregister(name string, options *PluginUnregisterOptions) er
 	if options == nil {
 		options = NewPluginUnregisterOptions()
 	}
-	args := make(map[string]string)
-	args["name"] = name
+	var args []cmdArg
+	args = append(args, cmdArg{"name", name})
 	res, err := db.queryEx("plugin_unregister", args)
 	if err != nil {
 		return err
