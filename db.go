@@ -49,7 +49,7 @@ func newDB() (*DB, error) {
 	db.ctx = C.grn_ctx_open(C.int(0))
 	if db.ctx == nil {
 		grnFin()
-		return nil, fmt.Errorf("grn_ctx_open() failed")
+		return nil, fmt.Errorf("grn_ctx_open failed")
 	}
 	return &db, nil
 }
@@ -82,7 +82,7 @@ func (db *DB) fin() error {
 	db.ctx = nil
 	grnFin()
 	if rc != C.GRN_SUCCESS {
-		return fmt.Errorf("grn_ctx_close() failed: rc = %s", rc)
+		return fmt.Errorf("grn_ctx_close failed: rc = %s", rc)
 	}
 	return nil
 }
@@ -163,14 +163,14 @@ func Create(path string) (*DB, error) {
 	db.obj = C.grn_db_create(db.ctx, cPath, nil)
 	if db.obj == nil {
 		db.fin()
-		return nil, fmt.Errorf("grn_db_create() failed")
+		return nil, fmt.Errorf("grn_db_create failed")
 	}
 	db.ref = newRefCount()
 	db.ref.cnt++
 	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
 	if cAbsPath == nil {
 		db.fin()
-		return nil, fmt.Errorf("grn_obj_path() failed")
+		return nil, fmt.Errorf("grn_obj_path failed")
 	}
 	db.path = C.GoString(cAbsPath)
 	return db, nil
@@ -191,14 +191,14 @@ func Open(path string) (*DB, error) {
 	db.obj = C.grn_db_open(db.ctx, cPath)
 	if db.obj == nil {
 		db.fin()
-		return nil, fmt.Errorf("grn_db_open() failed")
+		return nil, fmt.Errorf("grn_db_open failed")
 	}
 	db.ref = newRefCount()
 	db.ref.cnt++
 	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
 	if cAbsPath == nil {
 		db.fin()
-		return nil, fmt.Errorf("grn_obj_path() failed")
+		return nil, fmt.Errorf("grn_obj_path failed")
 	}
 	db.path = C.GoString(cAbsPath)
 	return db, nil
@@ -219,7 +219,7 @@ func Connect(host string, port int) (*DB, error) {
 	rc := C.grn_ctx_connect(db.ctx, cHost, C.int(port), C.int(0))
 	if rc != C.GRN_SUCCESS {
 		db.fin()
-		return nil, fmt.Errorf("grn_ctx_connect() failed: rc = %s", rc)
+		return nil, fmt.Errorf("grn_ctx_connect failed: rc = %s", rc)
 	}
 	db.host = host
 	db.port = port
@@ -241,7 +241,7 @@ func (db *DB) Dup() (*DB, error) {
 	}
 	if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
 		dupDB.fin()
-		return nil, db.errorf("grn_ctx_use() failed: rc = %s", rc)
+		return nil, db.errorf("grn_ctx_use failed: rc = %s", rc)
 	}
 	dupDB.obj = db.obj
 	dupDB.ref = db.ref
@@ -329,7 +329,7 @@ func (db *DB) send(data []byte) error {
 	}
 	rc := C.grn_rc(C.grn_ctx_send(db.ctx, p, C.uint(len(data)), C.int(0)))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return db.errorf("grn_ctx_send() failed: rc = %s", rc)
+		return db.errorf("grn_ctx_send failed: rc = %s", rc)
 	}
 	return nil
 }
@@ -341,7 +341,7 @@ func (db *DB) recv() ([]byte, error) {
 	var resFlags C.int
 	rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return nil, db.errorf("grn_ctx_recv() failed: rc = %s", rc)
+		return nil, db.errorf("grn_ctx_recv failed: rc = %s", rc)
 	}
 	if (resFlags & C.GRN_CTX_MORE) == 0 {
 		return C.GoBytes(unsafe.Pointer(res), C.int(resLen)), nil
@@ -351,7 +351,7 @@ func (db *DB) recv() ([]byte, error) {
 	for {
 		rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
 		if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-			return nil, db.errorf("grn_ctx_recv() failed: rc = %s", rc)
+			return nil, db.errorf("grn_ctx_recv failed: rc = %s", rc)
 		}
 		if bufErr == nil {
 			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))

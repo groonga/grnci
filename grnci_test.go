@@ -17,13 +17,13 @@ import (
 func createTempDB(tb testing.TB) (string, string, *DB) {
 	dirPath, err := ioutil.TempDir("", "grnci_test")
 	if err != nil {
-		tb.Fatalf("ioutil.TempDir() failed: %v", err)
+		tb.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	dbPath := dirPath + "/db"
 	db, err := Create(dbPath)
 	if err != nil {
 		os.RemoveAll(dirPath)
-		tb.Fatalf("Create() failed: %v", err)
+		tb.Fatalf("Create failed: %v", err)
 	}
 	return dirPath, dbPath, db
 }
@@ -32,10 +32,10 @@ func createTempDB(tb testing.TB) (string, string, *DB) {
 func removeTempDB(tb testing.TB, dirPath string, db *DB) {
 	if err := db.Close(); err != nil {
 		os.RemoveAll(dirPath)
-		tb.Fatalf("DB.Close() failed: %v", err)
+		tb.Fatalf("DB.Close failed: %v", err)
 	}
 	if err := os.RemoveAll(dirPath); err != nil {
-		tb.Fatalf("os.RemoveAll() failed: %v", err)
+		tb.Fatalf("os.RemoveAll failed: %v", err)
 	}
 }
 
@@ -59,19 +59,19 @@ func TestCreate(t *testing.T) {
 	defer removeTempDB(t, dirPath, db)
 
 	if !db.IsHandle() {
-		t.Fatalf("DB.IsHandle() failed")
+		t.Fatalf("DB.IsHandle failed")
 	}
 	if db.IsConnection() {
-		t.Fatalf("DB.IsConnection() failed")
+		t.Fatalf("DB.IsConnection failed")
 	}
 	if len(db.Path()) == 0 {
-		t.Fatalf("DB.Path() failed")
+		t.Fatalf("DB.Path failed")
 	}
 	if len(db.Host()) != 0 {
-		t.Fatalf("DB.Host() failed")
+		t.Fatalf("DB.Host failed")
 	}
 	if db.Port() != 0 {
-		t.Fatalf("DB.Port() failed")
+		t.Fatalf("DB.Port failed")
 	}
 }
 
@@ -82,24 +82,24 @@ func TestOpen(t *testing.T) {
 
 	db2, err := Open(dbPath)
 	if err != nil {
-		t.Fatalf("Open() failed: %v", err)
+		t.Fatalf("Open failed: %v", err)
 	}
 	defer db2.Close()
 
 	if !db2.IsHandle() {
-		t.Fatalf("DB.IsHandle() failed")
+		t.Fatalf("DB.IsHandle failed")
 	}
 	if db2.IsConnection() {
-		t.Fatalf("DB.IsConnection() failed")
+		t.Fatalf("DB.IsConnection failed")
 	}
 	if len(db2.Path()) == 0 {
-		t.Fatalf("DB.Path() failed")
+		t.Fatalf("DB.Path failed")
 	}
 	if len(db2.Host()) != 0 {
-		t.Fatalf("DB.Host() failed")
+		t.Fatalf("DB.Host failed")
 	}
 	if db2.Port() != 0 {
-		t.Fatalf("DB.Port() failed")
+		t.Fatalf("DB.Port failed")
 	}
 }
 
@@ -110,24 +110,24 @@ func TestDup(t *testing.T) {
 
 	db2, err := db.Dup()
 	if err != nil {
-		t.Fatalf("DB.Dup() failed: %v", err)
+		t.Fatalf("DB.Dup failed: %v", err)
 	}
 	defer db2.Close()
 
 	if !db2.IsHandle() {
-		t.Fatalf("DB.IsHandle() failed")
+		t.Fatalf("DB.IsHandle failed")
 	}
 	if db2.IsConnection() {
-		t.Fatalf("DB.IsConnection() failed")
+		t.Fatalf("DB.IsConnection failed")
 	}
 	if len(db2.Path()) == 0 {
-		t.Fatalf("DB.Path() failed")
+		t.Fatalf("DB.Path failed")
 	}
 	if len(db2.Host()) != 0 {
-		t.Fatalf("DB.Host() failed")
+		t.Fatalf("DB.Host failed")
 	}
 	if db2.Port() != 0 {
-		t.Fatalf("DB.Port() failed")
+		t.Fatalf("DB.Port failed")
 	}
 }
 
@@ -137,7 +137,7 @@ func TestTableCreate(t *testing.T) {
 	defer removeTempDB(t, dirPath, db)
 
 	if err := db.TableCreate("a", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 	if err := db.TableCreate("a", nil); err == nil {
 		t.Fatalf("DB.TableCreate() succeeded")
@@ -147,13 +147,13 @@ func TestTableCreate(t *testing.T) {
 	options.KeyType = "ShortText"
 	options.Flags = "TABLE_PAT_KEY"
 	if err := db.TableCreate("b", options); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 
 	options = NewTableCreateOptions()
 	options.ValueType = "Int32"
 	if err := db.TableCreate("c", options); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 
 	options = NewTableCreateOptions()
@@ -162,7 +162,7 @@ func TestTableCreate(t *testing.T) {
 	options.Normalizer = "TokenBigram"
 	options.DefaultTokenizer = "NormalizerAuto"
 	if err := db.TableCreate("tbl2", options); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 }
 
@@ -171,30 +171,30 @@ func TestColumnCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 	if err := db.TableCreate("tbl", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 	tblOptions := NewTableCreateOptions()
 	tblOptions.KeyType = "ShortText"
 	tblOptions.Normalizer = "TokenBigram"
 	tblOptions.DefaultTokenizer = "NormalizerAuto"
 	if err := db.TableCreate("tbl2", tblOptions); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 
 	if err := db.ColumnCreate("tbl", "a", "Text", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "b", "[]Int32", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 
 	colOptions := NewColumnCreateOptions()
 	colOptions.Flags = "WITH_SECTION|WITH_POSITION"
 	if err := db.ColumnCreate("tbl2", "a", "tbl.a", colOptions); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl2", "b", "tbl.b", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 }
 
@@ -205,43 +205,43 @@ func TestLoad(t *testing.T) {
 	options := NewTableCreateOptions()
 	options.KeyType = "ShortText"
 	if err := db.TableCreate("tbl", options); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "bool", "Bool", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "int", "Int32", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "float", "Float", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "time", "Time", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "text", "Text", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "geo", "WGS84GeoPoint", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "vbool", "[]Bool", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "vint", "[]Int32", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "vfloat", "[]Float", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "vtime", "[]Time", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "vtext", "[]Text", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "vgeo", "[]WGS84GeoPoint", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 
 	type tblRec struct {
@@ -270,16 +270,16 @@ func TestLoad(t *testing.T) {
 
 	cnt, err := db.Load("tbl", recs[0], nil)
 	if err != nil {
-		t.Fatalf("DB.Load() failed: %v", err)
+		t.Fatalf("DB.Load failed: %v", err)
 	} else if cnt != 1 {
-		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+		t.Fatalf("DB.Load failed: cnt = %d", cnt)
 	}
 
 	cnt, err = db.Load("tbl", &recs[0], nil)
 	if err != nil {
-		t.Fatalf("DB.Load() failed: %v", err)
+		t.Fatalf("DB.Load failed: %v", err)
 	} else if cnt != 1 {
-		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+		t.Fatalf("DB.Load failed: cnt = %d", cnt)
 	}
 
 	cnt, err = db.Load("tbl", (*tblRec)(nil), nil)
@@ -289,9 +289,9 @@ func TestLoad(t *testing.T) {
 
 	cnt, err = db.Load("tbl", recs, nil)
 	if err != nil {
-		t.Fatalf("DB.Load() failed: %v", err)
+		t.Fatalf("DB.Load failed: %v", err)
 	} else if cnt != 2 {
-		t.Fatalf("DB.Load() failed: cnt = %d", cnt)
+		t.Fatalf("DB.Load failed: cnt = %d", cnt)
 	}
 }
 
@@ -326,25 +326,25 @@ func TestLoadEx(t *testing.T) {
 
 	cnt, err := db.LoadEx("tbl", []tblRec(nil), nil)
 	if err != nil {
-		t.Fatalf("DB.LoadEx() failed: %v", err)
+		t.Fatalf("DB.LoadEx failed: %v", err)
 	} else if cnt != 0 {
-		t.Fatalf("DB.LoadEx() failed: cnt = %d", cnt)
+		t.Fatalf("DB.LoadEx failed: cnt = %d", cnt)
 	}
 
 	cnt, err = db.LoadEx("tbl2", recs, nil)
 	if err != nil {
-		t.Fatalf("DB.LoadEx() failed: %v", err)
+		t.Fatalf("DB.LoadEx failed: %v", err)
 	} else if cnt != 2 {
-		t.Fatalf("DB.LoadEx() failed: cnt = %d", cnt)
+		t.Fatalf("DB.LoadEx failed: cnt = %d", cnt)
 	}
 
 	options := NewLoadOptions()
 	options.Columns = "_key,int,time,geo"
 	cnt, err = db.LoadEx("tbl3", recs, options)
 	if err != nil {
-		t.Fatalf("DB.LoadEx() failed: %v", err)
+		t.Fatalf("DB.LoadEx failed: %v", err)
 	} else if cnt != 2 {
-		t.Fatalf("DB.LoadEx() failed: cnt = %d", cnt)
+		t.Fatalf("DB.LoadEx failed: cnt = %d", cnt)
 	}
 }
 
@@ -376,15 +376,15 @@ func TestSelect(t *testing.T) {
 		VText: []Text{"one", "two"}, VGeo: []Geo{{100, 200}, {300, 400}},
 	}
 	if _, err := db.LoadEx("tbl", rec, nil); err != nil {
-		t.Fatalf("DB.LoadEx() failed: %v", err)
+		t.Fatalf("DB.LoadEx failed: %v", err)
 	}
 
 	var recs []tblRec
 	n, err := db.Select("tbl", &recs, nil)
 	if err != nil {
-		t.Fatalf("DB.Select() failed: %v", err)
+		t.Fatalf("DB.Select failed: %v", err)
 	} else if n != 1 {
-		t.Fatalf("DB.Select() failed: n = %d", n)
+		t.Fatalf("DB.Select failed: n = %d", n)
 	}
 
 	type tblRec2 struct {
@@ -400,9 +400,9 @@ func TestSelect(t *testing.T) {
 	var recs2 []tblRec2
 	n, err = db.Select("tbl", &recs2, options)
 	if err != nil {
-		t.Fatalf("DB.Select() failed: %v", err)
+		t.Fatalf("DB.Select failed: %v", err)
 	} else if n != 1 {
-		t.Fatalf("DB.Select() failed: n = %d", n)
+		t.Fatalf("DB.Select failed: n = %d", n)
 	}
 }
 
@@ -411,14 +411,14 @@ func TestColumnRemove(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 	if err := db.TableCreate("tbl", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 
 	if err := db.ColumnRemove("tbl", "val", nil); err != nil {
-		t.Fatalf("DB.ColumnRemove() failed: %v", err)
+		t.Fatalf("DB.ColumnRemove failed: %v", err)
 	}
 	if err := db.ColumnRemove("tbl", "val", nil); err == nil {
 		t.Fatalf("DB.ColumnRemove() succeeded")
@@ -430,20 +430,20 @@ func TestColumnRename(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 	if err := db.TableCreate("tbl", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 
 	if err := db.ColumnRename("tbl", "val", "val2", nil); err != nil {
-		t.Fatalf("DB.ColumnRename() failed: %v", err)
+		t.Fatalf("DB.ColumnRename failed: %v", err)
 	}
 	if err := db.ColumnRename("tbl", "val", "val2", nil); err == nil {
 		t.Fatalf("DB.ColumnRename() succeeded")
 	}
 	if err := db.ColumnRename("tbl", "val2", "val3", nil); err != nil {
-		t.Fatalf("DB.ColumnRename() failed: %v", err)
+		t.Fatalf("DB.ColumnRename failed: %v", err)
 	}
 }
 
@@ -452,11 +452,11 @@ func TestTableRemove(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 	if err := db.TableCreate("tbl", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 
 	if err := db.TableRemove("tbl", nil); err != nil {
-		t.Fatalf("DB.TableRemove() failed: %v", err)
+		t.Fatalf("DB.TableRemove failed: %v", err)
 	}
 	if err := db.TableRemove("tbl", nil); err == nil {
 		t.Fatalf("DB.TableRemove() succeeded")
@@ -468,17 +468,17 @@ func TestTableRename(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 	if err := db.TableCreate("tbl", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 
 	if err := db.TableRename("tbl", "tbl2", nil); err != nil {
-		t.Fatalf("DB.TableRename() failed: %v", err)
+		t.Fatalf("DB.TableRename failed: %v", err)
 	}
 	if err := db.TableRename("tbl", "tbl2", nil); err == nil {
 		t.Fatalf("DB.TableRename() succeeded")
 	}
 	if err := db.TableRename("tbl2", "tbl3", nil); err != nil {
-		t.Fatalf("DB.TableRename() failed: %v", err)
+		t.Fatalf("DB.TableRename failed: %v", err)
 	}
 }
 
@@ -491,20 +491,20 @@ func TestObjectExist(t *testing.T) {
 		t.Fatalf("DB.ObjectExist() succeeded")
 	}
 	if err := db.TableCreate("tbl", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 	if err := db.ObjectExist("tbl", nil); err != nil {
-		t.Fatalf("DB.ObjectExist() failed: %v", err)
+		t.Fatalf("DB.ObjectExist failed: %v", err)
 	}
 
 	if err := db.ObjectExist("tbl.val", nil); err == nil {
 		t.Fatalf("DB.ObjectExist() succeeded")
 	}
 	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 	if err := db.ObjectExist("tbl.val", nil); err != nil {
-		t.Fatalf("DB.ObjectExist() failed: %v", err)
+		t.Fatalf("DB.ObjectExist failed: %v", err)
 	}
 }
 
@@ -513,17 +513,17 @@ func TestTruncate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 	if err := db.TableCreate("tbl", nil); err != nil {
-		t.Fatalf("DB.TableCreate() failed: %v", err)
+		t.Fatalf("DB.TableCreate failed: %v", err)
 	}
 	if err := db.ColumnCreate("tbl", "val", "Text", nil); err != nil {
-		t.Fatalf("DB.ColumnCreate() failed: %v", err)
+		t.Fatalf("DB.ColumnCreate failed: %v", err)
 	}
 
 	if err := db.Truncate("tbl.val", nil); err != nil {
-		t.Fatalf("DB.Truncate() failed: %v", err)
+		t.Fatalf("DB.Truncate failed: %v", err)
 	}
 	if err := db.Truncate("tbl", nil); err != nil {
-		t.Fatalf("DB.Truncate() failed: %v", err)
+		t.Fatalf("DB.Truncate failed: %v", err)
 	}
 }
 
@@ -534,7 +534,7 @@ func TestThreadLimit(t *testing.T) {
 
 	n, err := db.ThreadLimit(nil)
 	if err != nil {
-		t.Fatalf("DB.ThreadLimit() failed: %v", err)
+		t.Fatalf("DB.ThreadLimit failed: %v", err)
 	}
 	if n != 1 {
 		t.Fatalf("failed: %d", n)
@@ -547,7 +547,7 @@ func TestDatabaseUnmap(t *testing.T) {
 	defer removeTempDB(t, dirPath, db)
 
 	if err := db.DatabaseUnmap(nil); err != nil {
-		t.Fatalf("DB.DatabaseUnmap() failed: %v", err)
+		t.Fatalf("DB.DatabaseUnmap failed: %v", err)
 	}
 }
 
@@ -612,24 +612,24 @@ func TestGetStructInfo(t *testing.T) {
 	}
 	info = GetStructInfo((*tblRec)(nil))
 	if err := info.Error(); err != nil {
-		t.Fatalf("GetStructInfo() failed: %v", err)
+		t.Fatalf("GetStructInfo failed: %v", err)
 	}
 	if info.Type() != reflect.TypeOf(tblRec{}) {
-		t.Fatalf("GetStructInfo() failed: Type() = %v", info.Type())
+		t.Fatalf("GetStructInfo failed: Type() = %v", info.Type())
 	}
 	if info.NumField() != 13 {
-		t.Fatalf("GetStructInfo() failed: NumField() = %d", info.NumField())
+		t.Fatalf("GetStructInfo failed: NumField() = %d", info.NumField())
 	}
 	if field := info.FieldByColumnName("_key"); field == nil {
-		t.Fatalf("GetStructInfo() failed")
+		t.Fatalf("GetStructInfo failed")
 	} else if field.ColumnName() != "_key" {
-		t.Fatalf("GetStructInfo() failed: field = %v", field)
+		t.Fatalf("GetStructInfo failed: field = %v", field)
 	}
 	if field := info.FieldByColumnName("vgeo"); field == nil {
-		t.Fatalf("GetStructInfo() failed")
+		t.Fatalf("GetStructInfo failed")
 	} else if field.TerminalType() != reflect.TypeOf(Geo{}) {
-		t.Fatalf("GetStructInfo() failed: field = %v", field)
+		t.Fatalf("GetStructInfo failed: field = %v", field)
 	} else if field.Dimension() != 1 {
-		t.Fatalf("GetStructInfo() failed: field = %v", field)
+		t.Fatalf("GetStructInfo failed: field = %v", field)
 	}
 }
