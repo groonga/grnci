@@ -388,10 +388,11 @@ func TestSelect(t *testing.T) {
 	}
 
 	type tblRec2 struct {
-		Key    Text    `grnci:"_key;;TABLE_PAT_KEY"`
-		Bool   Bool    `grnci:"!bool"`
-		Int    Int     `grnci:"int+2;Int32"`
-		Float  Float   `grnci:"float*2.0"`
+		Key   Text  `grnci:"_key;;TABLE_PAT_KEY"`
+		Bool  Bool  `grnci:"!bool"`
+		Int   Int   `grnci:"int+2;Int32"`
+		Float Float `grnci:"float*2.0"`
+		Score Float `grnci:"_score"`
 	}
 
 	options := NewSelectOptions()
