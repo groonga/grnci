@@ -301,8 +301,8 @@ type cmdArg struct {
 	Value string
 }
 
-// composeCommand composes a command from its name and arguments.
-func (db *DB) composeCommand(name string, args []cmdArg) (string, error) {
+// composeCmd composes a command from its name and arguments.
+func (db *DB) composeCmd(name string, args []cmdArg) (string, error) {
 	if err := checkCmdName(name); err != nil {
 		return "", err
 	}
@@ -366,20 +366,28 @@ func (db *DB) recv() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// query sends data and receives the response.
-func (db *DB) query(cmd string) ([]byte, error) {
-	if err := db.send([]byte(cmd)); err != nil {
-		res, _ := db.recv()
-		return res, err
-	}
-	return db.recv()
-}
-
 // query sends a command and receives the response.
-func (db *DB) queryEx(name string, args []cmdArg) ([]byte, error) {
-	cmd, err := db.composeCommand(name, args)
+func (db *DB) query(name string, args []cmdArg, data []byte) ([]byte, error) {
+	cmd, err := db.composeCmd(name, args)
 	if err != nil {
 		return nil, err
 	}
-	return db.query(cmd)
+	// Send a command.
+	if err := db.send([]byte(cmd)); err != nil {
+		resp, _ := db.recv()
+		return resp, err
+	}
+	resp, err := db.recv()
+	if (data == nil) || (err != nil) {
+		return resp, err
+	}
+	// Send data if available.
+	if len(resp) != 0 {
+		return resp, db.errorf("unexpected response")
+	}
+	if err := db.send(data); err != nil {
+		resp, _ := db.recv()
+		return resp, err
+	}
+	return db.recv()
 }

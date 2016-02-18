@@ -412,7 +412,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 	if len(options.TokenFilters) != 0 {
 		args = append(args, cmdArg{"token_filters", options.TokenFilters})
 	}
-	res, err := db.queryEx("table_create", args)
+	res, err := db.query("table_create", args, nil)
 	if err != nil {
 		return err
 	}
@@ -503,7 +503,7 @@ func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) 
 	if len(src) != 0 {
 		args = append(args, cmdArg{"source", src})
 	}
-	res, err := db.queryEx("column_create", args)
+	res, err := db.query("column_create", args, nil)
 	if err != nil {
 		return err
 	}
@@ -785,42 +785,42 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []*Fi
 }
 
 // loadGenBody generates the `load` body.
-func (db *DB) loadGenBody(tbl string, vals interface{}, fields []*FieldInfo) (string, error) {
+func (db *DB) loadGenBody(tbl string, vals interface{}, fields []*FieldInfo) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
-		return "", err
+		return nil, err
 	}
 	val := reflect.ValueOf(vals)
 	switch val.Kind() {
 	case reflect.Struct:
 		if err := db.loadWriteValue(buf, &val, fields); err != nil {
-			return "", err
+			return nil, err
 		}
 	case reflect.Ptr:
 		if val.IsNil() {
-			return "", fmt.Errorf("vals is nil")
+			return nil, fmt.Errorf("vals is nil")
 		}
 		elem := val.Elem()
 		if err := db.loadWriteValue(buf, &elem, fields); err != nil {
-			return "", err
+			return nil, err
 		}
 	case reflect.Slice:
 		for i := 0; i < val.Len(); i++ {
 			if i != 0 {
 				if err := buf.WriteByte(','); err != nil {
-					return "", err
+					return nil, err
 				}
 			}
 			idxVal := val.Index(i)
 			if err := db.loadWriteValue(buf, &idxVal, fields); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 	}
 	if err := buf.WriteByte(']'); err != nil {
-		return "", err
+		return nil, err
 	}
-	return buf.String(), nil
+	return buf.Bytes(), nil
 }
 
 // Load executes `load`.
@@ -887,20 +887,11 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 		args = append(args, cmdArg{"ifexists", options.IfExists})
 	}
 	args = append(args, cmdArg{"columns", strings.Join(cols, ",")})
-	headCmd, err := db.composeCommand("load", args)
+	body, err := db.loadGenBody(tbl, vals, fields)
 	if err != nil {
 		return 0, err
 	}
-	bodyCmd, err := db.loadGenBody(tbl, vals, fields)
-	if err != nil {
-		return 0, err
-	}
-	if res, err := db.query(headCmd); err != nil {
-		return 0, err
-	} else if len(res) != 0 {
-		return 0, db.errorf("load failed")
-	}
-	res, err := db.query(bodyCmd)
+	res, err := db.query("load", args, body)
 	if err != nil {
 		return 0, err
 	}
@@ -1271,7 +1262,7 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 		args = append(args, cmdArg{"adjuster", options.Adjuster})
 	}
 	args = append(args, cmdArg{"command_version", "2"})
-	str, err := db.queryEx("select", args)
+	str, err := db.query("select", args, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -1318,7 +1309,7 @@ func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error
 	var args []cmdArg
 	args = append(args, cmdArg{"table", tbl})
 	args = append(args, cmdArg{"name", name})
-	res, err := db.queryEx("column_remove", args)
+	res, err := db.query("column_remove", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1368,7 +1359,7 @@ func (db *DB) ColumnRename(tbl, name, newName string, options *ColumnRenameOptio
 	args = append(args, cmdArg{"table", tbl})
 	args = append(args, cmdArg{"name", name})
 	args = append(args, cmdArg{"new_name", newName})
-	res, err := db.queryEx("column_rename", args)
+	res, err := db.query("column_rename", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1410,7 +1401,7 @@ func (db *DB) TableRemove(name string, options *TableRemoveOptions) error {
 	}
 	var args []cmdArg
 	args = append(args, cmdArg{"name", name})
-	res, err := db.queryEx("table_remove", args)
+	res, err := db.query("table_remove", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1456,7 +1447,7 @@ func (db *DB) TableRename(name, newName string, options *TableRenameOptions) err
 	var args []cmdArg
 	args = append(args, cmdArg{"name", name})
 	args = append(args, cmdArg{"new_name", newName})
-	res, err := db.queryEx("table_rename", args)
+	res, err := db.query("table_rename", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1495,7 +1486,7 @@ func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
 	}
 	var args []cmdArg
 	args = append(args, cmdArg{"name", name})
-	res, err := db.queryEx("object_exist", args)
+	res, err := db.query("object_exist", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1534,7 +1525,7 @@ func (db *DB) Truncate(name string, options *TruncateOptions) error {
 	}
 	var args []cmdArg
 	args = append(args, cmdArg{"target_name", name})
-	res, err := db.queryEx("truncate", args)
+	res, err := db.query("truncate", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1579,7 +1570,7 @@ func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
 	if options.Max > 0 {
 		args = append(args, cmdArg{"max", strconv.Itoa(options.Max)})
 	}
-	res, err := db.queryEx("thread_limit", args)
+	res, err := db.query("thread_limit", args, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -1621,7 +1612,7 @@ func (db *DB) DatabaseUnmap(options *DatabaseUnmapOptions) error {
 		options = NewDatabaseUnmapOptions()
 	}
 	var args []cmdArg
-	res, err := db.queryEx("database_unmap", args)
+	res, err := db.query("database_unmap", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1660,7 +1651,7 @@ func (db *DB) PluginRegister(name string, options *PluginRegisterOptions) error 
 	}
 	var args []cmdArg
 	args = append(args, cmdArg{"name", name})
-	res, err := db.queryEx("plugin_register", args)
+	res, err := db.query("plugin_register", args, nil)
 	if err != nil {
 		return err
 	}
@@ -1699,7 +1690,7 @@ func (db *DB) PluginUnregister(name string, options *PluginUnregisterOptions) er
 	}
 	var args []cmdArg
 	args = append(args, cmdArg{"name", name})
-	res, err := db.queryEx("plugin_unregister", args)
+	res, err := db.query("plugin_unregister", args, nil)
 	if err != nil {
 		return err
 	}
