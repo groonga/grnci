@@ -43,6 +43,16 @@ func removeTempDB(tb testing.TB, dirPath string, db *DB) {
 // Tests
 //
 
+// TestGrnInit() tests GrnInit() and GrnFin()
+func TestGrnInit(t *testing.T) {
+	if err := GrnInit(); err != nil {
+		t.Fatalf("GrnInit failed: %v", err)
+	}
+	if err := GrnFin(); err != nil {
+		t.Fatalf("GrnFin failed: %v", err)
+	}
+}
+
 // TestCreate() tests Create().
 func TestCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
