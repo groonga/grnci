@@ -16,7 +16,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -367,52 +366,6 @@ func parseColumnNames(s string) ([]string, error) {
 }
 
 //
-// Library management
-//
-
-// grnCnt is a reference count of the Groonga library.
-// Init() increments grnCnt and Fin() decrements grnCnt.
-var grnCnt uint32
-
-// grnCntMutex is a mutex for grnCnt.
-var grnCntMutex sync.Mutex
-
-// refLib() increments grnCnt.
-// The Groonga library is initialized if grnCnt changes from 0 to 1.
-func refLib() error {
-	grnCntMutex.Lock()
-	defer grnCntMutex.Unlock()
-	if grnCnt == math.MaxUint32 {
-		return fmt.Errorf("grnCnt overflow")
-	}
-	if grnCnt == 0 {
-		if rc := C.grn_init(); rc != C.GRN_SUCCESS {
-			return fmt.Errorf("grn_init() failed: rc = %s", rc)
-		}
-		C.grnci_init_thread_limit()
-	}
-	grnCnt++
-	return nil
-}
-
-// unrefLib() decrements grnCnt.
-// The Groonga library is finalized if grnCnt changes from 1 to 0.
-func unrefLib() error {
-	grnCntMutex.Lock()
-	defer grnCntMutex.Unlock()
-	if grnCnt == 0 {
-		return fmt.Errorf("grnCnt underflow")
-	}
-	grnCnt--
-	if grnCnt == 0 {
-		if rc := C.grn_fin(); rc != C.GRN_SUCCESS {
-			return fmt.Errorf("grn_fin() failed: rc = %s", rc)
-		}
-	}
-	return nil
-}
-
-//
 // DB handle
 //
 
@@ -440,13 +393,13 @@ type DB struct {
 // newDB() creates an instance of DB.
 // The instance must be finalized by DB.fin().
 func newDB() (*DB, error) {
-	if err := refLib(); err != nil {
+	if err := grnInit(); err != nil {
 		return nil, err
 	}
 	var db DB
 	db.ctx = C.grn_ctx_open(C.int(0))
 	if db.ctx == nil {
-		unrefLib()
+		grnFin()
 		return nil, fmt.Errorf("grn_ctx_open() failed")
 	}
 	return &db, nil
@@ -478,7 +431,7 @@ func (db *DB) fin() error {
 	}
 	rc := C.grn_ctx_close(db.ctx)
 	db.ctx = nil
-	unrefLib()
+	grnFin()
 	if rc != C.GRN_SUCCESS {
 		return fmt.Errorf("grn_ctx_close() failed: rc = %s", rc)
 	}
