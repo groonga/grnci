@@ -321,14 +321,13 @@ func (db *DB) composeCommand(name string, args []cmdArg) (string, error) {
 	return buf.String(), nil
 }
 
-// send() sends a command.
-func (db *DB) send(cmd string) error {
-	if len(cmd) == 0 {
-		return fmt.Errorf("cmd is empty")
+// send sends data.
+func (db *DB) send(data []byte) error {
+	var p *C.char
+	if len(data) != 0 {
+		p = (*C.char)(unsafe.Pointer(&data[0]))
 	}
-	cCmd := C.CString(cmd)
-	defer C.free(unsafe.Pointer(cCmd))
-	rc := C.grn_rc(C.grn_ctx_send(db.ctx, cCmd, C.uint(len(cmd)), C.int(0)))
+	rc := C.grn_rc(C.grn_ctx_send(db.ctx, p, C.uint(len(data)), C.int(0)))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
 		return db.errorf("grn_ctx_send() failed: rc = %s", rc)
 	}
@@ -369,7 +368,7 @@ func (db *DB) recv() ([]byte, error) {
 
 // query() executes a command.
 func (db *DB) query(cmd string) ([]byte, error) {
-	if err := db.send(cmd); err != nil {
+	if err := db.send([]byte(cmd)); err != nil {
 		res, _ := db.recv()
 		return res, err
 	}
