@@ -12,8 +12,8 @@ import (
 // Utility
 //
 
-// createTempDB() creates a database for tests.
-// The database must be removed with removeTempDB().
+// createTempDB creates a database for tests.
+// The database must be removed with removeTempDB.
 func createTempDB(tb testing.TB) (string, string, *DB) {
 	dirPath, err := ioutil.TempDir("", "grnci_test")
 	if err != nil {
@@ -28,7 +28,7 @@ func createTempDB(tb testing.TB) (string, string, *DB) {
 	return dirPath, dbPath, db
 }
 
-// removeTempDB() removes a database created with createTempDB().
+// removeTempDB removes a database created with createTempDB.
 func removeTempDB(tb testing.TB, dirPath string, db *DB) {
 	if err := db.Close(); err != nil {
 		os.RemoveAll(dirPath)
@@ -43,7 +43,7 @@ func removeTempDB(tb testing.TB, dirPath string, db *DB) {
 // Tests
 //
 
-// TestGrnInit() tests GrnInit() and GrnFin()
+// TestGrnInit tests GrnInit and GrnFin
 func TestGrnInit(t *testing.T) {
 	if err := GrnInit(); err != nil {
 		t.Fatalf("GrnInit failed: %v", err)
@@ -53,7 +53,7 @@ func TestGrnInit(t *testing.T) {
 	}
 }
 
-// TestCreate() tests Create().
+// TestCreate tests Create.
 func TestCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -75,7 +75,7 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-// TestCreate() tests Open().
+// TestCreate tests Open.
 func TestOpen(t *testing.T) {
 	dirPath, dbPath, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -103,7 +103,7 @@ func TestOpen(t *testing.T) {
 	}
 }
 
-// TestDup() tests DB.Dup().
+// TestDup tests DB.Dup.
 func TestDup(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -131,7 +131,7 @@ func TestDup(t *testing.T) {
 	}
 }
 
-// TestTableCreate() tests DB.TableCreate().
+// TestTableCreate tests DB.TableCreate.
 func TestTableCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -166,7 +166,7 @@ func TestTableCreate(t *testing.T) {
 	}
 }
 
-// TestColumnCreate() tests DB.ColumnCreate().
+// TestColumnCreate tests DB.ColumnCreate.
 func TestColumnCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -198,7 +198,7 @@ func TestColumnCreate(t *testing.T) {
 	}
 }
 
-// TestLoad() tests DB.Load().
+// TestLoad tests DB.Load.
 func TestLoad(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -295,7 +295,7 @@ func TestLoad(t *testing.T) {
 	}
 }
 
-// TestLoadEx() tests DB.LoadEx().
+// TestLoadEx tests DB.LoadEx.
 func TestLoadEx(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -348,7 +348,7 @@ func TestLoadEx(t *testing.T) {
 	}
 }
 
-// TestSelect() tests DB.Select().
+// TestSelect tests DB.Select.
 func TestSelect(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -406,7 +406,7 @@ func TestSelect(t *testing.T) {
 	}
 }
 
-// TestColumnRemove() tests DB.ColumnRemove().
+// TestColumnRemove tests DB.ColumnRemove.
 func TestColumnRemove(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -425,7 +425,7 @@ func TestColumnRemove(t *testing.T) {
 	}
 }
 
-// TestColumnRename() tests DB.ColumnRename().
+// TestColumnRename tests DB.ColumnRename.
 func TestColumnRename(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -447,7 +447,7 @@ func TestColumnRename(t *testing.T) {
 	}
 }
 
-// TestTableRemove() tests DB.TableRemove().
+// TestTableRemove tests DB.TableRemove.
 func TestTableRemove(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -463,7 +463,7 @@ func TestTableRemove(t *testing.T) {
 	}
 }
 
-// TestTableRename() tests DB.TableRename().
+// TestTableRename tests DB.TableRename.
 func TestTableRename(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -482,7 +482,7 @@ func TestTableRename(t *testing.T) {
 	}
 }
 
-// TestObjectExist() tests DB.ObjectExist().
+// TestObjectExist tests DB.ObjectExist.
 func TestObjectExist(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -508,7 +508,7 @@ func TestObjectExist(t *testing.T) {
 	}
 }
 
-// TestTruncate() tests DB.Truncate().
+// TestTruncate tests DB.Truncate.
 func TestTruncate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -527,7 +527,7 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-// TestThreadLimit() tests DB.ThreadLimit().
+// TestThreadLimit tests DB.ThreadLimit.
 func TestThreadLimit(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -541,7 +541,7 @@ func TestThreadLimit(t *testing.T) {
 	}
 }
 
-// TestDatabaseUnmap() tests DB.DatabaseUnmap().
+// TestDatabaseUnmap tests DB.DatabaseUnmap.
 func TestDatabaseUnmap(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
@@ -551,7 +551,7 @@ func TestDatabaseUnmap(t *testing.T) {
 	}
 }
 
-// TestMarshalJSON() tests MarshalJSON().
+// TestMarshalJSON tests MarshalJSON.
 func TestMarshalJSON(t *testing.T) {
 	type tblRec struct {
 		Key    Text    `grnci:"_key;;TABLE_PAT_KEY"`
@@ -584,6 +584,7 @@ func TestMarshalJSON(t *testing.T) {
 	}
 }
 
+// TestGetStructInfo tests GetStructInfo
 func TestGetStructInfo(t *testing.T) {
 	info := GetStructInfo(nil)
 	if err := info.Error(); err == nil {

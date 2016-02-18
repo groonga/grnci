@@ -24,7 +24,7 @@ type refCount struct {
 	mutex sync.Mutex // Mutex for the reference count.
 }
 
-// newRefCount() creates a reference counter.
+// newRefCount creates a reference counter.
 func newRefCount() *refCount {
 	return &refCount{}
 }
@@ -39,8 +39,8 @@ type DB struct {
 	port int        // Server port number (connection).
 }
 
-// newDB() creates an instance of DB.
-// The instance must be finalized by DB.fin().
+// newDB creates an instance of DB.
+// The instance must be finalized by DB.fin.
 func newDB() (*DB, error) {
 	if err := grnInit(); err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func newDB() (*DB, error) {
 	return &db, nil
 }
 
-// fin() finalizes an instance of DB.
+// fin finalizes an instance of DB.
 func (db *DB) fin() error {
 	if db == nil {
 		return fmt.Errorf("db is nil")
@@ -87,7 +87,7 @@ func (db *DB) fin() error {
 	return nil
 }
 
-// Errorf() creates an error.
+// errorf creates an error.
 func (db *DB) errorf(format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	if (db == nil) || (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
@@ -97,17 +97,17 @@ func (db *DB) errorf(format string, args ...interface{}) error {
 	return fmt.Errorf("%s: ctx.rc = %s, ctx.errbuf = %s", msg, db.ctx.rc, ctxMsg)
 }
 
-// IsHandle() returns whether db is a handle.
+// IsHandle returns whether db is a handle.
 func (db *DB) IsHandle() bool {
 	return (db != nil) && (db.obj != nil)
 }
 
-// IsConnection() returns whether db is a connection.
+// IsConnection returns whether db is a connection.
 func (db *DB) IsConnection() bool {
 	return (db != nil) && (len(db.host) != 0)
 }
 
-// Path() returns the database path if db is a handle.
+// Path returns the database path if db is a handle.
 // Otherwise, it returns "".
 func (db *DB) Path() string {
 	if db == nil {
@@ -116,7 +116,7 @@ func (db *DB) Path() string {
 	return db.path
 }
 
-// Host() returns the server host name if db is a connection.
+// Host returns the server host name if db is a connection.
 // Otherwise, it returns "".
 func (db *DB) Host() string {
 	if db == nil {
@@ -125,7 +125,7 @@ func (db *DB) Host() string {
 	return db.host
 }
 
-// Port() returns the server port number if db is a connection.
+// Port returns the server port number if db is a connection.
 // Otherwise, it returns 0.
 func (db *DB) Port() int {
 	if db == nil {
@@ -134,7 +134,7 @@ func (db *DB) Port() int {
 	return db.port
 }
 
-// check() returns an error if db is invalid.
+// check returns an error if db is invalid.
 func (db *DB) check() error {
 	if db == nil {
 		return fmt.Errorf("db is nil")
@@ -148,8 +148,8 @@ func (db *DB) check() error {
 	return nil
 }
 
-// Create() creates a database and returns a handle to it.
-// The handle must be closed by DB.Close().
+// Create creates a database and returns a handle to it.
+// The handle must be closed by DB.Close.
 func Create(path string) (*DB, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path is empty")
@@ -176,8 +176,8 @@ func Create(path string) (*DB, error) {
 	return db, nil
 }
 
-// Open() opens a database and returns a handle to it.
-// The handle must be closed by DB.Close().
+// Open opens a database and returns a handle to it.
+// The handle must be closed by DB.Close.
 func Open(path string) (*DB, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("path is empty")
@@ -204,8 +204,8 @@ func Open(path string) (*DB, error) {
 	return db, nil
 }
 
-// Connect() establishes a connection to a server.
-// The connection must be closed by DB.Close().
+// Connect establishes a connection to a server.
+// The connection must be closed by DB.Close.
 func Connect(host string, port int) (*DB, error) {
 	if len(host) == 0 {
 		return nil, fmt.Errorf("host is empty")
@@ -226,8 +226,8 @@ func Connect(host string, port int) (*DB, error) {
 	return db, nil
 }
 
-// Dup() duplicates a handle or a connection.
-// The handle or connection must be closed by DB.Close().
+// Dup duplicates a handle or a connection.
+// The handle or connection must be closed by DB.Close.
 func (db *DB) Dup() (*DB, error) {
 	if err := db.check(); err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (db *DB) Dup() (*DB, error) {
 	return dupDB, nil
 }
 
-// Close() closes a handle or a connection.
+// Close closes a handle or a connection.
 func (db *DB) Close() error {
 	if err := db.check(); err != nil {
 		return err
@@ -264,7 +264,7 @@ func (db *DB) Close() error {
 // Low-level command interface
 //
 
-// checkCmdName() checks whether a string is valid as a command name.
+// checkCmdName checks whether a string is valid as a command name.
 func checkCmdName(s string) error {
 	if len(s) == 0 {
 		return fmt.Errorf("command name must not be empty")
@@ -280,7 +280,7 @@ func checkCmdName(s string) error {
 	return nil
 }
 
-// checkCmdArgKey() checks whether a string is valid as an argument key.
+// checkCmdArgKey checks whether a string is valid as an argument key.
 func checkArgKey(s string) error {
 	if len(s) == 0 {
 		return fmt.Errorf("command name must not be empty")
@@ -301,7 +301,7 @@ type cmdArg struct {
 	Value string
 }
 
-// composeCommand() composes a command from a name and arguments.
+// composeCommand composes a command from its name and arguments.
 func (db *DB) composeCommand(name string, args []cmdArg) (string, error) {
 	if err := checkCmdName(name); err != nil {
 		return "", err
@@ -334,7 +334,7 @@ func (db *DB) send(data []byte) error {
 	return nil
 }
 
-// recv() receives the result of a command sent by send().
+// recv receives the response to sent data.
 func (db *DB) recv() ([]byte, error) {
 	var res *C.char
 	var resLen C.uint
@@ -366,7 +366,7 @@ func (db *DB) recv() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// query() executes a command.
+// query sends data and receives the response.
 func (db *DB) query(cmd string) ([]byte, error) {
 	if err := db.send([]byte(cmd)); err != nil {
 		res, _ := db.recv()
@@ -375,7 +375,7 @@ func (db *DB) query(cmd string) ([]byte, error) {
 	return db.recv()
 }
 
-// qureyEx() executes a command with separated arguments.
+// query sends a command and receives the response.
 func (db *DB) queryEx(name string, args []cmdArg) ([]byte, error) {
 	cmd, err := db.composeCommand(name, args)
 	if err != nil {

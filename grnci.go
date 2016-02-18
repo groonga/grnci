@@ -25,7 +25,7 @@ import (
 // Error handling
 //
 
-// String() returns an error code with its name as a string.
+// String returns an error code with its name as a string.
 func (rc C.grn_rc) String() string {
 	switch rc {
 	case C.GRN_SUCCESS:
@@ -193,7 +193,7 @@ func (rc C.grn_rc) String() string {
 // Utility
 //
 
-// checkTableName() checks whether a string is valid as a table name.
+// checkTableName checks whether a string is valid as a table name.
 func checkTableName(s string) error {
 	if len(s) == 0 {
 		return fmt.Errorf("table name must not be empty")
@@ -212,7 +212,7 @@ func checkTableName(s string) error {
 	return nil
 }
 
-// checkColumnName() checks whether a string is valid as a column name.
+// checkColumnName checks whether a string is valid as a column name.
 func checkColumnName(s string) error {
 	if len(s) == 0 {
 		return fmt.Errorf("column name must not be empty")
@@ -228,9 +228,9 @@ func checkColumnName(s string) error {
 	return nil
 }
 
-// splitValues() splits a string separated by sep into values.
+// splitValues splits a string separated by sep into values.
 //
-// If s contains only white spaces, splitValues() returns an empty slice.
+// If s contains only white spaces, splitValues returns an empty slice.
 func splitValues(s string, sep byte) []string {
 	var vals []string
 	for {
@@ -247,7 +247,7 @@ func splitValues(s string, sep byte) []string {
 	}
 }
 
-// parseColumnNames() parses comma-separated column names.
+// parseColumnNames parses comma-separated column names.
 func parseColumnNames(s string) ([]string, error) {
 	s = strings.TrimSpace(s)
 	if len(s) == 0 {
@@ -332,15 +332,15 @@ type TableCreateOptions struct {
 	TokenFilters     string // --token_filters
 }
 
-// NewTableCreateOptions() returns the default options.
+// NewTableCreateOptions returns the default options.
 func NewTableCreateOptions() *TableCreateOptions {
 	options := new(TableCreateOptions)
 	return options
 }
 
-// TableCreate() executes `table_create`.
+// TableCreate executes `table_create`.
 //
-// If options is nil, TableCreate() uses the default options.
+// If options is nil, TableCreate uses the default options.
 //
 // If options.Flags does not contain TABLE_NO_KEY and options.KeyType is empty,
 // TABLE_NO_KEY is automatically added to options.Flags.
@@ -430,12 +430,12 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) error {
 //
 // `column_create` takes --flags as a required argument but ColumnCreateOptions
 // has Flags because users can specify COLUMN_* via an argument typ of
-// ColumnCreate().
+// ColumnCreate.
 // This also means that COLUMN_* should not be set manually.
 //
 // `column_create` takes --source as an option but ColumnCreateOptions does not
 // have Source because users can specify --source via an argument typ of
-// ColumnCreate().
+// ColumnCreate.
 //
 // http://groonga.org/docs/reference/commands/column_create.html
 type ColumnCreateOptions struct {
@@ -448,7 +448,7 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 	return options
 }
 
-// ColumnCreate() executes `column_create`.
+// ColumnCreate executes `column_create`.
 //
 // If typ starts with "[]", COLUMN_VECTOR is added to --flags.
 // Else if typ contains ".", COLUMN_INDEX is added to --flags.
@@ -456,7 +456,7 @@ func NewColumnCreateOptions() *ColumnCreateOptions {
 // part (after '.') is used as --source.
 // Otherwise, COLUMN_SCALAR is added to --flags.
 //
-// If options is nil, ColumnCreate() uses the default options.
+// If options is nil, ColumnCreate uses the default options.
 //
 // http://groonga.org/docs/reference/commands/column_create.html
 func (db *DB) ColumnCreate(tbl, name, typ string, options *ColumnCreateOptions) error {
@@ -527,13 +527,13 @@ type LoadOptions struct {
 	IfExists string // --ifexists
 }
 
-// NewLoadOptions() returns the default options.
+// NewLoadOptions returns the default options.
 func NewLoadOptions() *LoadOptions {
 	options := new(LoadOptions)
 	return options
 }
 
-// loadWriteScalar() writes a scalar value.
+// loadWriteScalar writes a scalar value.
 func (db *DB) loadWriteScalar(buf *bytes.Buffer, any interface{}) error {
 	switch val := any.(type) {
 	case Bool:
@@ -590,7 +590,7 @@ func (db *DB) loadWriteScalar(buf *bytes.Buffer, any interface{}) error {
 	return nil
 }
 
-// loadWriteVector() writes a vector value.
+// loadWriteVector writes a vector value.
 func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
@@ -749,7 +749,7 @@ func (db *DB) loadWriteVector(buf *bytes.Buffer, any interface{}) error {
 	return nil
 }
 
-// loadWriteValue() writes a value.
+// loadWriteValue writes a value.
 func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []*FieldInfo) error {
 	if err := buf.WriteByte('['); err != nil {
 		return err
@@ -784,7 +784,7 @@ func (db *DB) loadWriteValue(buf *bytes.Buffer, val *reflect.Value, fields []*Fi
 	return nil
 }
 
-// loadGenBody() generates the `load` body.
+// loadGenBody generates the `load` body.
 func (db *DB) loadGenBody(tbl string, vals interface{}, fields []*FieldInfo) (string, error) {
 	buf := new(bytes.Buffer)
 	if err := buf.WriteByte('['); err != nil {
@@ -823,7 +823,7 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, fields []*FieldInfo) (st
 	return buf.String(), nil
 }
 
-// Load() executes `load`.
+// Load executes `load`.
 //
 // vals accepts a struct, a pointer to struct and a slice of struct.
 // A struct and a pointer to struct are available to load one record.
@@ -838,11 +838,11 @@ func (db *DB) loadGenBody(tbl string, vals interface{}, fields []*FieldInfo) (st
 // The field name is used as the column name by default, but if the field has
 // a grnci tag, its value before the first ';' is used as the column name.
 //
-// Load() uses all the acceptable fields.
+// Load uses all the acceptable fields.
 // If you want to use a subset of the struct, specify --columns with
 // options.Columns.
 //
-// If options is nil, Load() uses the default options.
+// If options is nil, Load uses the default options.
 //
 // http://groonga.org/docs/reference/commands/load.html
 func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, error) {
@@ -915,7 +915,7 @@ func (db *DB) Load(tbl string, vals interface{}, options *LoadOptions) (int, err
 // `table_create`, `column_create`, `load`
 //
 
-// loadExCreateTable() creates a table.
+// loadExCreateTable creates a table.
 func (db *DB) loadExCreateTable(tbl string, info *StructInfo) error {
 	options := NewTableCreateOptions()
 	for i := 0; i < info.NumField(); i++ {
@@ -986,7 +986,7 @@ func (db *DB) loadExCreateTable(tbl string, info *StructInfo) error {
 	return db.TableCreate(tbl, options)
 }
 
-// loadExCreateColumns() creates columns.
+// loadExCreateColumns creates columns.
 func (db *DB) loadExCreateColumns(tbl string, info *StructInfo) error {
 	for i := 0; i < info.NumField(); i++ {
 		// grnci:"name;type;flags"
@@ -1037,9 +1037,9 @@ func (db *DB) loadExCreateColumns(tbl string, info *StructInfo) error {
 	return nil
 }
 
-// LoadEx() executes `table_create`, `column_create` and `load`.
+// LoadEx executes `table_create`, `column_create` and `load`.
 //
-// LoadEx() calls TableCreate(), ColumnCreate() and Load().
+// LoadEx calls TableCreate, ColumnCreate and Load.
 // See each function for details.
 //
 // The grnci tag format is as follows:
@@ -1101,7 +1101,7 @@ type SelectOptions struct {
 	Adjuster                 string // --adjuster
 }
 
-// NewSelectOptions() returns the default options.
+// NewSelectOptions returns the default options.
 func NewSelectOptions() *SelectOptions {
 	return &SelectOptions{
 		Limit: 10,
@@ -1109,7 +1109,7 @@ func NewSelectOptions() *SelectOptions {
 	}
 }
 
-// selectParse() parses the result of `select`.
+// selectParse parses the result of `select`.
 func (db *DB) selectParse(data []byte, vals interface{}, fields []*FieldInfo) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -1181,18 +1181,18 @@ func (db *DB) selectParse(data []byte, vals interface{}, fields []*FieldInfo) (i
 	return nHits, nil
 }
 
-// Select() executes `select` (experimental).
+// Select executes `select` (experimental).
 //
-// Select() creates a new slice to store the result and then overwrites *vals
+// Select creates a new slice to store the result and then overwrites *vals
 // with the new slice.
 //
 // vals accepts a pointer to a slice of struct.
-// See Load() for details about how struct fields are handled.
+// See Load for details about how struct fields are handled.
 //
 // If you want to use a subset of the struct, specify --output_columns with
 // options.OutputColumns.
 //
-// If options is nil, Select() uses the default options.
+// If options is nil, Select uses the default options.
 //
 // http://groonga.org/docs/reference/commands/select.html
 func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int, error) {
@@ -1292,14 +1292,14 @@ func (db *DB) Select(tbl string, vals interface{}, options *SelectOptions) (int,
 type ColumnRemoveOptions struct {
 }
 
-// NewColumnRemoveOptions() returns the default options.
+// NewColumnRemoveOptions returns the default options.
 func NewColumnRemoveOptions() *ColumnRemoveOptions {
 	return &ColumnRemoveOptions{}
 }
 
-// ColumnRemove() executes `column_remove`.
+// ColumnRemove executes `column_remove`.
 //
-// If options is nil, ColumnRemove() uses the default options.
+// If options is nil, ColumnRemove uses the default options.
 //
 // http://groonga.org/docs/reference/commands/column_remove.html
 func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error {
@@ -1338,14 +1338,14 @@ func (db *DB) ColumnRemove(tbl, name string, options *ColumnRemoveOptions) error
 type ColumnRenameOptions struct {
 }
 
-// NewColumnRenameOptions() returns the default options.
+// NewColumnRenameOptions returns the default options.
 func NewColumnRenameOptions() *ColumnRenameOptions {
 	return &ColumnRenameOptions{}
 }
 
-// ColumnRename() executes `column_rename`.
+// ColumnRename executes `column_rename`.
 //
-// If options is nil, ColumnRename() uses the default options.
+// If options is nil, ColumnRename uses the default options.
 //
 // http://groonga.org/docs/reference/commands/column_rename.html
 func (db *DB) ColumnRename(tbl, name, newName string, options *ColumnRenameOptions) error {
@@ -1388,14 +1388,14 @@ func (db *DB) ColumnRename(tbl, name, newName string, options *ColumnRenameOptio
 type TableRemoveOptions struct {
 }
 
-// NewTableRemoveOptions() returns the default options.
+// NewTableRemoveOptions returns the default options.
 func NewTableRemoveOptions() *TableRemoveOptions {
 	return &TableRemoveOptions{}
 }
 
-// TableRemove() executes `table_remove`.
+// TableRemove executes `table_remove`.
 //
-// If options is nil, TableRemove() uses the default options.
+// If options is nil, TableRemove uses the default options.
 //
 // http://groonga.org/docs/reference/commands/table_remove.html
 func (db *DB) TableRemove(name string, options *TableRemoveOptions) error {
@@ -1430,14 +1430,14 @@ func (db *DB) TableRemove(name string, options *TableRemoveOptions) error {
 type TableRenameOptions struct {
 }
 
-// NewTableRenameOptions() returns the default options.
+// NewTableRenameOptions returns the default options.
 func NewTableRenameOptions() *TableRenameOptions {
 	return &TableRenameOptions{}
 }
 
-// TableRename() executes `table_rename`.
+// TableRename executes `table_rename`.
 //
-// If options is nil, TableRename() uses the default options.
+// If options is nil, TableRename uses the default options.
 //
 // http://groonga.org/docs/reference/commands/table_rename.html
 func (db *DB) TableRename(name, newName string, options *TableRenameOptions) error {
@@ -1476,14 +1476,14 @@ func (db *DB) TableRename(name, newName string, options *TableRenameOptions) err
 type ObjectExistOptions struct {
 }
 
-// NewObjectExistOptions() returns the default options.
+// NewObjectExistOptions returns the default options.
 func NewObjectExistOptions() *ObjectExistOptions {
 	return &ObjectExistOptions{}
 }
 
-// ObjectExist() executes `object_exist`.
+// ObjectExist executes `object_exist`.
 //
-// If options is nil, ObjectExist() uses the default options.
+// If options is nil, ObjectExist uses the default options.
 //
 // http://groonga.org/docs/reference/commands/object_exist.html
 func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
@@ -1515,7 +1515,7 @@ func (db *DB) ObjectExist(name string, options *ObjectExistOptions) error {
 type TruncateOptions struct {
 }
 
-// NewTruncateOptions() returns the default options.
+// NewTruncateOptions returns the default options.
 func NewTruncateOptions() *TruncateOptions {
 	return &TruncateOptions{}
 }
@@ -1555,17 +1555,17 @@ type ThreadLimitOptions struct {
 	Max int // --max
 }
 
-// NewThreadLimitOptions() returns the default options.
+// NewThreadLimitOptions returns the default options.
 func NewThreadLimitOptions() *ThreadLimitOptions {
 	return &ThreadLimitOptions{}
 }
 
-// ThreadLimit() executes `thread_limit`.
+// ThreadLimit executes `thread_limit`.
 //
-// If options is nil, ThreadLimit() uses the default options.
+// If options is nil, ThreadLimit uses the default options.
 //
-// FIXME: Note that if db is a handle, ThreadLimit() returns 1 even though
-// DB.Dup() is used. This is a limitation of grnci.
+// FIXME: Note that if db is a handle, ThreadLimit returns 1 even though
+// DB.Dup is used. This is a limitation of grnci.
 //
 // http://groonga.org/docs/reference/commands/thread_limit.html
 func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
@@ -1603,14 +1603,14 @@ func (db *DB) ThreadLimit(options *ThreadLimitOptions) (int, error) {
 type DatabaseUnmapOptions struct {
 }
 
-// NewDatabaseUnmapOptions() returns the default options.
+// NewDatabaseUnmapOptions returns the default options.
 func NewDatabaseUnmapOptions() *DatabaseUnmapOptions {
 	return &DatabaseUnmapOptions{}
 }
 
-// DatabaseUnmap() executes `database_unmap`.
+// DatabaseUnmap executes `database_unmap`.
 //
-// If options is nil, DatabaseUnmap() uses the default options.
+// If options is nil, DatabaseUnmap uses the default options.
 //
 // http://groonga.org/docs/reference/commands/database_unmap.html
 func (db *DB) DatabaseUnmap(options *DatabaseUnmapOptions) error {
@@ -1641,14 +1641,14 @@ func (db *DB) DatabaseUnmap(options *DatabaseUnmapOptions) error {
 type PluginRegisterOptions struct {
 }
 
-// NewPluginRegisterOptions() returns the default options.
+// NewPluginRegisterOptions returns the default options.
 func NewPluginRegisterOptions() *PluginRegisterOptions {
 	return &PluginRegisterOptions{}
 }
 
-// PluginRegister() executes `plugin_register`.
+// PluginRegister executes `plugin_register`.
 //
-// If options is nil, PluginRegister() uses the default options.
+// If options is nil, PluginRegister uses the default options.
 //
 // http://groonga.org/docs/reference/commands/plugin_register.html
 func (db *DB) PluginRegister(name string, options *PluginRegisterOptions) error {
@@ -1680,14 +1680,14 @@ func (db *DB) PluginRegister(name string, options *PluginRegisterOptions) error 
 type PluginUnregisterOptions struct {
 }
 
-// NewPluginUnregisterOptions() returns the default options.
+// NewPluginUnregisterOptions returns the default options.
 func NewPluginUnregisterOptions() *PluginUnregisterOptions {
 	return &PluginUnregisterOptions{}
 }
 
-// PluginUnregister() executes `plugin_unregister`.
+// PluginUnregister executes `plugin_unregister`.
 //
-// If options is nil, PluginUnregister() uses the default options.
+// If options is nil, PluginUnregister uses the default options.
 //
 // http://groonga.org/docs/reference/commands/plugin_unregister.html
 func (db *DB) PluginUnregister(name string, options *PluginUnregisterOptions) error {
