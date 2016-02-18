@@ -45,11 +45,20 @@ func removeTempDB(tb testing.TB, dirPath string, db *DB) {
 
 // TestGrnInit tests GrnInit and GrnFin
 func TestGrnInit(t *testing.T) {
+	if err := GrnFin(); err == nil {
+		t.Fatalf("GrnFin succeeded")
+	}
 	if err := GrnInit(); err != nil {
 		t.Fatalf("GrnInit failed: %v", err)
 	}
+	if err := GrnInit(); err == nil {
+		t.Fatalf("GrnInit succeeded")
+	}
 	if err := GrnFin(); err != nil {
 		t.Fatalf("GrnFin failed: %v", err)
+	}
+	if err := GrnFin(); err == nil {
+		t.Fatalf("GrnFin succeeded")
 	}
 }
 
@@ -58,11 +67,8 @@ func TestCreate(t *testing.T) {
 	dirPath, _, db := createTempDB(t)
 	defer removeTempDB(t, dirPath, db)
 
-	if !db.IsHandle() {
-		t.Fatalf("DB.IsHandle failed")
-	}
-	if db.IsConnection() {
-		t.Fatalf("DB.IsConnection failed")
+	if db.Mode() != LocalDB {
+		t.Fatalf("DB.Mode failed")
 	}
 	if len(db.Path()) == 0 {
 		t.Fatalf("DB.Path failed")
@@ -86,11 +92,8 @@ func TestOpen(t *testing.T) {
 	}
 	defer db2.Close()
 
-	if !db2.IsHandle() {
-		t.Fatalf("DB.IsHandle failed")
-	}
-	if db2.IsConnection() {
-		t.Fatalf("DB.IsConnection failed")
+	if db2.Mode() != LocalDB {
+		t.Fatalf("DB.Mode failed")
 	}
 	if len(db2.Path()) == 0 {
 		t.Fatalf("DB.Path failed")
@@ -114,11 +117,8 @@ func TestDup(t *testing.T) {
 	}
 	defer db2.Close()
 
-	if !db2.IsHandle() {
-		t.Fatalf("DB.IsHandle failed")
-	}
-	if db2.IsConnection() {
-		t.Fatalf("DB.IsConnection failed")
+	if db2.Mode() != LocalDB {
+		t.Fatalf("DB.Mode failed")
 	}
 	if len(db2.Path()) == 0 {
 		t.Fatalf("DB.Path failed")

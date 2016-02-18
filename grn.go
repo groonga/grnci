@@ -19,7 +19,7 @@ import (
 // Note that C.grn_init must not be called if Groonga is already initialized.
 //
 // Grnci, by default, initializes Groonga when it creates the first DB
-// instance.
+// instance and finalizes Groonga when it closes the last DB instance.
 // To achieve this, Grnci uses a reference count.
 
 // grnCnt is a reference count for Groonga.
@@ -99,7 +99,7 @@ func GrnInit() error {
 // GrnFin explicitly finalizes Groonga.
 // GrnFin should be used if Groonga is initialized by GrnInit.
 //
-// Note that Groonga is implicitly finalized when Grnci deletes the last DB
+// Note that Groonga is implicitly finalized when Grnci closes the last DB
 // instance if GrnInit is not used.
 func GrnFin() error {
 	grnCntMutex.Lock()

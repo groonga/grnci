@@ -14,295 +14,216 @@ import (
 	"unsafe"
 )
 
-//
-// DB handle
-//
-
-// refCount is a reference counter for DB.obj.
-type refCount struct {
-	cnt   int        // Count.
-	mutex sync.Mutex // Mutex for the reference count.
-}
-
-// newRefCount creates a reference counter.
-func newRefCount() *refCount {
-	return &refCount{}
-}
-
-// DB is a handle to a database or a connection to a server.
-type DB struct {
-	ctx  *C.grn_ctx // Context.
-	obj  *C.grn_obj // Database object (handle).
-	path string     // Database path (handle).
-	ref  *refCount  // Reference counter for obj.
-	host string     // Server host name (connection).
-	port int        // Server port number (connection).
-}
-
-// newDB creates an instance of DB.
-// The instance must be finalized by DB.fin.
-func newDB() (*DB, error) {
-	if err := grnInit(); err != nil {
-		return nil, err
+// FIXME: utility function.
+// joinErrors joins errors.
+func joinErrors(errs []error) error {
+	if len(errs) == 1 {
+		return errs[0]
+	} else if len(errs) > 1 {
+		return fmt.Errorf("%v", errs)
 	}
-	var db DB
-	db.ctx = C.grn_ctx_open(C.int(0))
-	if db.ctx == nil {
-		grnFin()
-		return nil, fmt.Errorf("grn_ctx_open failed")
-	}
-	return &db, nil
+	return nil
 }
 
-// fin finalizes an instance of DB.
-func (db *DB) fin() error {
+// DBMode is a mode of DB instance.
+type DBMode int
+
+const (
+	InvalidDB = DBMode(iota) // Invalid instance
+	LocalDB                  // Handle to a local Groonga DB
+	GQTPClient               // Connection to a GQTP Groonga server
+)
+
+// localDB is a handle to a local Groonga DB.
+type localDB struct {
+	ctx   *C.grn_ctx  // Context
+	obj   *C.grn_obj  // Database object
+	path  string      // Database path
+	cnt   *int        // Reference count
+	mutex *sync.Mutex // Mutex for reference count
+}
+
+func newLocalDB() *localDB {
+	return &localDB{}
+}
+
+func (db *localDB) fin() error {
 	if db == nil {
-		return fmt.Errorf("db is nil")
+		return fmt.Errorf("db = nil")
 	}
 	if db.ctx == nil {
 		return nil
 	}
+	var errs []error
 	if db.obj != nil {
-		if db.ref == nil {
-			return fmt.Errorf("ref is nil")
+		db.mutex.Lock()
+		*db.cnt--
+		if *db.cnt == 0 {
+			if rc := C.grn_obj_close(db.ctx, db.obj); rc != C.GRN_SUCCESS {
+				errs = append(errs, fmt.Errorf("C.grn_obj_close failed: rc = %s", rc))
+			}
 		}
-		db.ref.mutex.Lock()
-		db.ref.cnt--
-		if db.ref.cnt == 0 {
-			C.grn_obj_close(db.ctx, db.obj)
-		}
-		db.ref.mutex.Unlock()
-		db.obj = nil
-		db.ref = nil
-	} else {
-		db.host = ""
-		db.port = 0
+		db.mutex.Unlock()
 	}
-	rc := C.grn_ctx_close(db.ctx)
-	db.ctx = nil
-	grnFin()
-	if rc != C.GRN_SUCCESS {
-		return fmt.Errorf("grn_ctx_close failed: rc = %s", rc)
+	if rc := C.grn_ctx_close(db.ctx); rc != C.GRN_SUCCESS {
+		errs = append(errs, fmt.Errorf("C.grn_ctx_close failed: rc = %s", rc))
 	}
-	return nil
+	return joinErrors(errs)
 }
 
-// errorf creates an error.
-func (db *DB) errorf(format string, args ...interface{}) error {
+func (db *localDB) errorf(format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	if (db == nil) || (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
-		return fmt.Errorf(format, args...)
+		return fmt.Errorf("%s: path = \"%s\"", msg, db.path)
 	}
 	ctxMsg := C.GoString(&db.ctx.errbuf[0])
-	return fmt.Errorf("%s: ctx.rc = %s, ctx.errbuf = %s", msg, db.ctx.rc, ctxMsg)
+	return fmt.Errorf("%s: path = \"%s\", ctx = %s \"%s\"",
+		msg, db.path, db.ctx.rc, ctxMsg)
 }
 
-// IsHandle returns whether db is a handle.
-func (db *DB) IsHandle() bool {
-	return (db != nil) && (db.obj != nil)
-}
-
-// IsConnection returns whether db is a connection.
-func (db *DB) IsConnection() bool {
-	return (db != nil) && (len(db.host) != 0)
-}
-
-// Path returns the database path if db is a handle.
-// Otherwise, it returns "".
-func (db *DB) Path() string {
-	if db == nil {
-		return ""
+func createLocalDB(path string) (*localDB, error) {
+	var errs []error
+	db := newLocalDB()
+	if db.ctx = C.grn_ctx_open(C.int(0)); db.ctx == nil {
+		errs = append(errs, fmt.Errorf("C.grn_ctx_open failed"))
+	} else {
+		cPath := C.CString(path)
+		defer C.free(unsafe.Pointer(cPath))
+		if db.obj = C.grn_db_create(db.ctx, cPath, nil); db.obj == nil {
+			err := fmt.Errorf("C.grn_db_create failed: path = \"%s\"", path)
+			errs = append(errs, err)
+		} else {
+			db.cnt = new(int)
+			db.mutex = new(sync.Mutex)
+			*db.cnt++
+			if cAbsPath := C.grn_obj_path(db.ctx, db.obj); cAbsPath == nil {
+				errs = append(errs, fmt.Errorf("C.grn_obj_path failed"))
+			} else {
+				db.path = C.GoString(cAbsPath)
+			}
+		}
 	}
-	return db.path
-}
-
-// Host returns the server host name if db is a connection.
-// Otherwise, it returns "".
-func (db *DB) Host() string {
-	if db == nil {
-		return ""
+	if errs != nil {
+		if err := db.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
 	}
-	return db.host
-}
-
-// Port returns the server port number if db is a connection.
-// Otherwise, it returns 0.
-func (db *DB) Port() int {
-	if db == nil {
-		return 0
-	}
-	return db.port
-}
-
-// check returns an error if db is invalid.
-func (db *DB) check() error {
-	if db == nil {
-		return fmt.Errorf("db is nil")
-	}
-	if db.ctx == nil {
-		return fmt.Errorf("ctx is nil")
-	}
-	if (db.obj == nil) && (len(db.host) == 0) {
-		return fmt.Errorf("neither a handle nor a connection")
-	}
-	return nil
-}
-
-// Create creates a database and returns a handle to it.
-// The handle must be closed by DB.Close.
-func Create(path string) (*DB, error) {
-	if len(path) == 0 {
-		return nil, fmt.Errorf("path is empty")
-	}
-	db, err := newDB()
-	if err != nil {
-		return nil, err
-	}
-	cPath := C.CString(path)
-	defer C.free(unsafe.Pointer(cPath))
-	db.obj = C.grn_db_create(db.ctx, cPath, nil)
-	if db.obj == nil {
-		db.fin()
-		return nil, fmt.Errorf("grn_db_create failed")
-	}
-	db.ref = newRefCount()
-	db.ref.cnt++
-	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
-	if cAbsPath == nil {
-		db.fin()
-		return nil, fmt.Errorf("grn_obj_path failed")
-	}
-	db.path = C.GoString(cAbsPath)
 	return db, nil
 }
 
-// Open opens a database and returns a handle to it.
-// The handle must be closed by DB.Close.
-func Open(path string) (*DB, error) {
-	if len(path) == 0 {
-		return nil, fmt.Errorf("path is empty")
+func openLocalDB(path string) (*localDB, error) {
+	var errs []error
+	db := newLocalDB()
+	if db.ctx = C.grn_ctx_open(C.int(0)); db.ctx == nil {
+		errs = append(errs, fmt.Errorf("C.grn_ctx_open failed"))
+	} else {
+		cPath := C.CString(path)
+		defer C.free(unsafe.Pointer(cPath))
+		if db.obj = C.grn_db_open(db.ctx, cPath); db.obj == nil {
+			err := fmt.Errorf("C.grn_db_open failed: path = \"%s\"", path)
+			errs = append(errs, err)
+		} else {
+			db.cnt = new(int)
+			db.mutex = new(sync.Mutex)
+			*db.cnt++
+			if cAbsPath := C.grn_obj_path(db.ctx, db.obj); cAbsPath == nil {
+				errs = append(errs, fmt.Errorf("C.grn_obj_path failed"))
+			} else {
+				db.path = C.GoString(cAbsPath)
+			}
+		}
 	}
-	db, err := newDB()
-	if err != nil {
-		return nil, err
+	if errs != nil {
+		if err := db.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
 	}
-	cPath := C.CString(path)
-	defer C.free(unsafe.Pointer(cPath))
-	db.obj = C.grn_db_open(db.ctx, cPath)
-	if db.obj == nil {
-		db.fin()
-		return nil, fmt.Errorf("grn_db_open failed")
-	}
-	db.ref = newRefCount()
-	db.ref.cnt++
-	cAbsPath := C.grn_obj_path(db.ctx, db.obj)
-	if cAbsPath == nil {
-		db.fin()
-		return nil, fmt.Errorf("grn_obj_path failed")
-	}
-	db.path = C.GoString(cAbsPath)
 	return db, nil
 }
 
-// Connect establishes a connection to a server.
-// The connection must be closed by DB.Close.
-func Connect(host string, port int) (*DB, error) {
-	if len(host) == 0 {
-		return nil, fmt.Errorf("host is empty")
+func (db *localDB) dup() (*localDB, error) {
+	var errs []error
+	dupDB := newLocalDB()
+	if dupDB.ctx = C.grn_ctx_open(C.int(0)); dupDB.ctx == nil {
+		errs = append(errs, fmt.Errorf("C.grn_ctx_open failed"))
+	} else {
+		if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
+			errs = append(errs, db.errorf("C.grn_ctx_use failed: rc = %s", rc))
+		}
 	}
-	db, err := newDB()
-	if err != nil {
-		return nil, err
-	}
-	cHost := C.CString(host)
-	defer C.free(unsafe.Pointer(cHost))
-	rc := C.grn_ctx_connect(db.ctx, cHost, C.int(port), C.int(0))
-	if rc != C.GRN_SUCCESS {
-		db.fin()
-		return nil, fmt.Errorf("grn_ctx_connect failed: rc = %s", rc)
-	}
-	db.host = host
-	db.port = port
-	return db, nil
-}
-
-// Dup duplicates a handle or a connection.
-// The handle or connection must be closed by DB.Close.
-func (db *DB) Dup() (*DB, error) {
-	if err := db.check(); err != nil {
-		return nil, err
-	}
-	if db.IsConnection() {
-		return Connect(db.host, db.port)
-	}
-	dupDB, err := newDB()
-	if err != nil {
-		return nil, err
-	}
-	if rc := C.grn_ctx_use(dupDB.ctx, db.obj); rc != C.GRN_SUCCESS {
-		dupDB.fin()
-		return nil, db.errorf("grn_ctx_use failed: rc = %s", rc)
+	if errs != nil {
+		if err := dupDB.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
 	}
 	dupDB.obj = db.obj
-	dupDB.ref = db.ref
-	dupDB.ref.mutex.Lock()
-	dupDB.ref.cnt++
-	dupDB.ref.mutex.Unlock()
 	dupDB.path = db.path
+	dupDB.cnt = db.cnt
+	dupDB.mutex = db.mutex
+	*dupDB.cnt++
 	return dupDB, nil
 }
 
-// Close closes a handle or a connection.
-func (db *DB) Close() error {
-	if err := db.check(); err != nil {
-		return err
+func (db *localDB) check() error {
+	if db == nil {
+		return fmt.Errorf("db = nil")
 	}
-	return db.fin()
+	if db.ctx == nil {
+		return fmt.Errorf("ctx = nil")
+	}
+	if db.obj == nil {
+		return fmt.Errorf("obj = nil")
+	}
+	return nil
 }
 
-//
-// Low-level command interface
-//
-
-// checkCmdName checks whether a string is valid as a command name.
+// checkCmdName checks whether s is valid as a command name.
 func checkCmdName(s string) error {
-	if len(s) == 0 {
-		return fmt.Errorf("command name must not be empty")
+	if s == "" {
+		return fmt.Errorf("invalid command name: s = \"\"")
 	}
 	if s[0] == '_' {
-		return fmt.Errorf("command name must not start with '_'")
+		return fmt.Errorf("invalid command name: s = \"%s\"", s)
 	}
 	for i := 0; i < len(s); i++ {
 		if !((s[i] >= 'a') && (s[i] <= 'z')) && (s[i] != '_') {
-			return fmt.Errorf("command name must not contain \\x%X", s[i])
+			return fmt.Errorf("invalid command name: s = \"%s\"", s)
 		}
 	}
 	return nil
 }
 
-// checkCmdArgKey checks whether a string is valid as an argument key.
-func checkArgKey(s string) error {
-	if len(s) == 0 {
-		return fmt.Errorf("command name must not be empty")
+// checkCmdArgKey checks whether s is valid as a command argument key.
+func checkCmdArgKey(s string) error {
+	if s == "" {
+		return fmt.Errorf("invalid command argument key: s = \"\"")
 	}
 	if s[0] == '_' {
-		return fmt.Errorf("command name must not start with '_'")
+		return fmt.Errorf("invalid command argument key: s = \"%s\"", s)
 	}
 	for i := 0; i < len(s); i++ {
 		if !((s[i] >= 'a') && (s[i] <= 'z')) && (s[i] != '_') {
-			return fmt.Errorf("command name must not contain \\x%X", s[i])
+			return fmt.Errorf("invalid command argument key: s = \"%s\"", s)
 		}
 	}
 	return nil
 }
 
 type cmdArg struct {
-	Key   string
-	Value string
+	key string
+	val string
+}
+
+// check checks whether a command argument is valid.
+func (arg *cmdArg) check() error {
+	return checkCmdArgKey(arg.key)
 }
 
 // composeCmd composes a command from its name and arguments.
-func (db *DB) composeCmd(name string, args []cmdArg) (string, error) {
+func composeCmd(name string, args []cmdArg) (string, error) {
 	if err := checkCmdName(name); err != nil {
 		return "", err
 	}
@@ -311,64 +232,44 @@ func (db *DB) composeCmd(name string, args []cmdArg) (string, error) {
 		return "", err
 	}
 	for _, arg := range args {
-		if err := checkArgKey(arg.Key); err != nil {
+		if err := arg.check(); err != nil {
 			return "", err
 		}
-		val := strings.Replace(arg.Value, "\\", "\\\\", -1)
+		val := strings.Replace(arg.val, "\\", "\\\\", -1)
 		val = strings.Replace(val, "'", "\\'", -1)
-		fmt.Fprintf(buf, " --%s '%s'", arg.Key, val)
+		fmt.Fprintf(buf, " --%s '%s'", arg.key, val)
 	}
 	return buf.String(), nil
 }
 
 // send sends data.
-func (db *DB) send(data []byte) error {
+func (db *localDB) send(data []byte) error {
 	var p *C.char
 	if len(data) != 0 {
 		p = (*C.char)(unsafe.Pointer(&data[0]))
 	}
 	rc := C.grn_rc(C.grn_ctx_send(db.ctx, p, C.uint(len(data)), C.int(0)))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return db.errorf("grn_ctx_send failed: rc = %s", rc)
+		return db.errorf("C.grn_ctx_send failed: rc = %s", rc)
 	}
 	return nil
 }
 
 // recv receives the response to sent data.
-func (db *DB) recv() ([]byte, error) {
-	var res *C.char
-	var resLen C.uint
-	var resFlags C.int
-	rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
+func (db *localDB) recv() ([]byte, error) {
+	var resp *C.char
+	var respLen C.uint
+	var respFlags C.int
+	rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &resp, &respLen, &respFlags))
 	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-		return nil, db.errorf("grn_ctx_recv failed: rc = %s", rc)
+		return nil, db.errorf("C.grn_ctx_recv failed: rc = %s", rc)
 	}
-	if (resFlags & C.GRN_CTX_MORE) == 0 {
-		return C.GoBytes(unsafe.Pointer(res), C.int(resLen)), nil
-	}
-	buf := bytes.NewBuffer(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
-	var bufErr error
-	for {
-		rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &res, &resLen, &resFlags))
-		if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
-			return nil, db.errorf("grn_ctx_recv failed: rc = %s", rc)
-		}
-		if bufErr == nil {
-			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(res), C.int(resLen)))
-		}
-		if (resFlags & C.GRN_CTX_MORE) == 0 {
-			break
-		}
-	}
-	if bufErr != nil {
-		return nil, bufErr
-	}
-	return buf.Bytes(), nil
+	return C.GoBytes(unsafe.Pointer(resp), C.int(respLen)), nil
 }
 
 // query sends a command and receives the response.
-func (db *DB) query(name string, args []cmdArg, data []byte) ([]byte, error) {
-	cmd, err := db.composeCmd(name, args)
+func (db *localDB) query(name string, args []cmdArg, data []byte) ([]byte, error) {
+	cmd, err := composeCmd(name, args)
 	if err != nil {
 		return nil, err
 	}
@@ -390,4 +291,382 @@ func (db *DB) query(name string, args []cmdArg, data []byte) ([]byte, error) {
 		return resp, err
 	}
 	return db.recv()
+}
+
+// gqtpClient is a connection to a GQTP Groonga server.
+type gqtpClient struct {
+	ctx  *C.grn_ctx // Context
+	host string     // Server's host name or IP address
+	port int        // Server's port number
+}
+
+func newGQTPClient() *gqtpClient {
+	return &gqtpClient{}
+}
+
+func (db *gqtpClient) fin() error {
+	if db == nil {
+		return fmt.Errorf("db is nil")
+	}
+	if db.ctx == nil {
+		return nil
+	}
+	var errs []error
+	if rc := C.grn_ctx_close(db.ctx); rc != C.GRN_SUCCESS {
+		errs = append(errs, fmt.Errorf("C.grn_ctx_close failed: rc = %s", rc))
+	}
+	return joinErrors(errs)
+}
+
+func (db *gqtpClient) errorf(format string, args ...interface{}) error {
+	msg := fmt.Sprintf(format, args...)
+	if (db == nil) || (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
+		return fmt.Errorf("%s: host = \"%s\", port = %d", msg, db.host, db.port)
+	}
+	ctxMsg := C.GoString(&db.ctx.errbuf[0])
+	return fmt.Errorf("%s: host = \"%s\", port = %d, ctx = %s \"%s\"",
+		msg, db.host, db.port, db.ctx.rc, ctxMsg)
+}
+
+func (db *gqtpClient) check() error {
+	if db == nil {
+		return fmt.Errorf("db = nil")
+	}
+	if db.ctx == nil {
+		return fmt.Errorf("ctx = nil")
+	}
+	return nil
+}
+
+func openGQTPClient(host string, port int) (*gqtpClient, error) {
+	var errs []error
+	db := newGQTPClient()
+	if db.ctx = C.grn_ctx_open(C.int(0)); db.ctx == nil {
+		errs = append(errs, fmt.Errorf("C.grn_ctx_open failed"))
+	} else {
+		cHost := C.CString(host)
+		defer C.free(unsafe.Pointer(cHost))
+		rc := C.grn_ctx_connect(db.ctx, cHost, C.int(port), C.int(0))
+		if rc != C.GRN_SUCCESS {
+			const format = "C.grn_ctx_connect failed: host = \"%s\", port = %d, rc = %s"
+			err := fmt.Errorf(format, host, port, rc)
+			errs = append(errs, err)
+		} else {
+			db.host = host
+			db.port = port
+		}
+	}
+	if errs != nil {
+		if err := db.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
+	}
+	return db, nil
+}
+
+// send sends data.
+func (db *gqtpClient) send(data []byte) error {
+	var p *C.char
+	if len(data) != 0 {
+		p = (*C.char)(unsafe.Pointer(&data[0]))
+	}
+	rc := C.grn_rc(C.grn_ctx_send(db.ctx, p, C.uint(len(data)), C.int(0)))
+	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
+		return db.errorf("grn_ctx_send failed: rc = %s", rc)
+	}
+	return nil
+}
+
+// recv receives the response to sent data.
+func (db *gqtpClient) recv() ([]byte, error) {
+	var resp *C.char
+	var respLen C.uint
+	var respFlags C.int
+	rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &resp, &respLen, &respFlags))
+	if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
+		return nil, db.errorf("grn_ctx_recv failed: rc = %s", rc)
+	}
+	if (respFlags & C.GRN_CTX_MORE) == 0 {
+		return C.GoBytes(unsafe.Pointer(resp), C.int(respLen)), nil
+	}
+	buf := bytes.NewBuffer(C.GoBytes(unsafe.Pointer(resp), C.int(respLen)))
+	var bufErr error
+	for {
+		rc := C.grn_rc(C.grn_ctx_recv(db.ctx, &resp, &respLen, &respFlags))
+		if (rc != C.GRN_SUCCESS) || (db.ctx.rc != C.GRN_SUCCESS) {
+			return nil, db.errorf("grn_ctx_recv failed: rc = %s", rc)
+		}
+		if bufErr == nil {
+			_, bufErr = buf.Write(C.GoBytes(unsafe.Pointer(resp), C.int(respLen)))
+		}
+		if (respFlags & C.GRN_CTX_MORE) == 0 {
+			break
+		}
+	}
+	if bufErr != nil {
+		return nil, bufErr
+	}
+	return buf.Bytes(), nil
+}
+
+// query sends a command and receives the response.
+func (db *gqtpClient) query(name string, args []cmdArg, data []byte) ([]byte, error) {
+	cmd, err := composeCmd(name, args)
+	if err != nil {
+		return nil, err
+	}
+	// Send a command.
+	if err := db.send([]byte(cmd)); err != nil {
+		resp, _ := db.recv()
+		return resp, err
+	}
+	resp, err := db.recv()
+	if (data == nil) || (err != nil) {
+		return resp, err
+	}
+	// Send data if available.
+	if len(resp) != 0 {
+		return resp, db.errorf("unexpected response")
+	}
+	if err := db.send(data); err != nil {
+		resp, _ := db.recv()
+		return resp, err
+	}
+	return db.recv()
+}
+
+// DB is a handle to a Groonga DB or a connection to a Groonga server.
+//
+// Note that DB is not thread-safe.
+// DB.Dup is useful to create a DB instance for each thread.
+type DB struct {
+	mode       DBMode      // Mode
+	localDB    *localDB    // Handle to a local Groonga DB
+	gqtpClient *gqtpClient // Connection to a GQTP Groonga server
+}
+
+// Mode returns the DB mode.
+func (db *DB) Mode() DBMode {
+	if db == nil {
+		return InvalidDB
+	}
+	return db.mode
+}
+
+// Path returns the DB file path if db is a handle.
+// Otherwise, it returns "".
+func (db *DB) Path() string {
+	if db == nil {
+		return ""
+	}
+	switch db.mode {
+	case LocalDB:
+		return db.localDB.path
+	default:
+		return ""
+	}
+}
+
+// Host returns server's host name or IP address if db is a connection.
+// Otherwise, it returns "".
+func (db *DB) Host() string {
+	if db == nil {
+		return ""
+	}
+	switch db.mode {
+	case GQTPClient:
+		return db.gqtpClient.host
+	default:
+		return ""
+	}
+}
+
+// Port returns server's port number if db is a connection.
+// Otherwise, it returns 0.
+func (db *DB) Port() int {
+	if db == nil {
+		return 0
+	}
+	switch db.mode {
+	case GQTPClient:
+		return db.gqtpClient.port
+	default:
+		return 0
+	}
+}
+
+// check returns an error if db is invalid.
+func (db *DB) check() error {
+	if db == nil {
+		return fmt.Errorf("db = nil")
+	}
+	switch db.mode {
+	case InvalidDB:
+		return fmt.Errorf("mode = InvalidDB")
+	case LocalDB:
+		return db.localDB.check()
+	case GQTPClient:
+		return db.gqtpClient.check()
+	default:
+		return fmt.Errorf("undefined mode: mode = %d", db.mode)
+	}
+}
+
+// newDB creates a DB instance.
+// The instance must be finalized by DB.fin.
+func newDB() (*DB, error) {
+	if err := grnInit(); err != nil {
+		return nil, err
+	}
+	return &DB{}, nil
+}
+
+// fin finalizes a DB instance.
+func (db *DB) fin() error {
+	if db == nil {
+		return fmt.Errorf("db = nil")
+	}
+	var errs []error
+	switch db.mode {
+	case LocalDB:
+		if err := db.localDB.fin(); err != nil {
+			errs = append(errs, err)
+		}
+	case GQTPClient:
+		if err := db.gqtpClient.fin(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if err := grnFin(); err != nil {
+		errs = append(errs, err)
+	}
+	return joinErrors(errs)
+}
+
+// Create creates a local DB and returns a handle to it.
+// The handle must be closed by DB.Close.
+func Create(path string) (*DB, error) {
+	if path == "" {
+		return nil, fmt.Errorf("path = \"\"")
+	}
+	db, err := newDB()
+	if err != nil {
+		return nil, err
+	}
+	var errs []error
+	if db.localDB, err = createLocalDB(path); err != nil {
+		errs = append(errs, err)
+		if err := db.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
+	}
+	db.mode = LocalDB
+	return db, nil
+}
+
+// Open opens a local DB and returns a handle to it.
+// The handle must be closed by DB.Close.
+func Open(path string) (*DB, error) {
+	if path == "" {
+		return nil, fmt.Errorf("path = \"\"")
+	}
+	db, err := newDB()
+	if err != nil {
+		return nil, err
+	}
+	var errs []error
+	if db.localDB, err = openLocalDB(path); err != nil {
+		errs = append(errs, err)
+		if err := db.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
+	}
+	db.mode = LocalDB
+	return db, nil
+}
+
+// Connect establishes a connection to a server.
+// The connection must be closed by DB.Close.
+func Connect(host string, port int) (*DB, error) {
+	if host == "" {
+		return nil, fmt.Errorf("host = \"\"")
+	}
+	db, err := newDB()
+	if err != nil {
+		return nil, err
+	}
+	var errs []error
+	if db.gqtpClient, err = openGQTPClient(host, port); err != nil {
+		errs = append(errs, err)
+		if err := db.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
+	}
+	db.mode = GQTPClient
+	return db, nil
+}
+
+// Dup duplicates a DB instance.
+// The instance must be closed by DB.Close.
+func (db *DB) Dup() (*DB, error) {
+	if err := db.check(); err != nil {
+		return nil, err
+	}
+	switch db.mode {
+	case LocalDB:
+		dupDB, err := newDB()
+		if err != nil {
+			return nil, err
+		}
+		var errs []error
+		if dupDB.localDB, err = db.localDB.dup(); err != nil {
+			errs = append(errs, err)
+		}
+		if len(errs) != 0 {
+			if err := dupDB.fin(); err != nil {
+				errs = append(errs, err)
+			}
+			return nil, joinErrors(errs)
+		}
+		dupDB.mode = db.mode
+		return dupDB, nil
+	default:
+		return Connect(db.Host(), db.Port())
+	}
+}
+
+// Close closes a handle or a connection.
+func (db *DB) Close() error {
+	if err := db.check(); err != nil {
+		return err
+	}
+	return db.fin()
+}
+
+// errorf creates an error.
+func (db *DB) errorf(format string, args ...interface{}) error {
+	switch db.mode {
+	case LocalDB:
+		return db.localDB.errorf(format, args...)
+	case GQTPClient:
+		return db.gqtpClient.errorf(format, args...)
+	default:
+		return fmt.Errorf(format, args...)
+	}
+}
+
+// query sends a command and receives the response.
+func (db *DB) query(name string, args []cmdArg, data []byte) ([]byte, error) {
+	switch db.mode {
+	case LocalDB:
+		return db.localDB.query(name, args, data)
+	case GQTPClient:
+		return db.gqtpClient.query(name, args, data)
+	default:
+		return nil, fmt.Errorf("invalid mode: %d", db.mode)
+	}
 }
