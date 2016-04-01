@@ -2,6 +2,7 @@ package grnci
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -99,9 +100,11 @@ func (val *Text) writeTo(buf *bytes.Buffer) error {
 		_, err := buf.WriteString("null")
 		return err
 	}
-	str := strings.Replace(string(*val), "\\", "\\\\", -1)
-	str = strings.Replace(str, "\"", "\\\"", -1)
-	_, err := fmt.Fprintf(buf, "\"%s\"", str)
+	data, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+	_, err = buf.Write(data)
 	return err
 }
 
