@@ -659,7 +659,27 @@ func (db *DB) errorf(format string, args ...interface{}) error {
 	}
 }
 
-// query sends a command and receives the response.
+// exec sends a command and receives a response.
+func (db *DB) exec(data []byte) ([]byte, error) {
+	switch db.mode {
+	case LocalDB:
+		if err := db.localDB.send(data); err != nil {
+			resp, _ := db.localDB.recv()
+			return resp, err
+		}
+		return db.localDB.recv()
+	case GQTPClient:
+		if err := db.gqtpClient.send(data); err != nil {
+			resp, _ := db.gqtpClient.recv()
+			return resp, err
+		}
+		return db.gqtpClient.recv()
+	default:
+		return nil, fmt.Errorf("invalid mode: %d", db.mode)
+	}
+}
+
+// query sends a command and receives a response.
 func (db *DB) query(name string, args []cmdArg, data []byte) ([]byte, error) {
 	switch db.mode {
 	case LocalDB:

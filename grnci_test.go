@@ -633,3 +633,39 @@ func TestGetStructInfo(t *testing.T) {
 		t.Fatalf("GetStructInfo failed: field = %v", field)
 	}
 }
+
+func TestExecFile(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+
+	file, err := ioutil.TempFile("", "grnci_test")
+	if err != nil {
+		t.Fatalf("ioutil.TempFile failed: %v", err)
+	}
+	defer os.Remove(file.Name())
+
+	file.WriteString("table_create tbl TABLE_NO_KEY\n")
+	file.WriteString("column_create tbl col COLUMN_SCALAR Int32\n")
+	file.WriteString("load --table tbl '[[\"col\"],[123],[456],[789]]'\n")
+	file.WriteString(`load --table tbl
+[
+ ["col"],
+ [100],
+ [200],
+ [300],
+ [400],
+ [500]
+]
+`)
+	resps, err := db.ExecFile(file.Name())
+	if err != nil {
+		t.Fatalf("DB.ExecFile failed: %v", err)
+	}
+	if len(resps) != 4 ||
+		string(resps[0]) != "true" ||
+		string(resps[1]) != "true" ||
+		string(resps[2]) != "3" ||
+		string(resps[3]) != "5" {
+		t.Fatalf("DB.ExecFile failed: resps = %#v", resps)
+	}
+}

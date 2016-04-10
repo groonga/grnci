@@ -13,9 +13,11 @@ package grnci
 import "C"
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -1698,4 +1700,33 @@ func (db *DB) PluginUnregister(name string, options *PluginUnregisterOptions) er
 		return fmt.Errorf("plugin_unregister failed")
 	}
 	return nil
+}
+
+//
+// Execute commands in a file (experimental).
+//
+
+// ExecFile reads commands from a file and executes it.
+func (db *DB) ExecFile(path string) ([][]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var resps [][]byte
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		resp, err := db.exec([]byte(scanner.Text()))
+		if err != nil {
+			return resps, err
+		}
+		if len(resp) != 0 {
+			resps = append(resps, resp)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return resps, err
+	}
+	return resps, nil
 }
