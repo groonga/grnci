@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strconv"
@@ -1703,19 +1704,13 @@ func (db *DB) PluginUnregister(name string, options *PluginUnregisterOptions) er
 }
 
 //
-// Execute commands in a file (experimental).
+// Execute commands (experimental).
 //
 
-// ExecFile reads commands from a file and executes it.
-func (db *DB) ExecFile(path string) ([][]byte, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
+// Exec reads commands and executes it.
+func (db *DB) Exec(reader io.Reader) ([][]byte, error) {
 	var resps [][]byte
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		resp, err := db.exec([]byte(scanner.Text()))
 		if err != nil {
@@ -1729,4 +1724,18 @@ func (db *DB) ExecFile(path string) ([][]byte, error) {
 		return resps, err
 	}
 	return resps, nil
+}
+
+//
+// Execute commands in a file (experimental).
+//
+
+// ExecFile reads commands from a file and executes it.
+func (db *DB) ExecFile(path string) ([][]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return db.Exec(file)
 }

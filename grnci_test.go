@@ -1,6 +1,7 @@
 package grnci
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -631,6 +632,36 @@ func TestGetStructInfo(t *testing.T) {
 		t.Fatalf("GetStructInfo failed: field = %v", field)
 	} else if field.Dimension() != 1 {
 		t.Fatalf("GetStructInfo failed: field = %v", field)
+	}
+}
+
+func TestExec(t *testing.T) {
+	dirPath, _, db := createTempDB(t)
+	defer removeTempDB(t, dirPath, db)
+
+	cmds := []byte(`table_create tbl TABLE_NO_KEY
+column_create tbl col COLUMN_SCALAR Int32
+load --table tbl '[[\"col\"],[123],[456],[789]]'
+load --table tbl
+[
+ ["col"],
+ [100],
+ [200],
+ [300],
+ [400],
+ [500]
+]
+`)
+	resps, err := db.Exec(bytes.NewReader(cmds))
+	if err != nil {
+		t.Fatalf("DB.ExecFile failed: %v", err)
+	}
+	if len(resps) != 4 ||
+		string(resps[0]) != "true" ||
+		string(resps[1]) != "true" ||
+		string(resps[2]) != "3" ||
+		string(resps[3]) != "5" {
+		t.Fatalf("DB.ExecFile failed: resps = %#v", resps)
 	}
 }
 
