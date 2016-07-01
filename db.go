@@ -8,13 +8,17 @@ import "C"
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path"
 	"strings"
 	"sync"
 	"unsafe"
 )
 
-// FIXME: utility function.
 // joinErrors joins errors.
 func joinErrors(errs []error) error {
 	if len(errs) == 1 {
@@ -32,6 +36,7 @@ const (
 	InvalidDB = DBMode(iota) // Invalid instance
 	LocalDB                  // Handle to a local Groonga DB
 	GQTPClient               // Connection to a GQTP Groonga server
+	HTTPClient               // Connection to an HTTP Groonga server
 )
 
 // localDB is a handle to a local Groonga DB.
@@ -73,7 +78,10 @@ func (db *localDB) fin() error {
 
 func (db *localDB) errorf(format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
-	if (db == nil) || (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
+	if db == nil {
+		return fmt.Errorf("%s", msg)
+	}
+	if (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
 		return fmt.Errorf("%s: path = \"%s\"", msg, db.path)
 	}
 	ctxMsg := C.GoString(&db.ctx.errbuf[0])
@@ -320,7 +328,10 @@ func (db *gqtpClient) fin() error {
 
 func (db *gqtpClient) errorf(format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
-	if (db == nil) || (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
+	if db == nil {
+		return fmt.Errorf("%s", msg)
+	}
+	if (db.ctx == nil) || (db.ctx.rc == C.GRN_SUCCESS) {
 		return fmt.Errorf("%s: host = \"%s\", port = %d", msg, db.host, db.port)
 	}
 	ctxMsg := C.GoString(&db.ctx.errbuf[0])
@@ -436,6 +447,99 @@ func (db *gqtpClient) query(name string, args []cmdArg, data []byte) ([]byte, er
 	return db.recv()
 }
 
+// httpClient is a connection to an HTTP Groonga server.
+type httpClient struct {
+	client *http.Client // HTTP client
+	addr   string       // Server address, e.g. http://localhost:10041
+}
+
+func newHTTPClient() *httpClient {
+	return &httpClient{}
+}
+
+func (db *httpClient) fin() error {
+	if db == nil {
+		return fmt.Errorf("db is nil")
+	}
+	return nil
+}
+
+func (db *httpClient) errorf(format string, args ...interface{}) error {
+	msg := fmt.Sprintf(format, args...)
+	if db == nil {
+		return fmt.Errorf("%s", msg)
+	}
+	return fmt.Errorf("%s: addr = \"%s\"", msg, db.addr)
+}
+
+func (db *httpClient) check() error {
+	if db == nil {
+		return fmt.Errorf("db = nil")
+	}
+	if db.client == nil {
+		return fmt.Errorf("client = nil")
+	}
+	return nil
+}
+
+func openHTTPClient(addr string, client *http.Client) (*httpClient, error) {
+	return &httpClient{
+		client: client,
+		addr:   addr,
+	}, nil
+}
+
+// query sends a command and receives the response.
+func (db *httpClient) query(name string, args []cmdArg, data []byte) ([]byte, error) {
+	u, err := url.Parse(db.addr)
+	if err != nil {
+		return nil, db.errorf("url.Parse failed: %v", err)
+	}
+	u.Path = path.Join(u.Path, "select")
+	if len(args) != 0 {
+		q := u.Query()
+		for _, arg := range args {
+			q.Set(arg.key, arg.val)
+		}
+		u.RawQuery = q.Encode()
+	}
+	addr := u.String()
+
+	var respBytes []byte
+	if len(data) == 0 {
+		resp, err := db.client.Get(addr)
+		if err != nil {
+			return nil, db.errorf("db.client.Get failed: %v", err)
+		}
+		defer resp.Body.Close()
+		if respBytes, err = ioutil.ReadAll(resp.Body); err != nil {
+			return nil, db.errorf("ioutil.ReadAll failed: %v", err)
+		}
+	} else {
+		resp, err := db.client.Post(addr, "application/json",
+			bytes.NewReader(data))
+		if err != nil {
+			return nil, db.errorf("db.client.Post failed: %v", err)
+		}
+		defer resp.Body.Close()
+		if respBytes, err = ioutil.ReadAll(resp.Body); err != nil {
+			return nil, db.errorf("ioutil.ReadAll failed: %v", err)
+		}
+	}
+	var rawMsgs []json.RawMessage
+	if err := json.Unmarshal(respBytes, &rawMsgs); err != nil {
+		return nil, db.errorf("json.Unmarshal failed: %v", err)
+	}
+	switch len(rawMsgs) {
+	case 0:
+		return nil, db.errorf("failed")
+	case 2:
+		return rawMsgs[1], nil
+	default:
+		return nil, db.errorf("failed: %s", rawMsgs[0])
+	}
+}
+
 // DB is a handle to a Groonga DB or a connection to a Groonga server.
 //
 // Note that DB is not thread-safe.
@@ -444,6 +548,7 @@ type DB struct {
 	mode       DBMode      // Mode
 	localDB    *localDB    // Handle to a local Groonga DB
 	gqtpClient *gqtpClient // Connection to a GQTP Groonga server
+	httpClient *httpClient // Connection to an HTTP Groonga server
 }
 
 // Mode returns the DB mode.
@@ -508,6 +613,8 @@ func (db *DB) check() error {
 		return db.localDB.check()
 	case GQTPClient:
 		return db.gqtpClient.check()
+	case HTTPClient:
+		return db.httpClient.check()
 	default:
 		return fmt.Errorf("undefined mode: mode = %d", db.mode)
 	}
@@ -535,6 +642,10 @@ func (db *DB) fin() error {
 		}
 	case GQTPClient:
 		if err := db.gqtpClient.fin(); err != nil {
+			errs = append(errs, err)
+		}
+	case HTTPClient:
+		if err := db.httpClient.fin(); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -588,7 +699,7 @@ func Open(path string) (*DB, error) {
 	return db, nil
 }
 
-// Connect establishes a connection to a server.
+// Connect establishes a connection to a GQTP Groonga server.
 // The connection must be closed by DB.Close.
 func Connect(host string, port int) (*DB, error) {
 	if host == "" {
@@ -607,6 +718,31 @@ func Connect(host string, port int) (*DB, error) {
 		return nil, joinErrors(errs)
 	}
 	db.mode = GQTPClient
+	return db, nil
+}
+
+// Connect establishes a connection to an HTTP Groonga server.
+// The connection must be closed by DB.Close.
+func ConnectHTTP(addr string, client *http.Client) (*DB, error) {
+	if addr == "" {
+		return nil, fmt.Errorf("addr = \"\"")
+	}
+	if client == nil {
+		client = http.DefaultClient
+	}
+	db, err := newDB()
+	if err != nil {
+		return nil, err
+	}
+	var errs []error
+	if db.httpClient, err = openHTTPClient(addr, client); err != nil {
+		errs = append(errs, err)
+		if err := db.fin(); err != nil {
+			errs = append(errs, err)
+		}
+		return nil, joinErrors(errs)
+	}
+	db.mode = HTTPClient
 	return db, nil
 }
 
@@ -634,8 +770,12 @@ func (db *DB) Dup() (*DB, error) {
 		}
 		dupDB.mode = db.mode
 		return dupDB, nil
-	default:
+	case GQTPClient:
 		return Connect(db.Host(), db.Port())
+	case HTTPClient:
+		return ConnectHTTP(db.httpClient.addr, db.httpClient.client)
+	default:
+		return nil, fmt.Errorf("undefined mode: %v", db.mode)
 	}
 }
 
@@ -654,6 +794,8 @@ func (db *DB) errorf(format string, args ...interface{}) error {
 		return db.localDB.errorf(format, args...)
 	case GQTPClient:
 		return db.gqtpClient.errorf(format, args...)
+	case HTTPClient:
+		return db.httpClient.errorf(format, args...)
 	default:
 		return fmt.Errorf(format, args...)
 	}
@@ -674,6 +816,8 @@ func (db *DB) exec(data []byte) ([]byte, error) {
 			return resp, err
 		}
 		return db.gqtpClient.recv()
+	case HTTPClient:
+		return nil, fmt.Errorf("httpClient does not support exec.")
 	default:
 		return nil, fmt.Errorf("invalid mode: %d", db.mode)
 	}
@@ -686,6 +830,8 @@ func (db *DB) query(name string, args []cmdArg, data []byte) ([]byte, error) {
 		return db.localDB.query(name, args, data)
 	case GQTPClient:
 		return db.gqtpClient.query(name, args, data)
+	case HTTPClient:
+		return db.httpClient.query(name, args, data)
 	default:
 		return nil, fmt.Errorf("invalid mode: %d", db.mode)
 	}
