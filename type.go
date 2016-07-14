@@ -206,8 +206,7 @@ func (val *Geo) UnmarshalJSON(data []byte) error {
 
 // Now returns the current time.
 func Now() Time {
-	now := time.Now()
-	return Time((now.Unix() * 1000000) + (now.UnixNano() / 1000))
+	return Time(time.Now().UnixNano() / 1000)
 }
 
 // Unix returns sec and nsec for time.Unix.
