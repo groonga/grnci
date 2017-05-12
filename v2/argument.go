@@ -5,7 +5,11 @@ import (
 	"fmt"
 )
 
-// Argument represents a named argument of a request.
+// Argument stores a command argument.
+//
+// If Key != "", it is a named argument.
+// Otherwise, it is an unnamed argument.
+// Note that the order of unnamed arguments is important.
 type Argument struct {
 	Key   string
 	Value string
@@ -36,7 +40,7 @@ func checkArgumentKey(s string) error {
 			continue
 		}
 		switch s[i] {
-		case '#', '@', '-', '_':
+		case '#', '@', '-', '_', '.', '[', ']':
 		default:
 			return fmt.Errorf("invalid format: s = %s", s)
 		}
@@ -45,8 +49,8 @@ func checkArgumentKey(s string) error {
 }
 
 // Check checks if arg is valid.
-func (arg *Argument) Check() error {
-	if err := checkArgumentKey(arg.Key); err != nil {
+func (a *Argument) Check() error {
+	if err := checkArgumentKey(a.Key); err != nil {
 		return fmt.Errorf("checkArgumentKey failed: %v", err)
 	}
 	return nil

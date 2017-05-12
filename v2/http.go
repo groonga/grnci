@@ -2,8 +2,10 @@ package grnci
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 )
 
 // httpClient is an HTTP client.
@@ -34,6 +36,38 @@ func (c *httpClient) Close() error {
 
 // Query sends a request and receives a response.
 func (c *httpClient) Query(req *Request) (*Response, error) {
-	// TODO
-	return nil, nil
+	if err := req.Check(); err != nil {
+		return nil, err
+	}
+
+	u := *c.url
+	u.Path = path.Join(u.Path, req.Cmd)
+	if len(req.Args) != 0 {
+		q := u.Query()
+		for _, arg := range req.Args {
+			q.Set(arg.Key, arg.Value)
+		}
+		u.RawQuery = q.Encode()
+	}
+	addr := u.String()
+
+	var resp *http.Response
+	var err error
+	if req.Body == nil {
+		if resp, err = c.client.Get(addr); err != nil {
+			return nil, fmt.Errorf("c.client.Get failed: %v", err)
+		}
+	} else {
+		if resp, err = c.client.Post(addr, "application/json", req.Body); err != nil {
+			return nil, fmt.Errorf("c.client.Post failed: %v", err)
+		}
+	}
+	defer resp.Body.Close()
+
+	// TODO: parse the response.
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("ioutil.ReadAll failed: %v", err)
+	}
+	return &Response{Bytes: respBytes}, nil
 }

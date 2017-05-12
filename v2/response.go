@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// Response stores a response of Groonga.
 type Response struct {
 	Bytes   []byte
 	Error   error

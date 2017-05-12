@@ -34,6 +34,10 @@ func (c *gqtpClient) Close() error {
 
 // Query sends a request and receives a response.
 func (c *gqtpClient) Query(req *Request) (*Response, error) {
+	if err := req.Check(); err != nil {
+		return nil, err
+	}
+
 	// TODO
 	return nil, nil
 }

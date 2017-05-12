@@ -32,7 +32,7 @@ func checkCmd(s string) error {
 // Check checks if req is valid.
 func (req *Request) Check() error {
 	if err := checkCmd(req.Cmd); err != nil {
-		return fmt.Errorf("CheckCmd failed: %v", err)
+		return fmt.Errorf("checkCmd failed: %v", err)
 	}
 	for _, arg := range req.Args {
 		if err := arg.Check(); err != nil {
