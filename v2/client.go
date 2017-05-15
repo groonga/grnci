@@ -14,12 +14,12 @@ type iClient interface {
 
 // Client is a Groonga client.
 type Client struct {
-	iClient
+	impl iClient
 }
 
 // NewClient returns a new Client using an existing client.
 func NewClient(c iClient) *Client {
-	return &Client{iClient: c}
+	return &Client{impl: c}
 }
 
 // NewClientByAddress returns a new Client to access a Groonga server.
@@ -75,4 +75,14 @@ func NewHTTPClient(addr string, client *http.Client) (*Client, error) {
 		return nil, err
 	}
 	return NewClient(c), nil
+}
+
+// Close closes a client.
+func (c *Client) Close() error {
+	return c.impl.Close()
+}
+
+// Query sends a request and receives a response.
+func (c *Client) Query(req *Request) (*Response, error) {
+	return c.impl.Query(req)
 }

@@ -11,16 +11,6 @@ type Client struct {
 	ctx *grnCtx
 }
 
-// Open opens a local Groonga DB.
-func Open(path string) (*grnci.Client, error) {
-	return nil, nil
-}
-
-// Create creates a local Groonga DB.
-func Create(path string) (*grnci.Client, error) {
-	return nil, nil
-}
-
 // Connect establishes a connection with a GQTP server.
 func Connect(addr string) (*grnci.Client, error) {
 	return nil, nil

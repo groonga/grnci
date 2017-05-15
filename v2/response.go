@@ -11,3 +11,7 @@ type Response struct {
 	Time    time.Time
 	Elapsed time.Duration
 }
+
+func NewResponse([]byte) (*Response, error) {
+	return nil, nil
+}

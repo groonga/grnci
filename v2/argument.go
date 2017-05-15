@@ -35,7 +35,10 @@ func checkArgumentKey(s string) error {
 	if s == "" {
 		return errors.New("invalid format: s = ")
 	}
-	for i := 0; i < len(s); i++ {
+	if !isAlpha(s[0]) {
+		return fmt.Errorf("invalid format: s = %s", s)
+	}
+	for i := 1; i < len(s); i++ {
 		if isAlnum(s[i]) {
 			continue
 		}

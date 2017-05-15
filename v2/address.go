@@ -22,7 +22,7 @@ type Address struct {
 	Fragment string
 }
 
-// String reassembles the address fields except Raw into an address string.
+// String assembles the address fields except Raw into an address string.
 func (a *Address) String() string {
 	var url string
 	if a.Scheme != "" {

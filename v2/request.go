@@ -8,13 +8,13 @@ import (
 
 // Request stores a Groonga command with arguments.
 type Request struct {
-	Cmd  string
-	Args []Argument
-	Body io.Reader
+	Command   string
+	Arguments []Argument
+	Body      io.Reader
 }
 
-// checkCmd checks if s is valid as a command name.
-func checkCmd(s string) error {
+// checkCommand checks if s is valid as a command name.
+func checkCommand(s string) error {
 	if s == "" {
 		return errors.New("invalid name: s = ")
 	}
@@ -30,14 +30,53 @@ func checkCmd(s string) error {
 }
 
 // Check checks if req is valid.
-func (req *Request) Check() error {
-	if err := checkCmd(req.Cmd); err != nil {
-		return fmt.Errorf("checkCmd failed: %v", err)
+func (r *Request) Check() error {
+	if err := checkCommand(r.Command); err != nil {
+		return fmt.Errorf("checkCommand failed: %v", err)
 	}
-	for _, arg := range req.Args {
+	for _, arg := range r.Arguments {
 		if err := arg.Check(); err != nil {
 			return fmt.Errorf("arg.Check failed: %v", err)
 		}
 	}
 	return nil
+}
+
+// Assemble assembles Command and Arguments into a command string.
+//
+// The command string format is
+// Command --Arguments[i].Key 'Arguments[i].Value' ...
+func (r *Request) Assemble() (string, error) {
+	if err := r.Check(); err != nil {
+		return "", err
+	}
+	size := len(r.Command)
+	for _, arg := range r.Arguments {
+		if len(arg.Key) != 0 {
+			size += len(arg.Key) + 3
+		}
+		size += len(arg.Value)*2 + 3
+	}
+	buf := make([]byte, 0, size)
+	buf = append(buf, r.Command...)
+	for _, arg := range r.Arguments {
+		buf = append(buf, ' ')
+		if len(arg.Key) != 0 {
+			buf = append(buf, "--"...)
+			buf = append(buf, arg.Key...)
+		}
+		buf = append(buf, '\'')
+		for i := 0; i < len(arg.Value); i++ {
+			switch arg.Value[i] {
+			case '\'':
+				buf = append(buf, '\'')
+			case '\\':
+				buf = append(buf, '\'')
+			}
+			buf = append(buf, arg.Value[i])
+		}
+		buf = append(buf, '\'')
+
+	}
+	return string(buf), nil
 }

@@ -41,10 +41,10 @@ func (c *httpClient) Query(req *Request) (*Response, error) {
 	}
 
 	u := *c.url
-	u.Path = path.Join(u.Path, req.Cmd)
-	if len(req.Args) != 0 {
+	u.Path = path.Join(u.Path, req.Command)
+	if len(req.Arguments) != 0 {
 		q := u.Query()
-		for _, arg := range req.Args {
+		for _, arg := range req.Arguments {
 			q.Set(arg.Key, arg.Value)
 		}
 		u.RawQuery = q.Encode()

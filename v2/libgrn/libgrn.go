@@ -104,8 +104,8 @@ type grnDB struct {
 	mutex sync.Mutex
 }
 
-// createDB creates a new DB.
-func createDB(ctx *grnCtx, path string) (*grnDB, error) {
+// createGrnDB creates a new DB.
+func createGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 	obj := C.grn_db_create(ctx.ctx, cPath, nil)
@@ -122,14 +122,8 @@ func createDB(ctx *grnCtx, path string) (*grnDB, error) {
 	}, nil
 }
 
-// openDB opens an existing DB.
-func openDB(ctx *grnCtx, path string) (*grnDB, error) {
-	if ctx == nil {
-		return nil, errors.New("invalid argument: ctx = nil")
-	}
-	if path == "" {
-		return nil, errors.New("invalid argument: path = ")
-	}
+// openGrnDB opens an existing DB.
+func openGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 	obj := C.grn_db_open(ctx.ctx, cPath)
@@ -148,19 +142,10 @@ func openDB(ctx *grnCtx, path string) (*grnDB, error) {
 
 // Close closes a DB.
 func (db *grnDB) Close(ctx *grnCtx) error {
-	if db == nil {
-		return errors.New("invalid self: db = nil")
-	}
-	if db.obj == nil {
-		return errors.New("invalid self: obj = nil")
-	}
-	if ctx == nil {
-		return errors.New("invalid argument: ctx = nil")
-	}
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	if db.count <= 0 {
-		return fmt.Errorf("underflow: cnt = %d", db.count)
+		return fmt.Errorf("underflow: count = %d", db.count)
 	}
 	db.count--
 	if db.count == 0 {
@@ -174,12 +159,6 @@ func (db *grnDB) Close(ctx *grnCtx) error {
 
 // Dup duplicates a DB handle.
 func (db *grnDB) Dup() (*grnCtx, error) {
-	if db == nil {
-		return nil, errors.New("invalid self: db = nil")
-	}
-	if db.obj == nil {
-		return nil, errors.New("invalid self: obj = nil")
-	}
 	ctx, err := newGrnCtx()
 	if err != nil {
 		return nil, fmt.Errorf("newGrnCtx failed: %v", err)
