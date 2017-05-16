@@ -6,7 +6,7 @@ package libgrn
 import "C"
 import "github.com/groonga/grnci/v2"
 
-// Client is associated with a C.grn_ctx.
+// Client is a GQTP client.
 type Client struct {
 	ctx *grnCtx
 }

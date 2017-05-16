@@ -8,6 +8,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"unsafe"
 )
@@ -89,11 +90,44 @@ func (c *grnCtx) Close() error {
 	return nil
 }
 
+// TODO
 func (c *grnCtx) Err() error {
 	if c.ctx.rc == C.GRN_SUCCESS {
 		return nil
 	}
 	return fmt.Errorf("rc = %s: %s", c.ctx.rc, C.GoString(&c.ctx.errbuf[0]))
+}
+
+// Send sends data.
+func (c *grnCtx) Send(data []byte, flags int) error {
+	var p *C.char
+	if len(data) != 0 {
+		p = (*C.char)(unsafe.Pointer(&data[0]))
+	}
+	rc := C.grn_rc(C.grn_ctx_send(c.ctx, p, C.uint(len(data)), C.int(flags)))
+	if (rc != C.GRN_SUCCESS) || (c.ctx.rc != C.GRN_SUCCESS) {
+		return fmt.Errorf("C.grn_ctx_send failed: rc = %d", rc)
+	}
+	return nil
+}
+
+// Recv receives data.
+//
+// Note that data will be desrtoyed by the next operation on the same context.
+func (c *grnCtx) Recv() (data []byte, flags int, err error) {
+	var cPtr *C.char
+	var cLen C.uint
+	var cFlags C.int
+	rc := C.grn_rc(C.grn_ctx_recv(c.ctx, &cPtr, &cLen, &cFlags))
+	if (rc != C.GRN_SUCCESS) || (c.ctx.rc != C.GRN_SUCCESS) {
+		return nil, 0, fmt.Errorf("C.grn_ctx_recv failed: rc = %s", rc)
+	}
+	head := (*reflect.SliceHeader)(unsafe.Pointer(&data))
+	head.Data = uintptr(unsafe.Pointer(cPtr))
+	head.Len = int(cLen)
+	head.Cap = int(cLen)
+	flags = int(cFlags)
+	return
 }
 
 // grnDB is a DB handle.

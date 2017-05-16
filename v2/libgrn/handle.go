@@ -12,7 +12,7 @@ import (
 	"github.com/groonga/grnci/v2"
 )
 
-// Handle is associated with a C.grn_ctx.
+// Handle is a handle for a local DB.
 type Handle struct {
 	ctx *grnCtx
 	db  *grnDB
@@ -88,7 +88,7 @@ func (h *Handle) send(data []byte) error {
 	return nil
 }
 
-// recv receives the response to sent data.
+// recv receives data.
 func (h *Handle) recv() ([]byte, error) {
 	var resp *C.char
 	var respLen C.uint
@@ -108,7 +108,7 @@ func (h *Handle) Query(req *grnci.Request) (*grnci.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := h.send([]byte(cmd)); err != nil {
+	if err := h.send(cmd); err != nil {
 		respBytes, _ := h.recv()
 		resp, _ := grnci.NewResponse(respBytes)
 		return resp, err

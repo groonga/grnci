@@ -42,13 +42,13 @@ func (r *Request) Check() error {
 	return nil
 }
 
-// Assemble assembles Command and Arguments into a command string.
+// Assemble assembles Command and Arguments into command bytes.
 //
-// The command string format is
+// The command format is
 // Command --Arguments[i].Key 'Arguments[i].Value' ...
-func (r *Request) Assemble() (string, error) {
+func (r *Request) Assemble() ([]byte, error) {
 	if err := r.Check(); err != nil {
-		return "", err
+		return nil, err
 	}
 	size := len(r.Command)
 	for _, arg := range r.Arguments {
@@ -78,5 +78,5 @@ func (r *Request) Assemble() (string, error) {
 		buf = append(buf, '\'')
 
 	}
-	return string(buf), nil
+	return buf, nil
 }
