@@ -133,6 +133,45 @@ func (a *Address) fill() error {
 	return nil
 }
 
+// parseHostPort parses a host and a port in an address.
+func (a *Address) parseHostPort(s string) error {
+	if s == "" {
+		return nil
+	}
+	portStr := ""
+	if s[0] == '[' {
+		i := strings.IndexByte(s, ']')
+		if i == -1 {
+			return fmt.Errorf("missing ']': s = %s", s)
+		}
+		a.Host = s[:i+1]
+		rest := s[i+1:]
+		if rest == "" {
+			return nil
+		}
+		if rest[0] != ':' {
+			return fmt.Errorf("missing ':' after ']': s = %s", s)
+		}
+		portStr = rest[1:]
+	} else {
+		i := strings.LastIndexByte(s, ':')
+		if i == -1 {
+			a.Host = s
+			return nil
+		}
+		a.Host = s[:i]
+		portStr = s[i+1:]
+	}
+	if portStr != "" {
+		port, err := net.LookupPort("tcp", portStr)
+		if err != nil {
+			return fmt.Errorf("net.LookupPort failed: %v", err)
+		}
+		a.Port = port
+	}
+	return nil
+}
+
 // ParseAddress parses an address.
 // The expected address format is
 // [scheme://][username[:password]@]host[:port][path][?query][#fragment].
@@ -165,42 +204,9 @@ func ParseAddress(s string) (*Address, error) {
 		}
 		s = s[i+1:]
 	}
-	if s == "" {
-		return a, nil
+	if err := a.parseHostPort(s); err != nil {
+		return nil, err
 	}
-
-	portStr := ""
-	if s[0] == '[' {
-		i := strings.IndexByte(s, ']')
-		if i == -1 {
-			return nil, fmt.Errorf("missing ']': s = %s", s)
-		}
-		a.Host = s[:i+1]
-		rest := s[i+1:]
-		if rest == "" {
-			return a, nil
-		}
-		if rest[0] != ':' {
-			return nil, fmt.Errorf("missing ':' after ']': s = %s", s)
-		}
-		portStr = rest[1:]
-	} else {
-		i := strings.LastIndexByte(s, ':')
-		if i == -1 {
-			a.Host = s
-			return a, nil
-		}
-		a.Host = s[:i]
-		portStr = s[i+1:]
-	}
-	if portStr != "" {
-		port, err := net.LookupPort("tcp", portStr)
-		if err != nil {
-			return nil, fmt.Errorf("net.LookupPort failed: %v", err)
-		}
-		a.Port = port
-	}
-
 	if err := a.fill(); err != nil {
 		return nil, err
 	}
