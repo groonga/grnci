@@ -4,14 +4,24 @@ import (
 	"time"
 )
 
-// Response stores a response of Groonga.
-type Response struct {
-	Bytes   []byte
-	Error   error
-	Time    time.Time
-	Elapsed time.Duration
-}
+// Response is an interface for responses.
+type Response interface {
+	// Status returns the status code.
+	Status() int
 
-func NewResponse([]byte) (*Response, error) {
-	return nil, nil
+	// Start returns the start time.
+	Start() time.Time
+
+	// Elapsed returns the elapsed time.
+	Elapsed() time.Duration
+
+	// Read reads the response body at most len(p) bytes into p.
+	// The return value n is the number of bytes read.
+	Read(p []byte) (n int, err error)
+
+	// Close closes the response body.
+	Close() error
+
+	// Err returns an error.
+	Err() error
 }

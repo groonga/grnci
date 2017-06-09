@@ -1,17 +1,15 @@
 package grnci
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
 )
 
-// Address represents a parsed address.
+// Address is a parsed address.
 // The expected address format is
-// [scheme://][username[:password]@]host[:port][path][?query][#fragment].
+// [scheme://][username[:password]@][host][:port][path][?query][#fragment].
 type Address struct {
-	Raw      string
 	Scheme   string
 	Username string
 	Password string
@@ -22,113 +20,95 @@ type Address struct {
 	Fragment string
 }
 
-// String assembles the address fields except Raw into an address string.
-func (a *Address) String() string {
-	var url string
-	if a.Scheme != "" {
-		url += a.Scheme + "://"
-	}
-	if a.Password != "" {
-		url += a.Username + ":" + a.Password + "@"
-	} else if a.Username != "" {
-		url += a.Username + "@"
-	}
-	url += a.Host
-	if a.Port != 0 {
-		url += ":" + strconv.Itoa(a.Port)
-	}
-	url += a.Path
-	if a.Query != "" {
-		url += "?" + a.Query
-	}
-	if a.Fragment != "" {
-		url += "#" + a.Fragment
-	}
-	return url
-}
-
+// Address default settings.
 const (
-	gqtpScheme      = "gqtp"
-	gqtpDefaultHost = "localhost"
-	gqtpDefaultPort = 10043
+	DefaultScheme   = "gqtp"
+	DefaultHost     = "localhost"
+	GQTPDefaultPort = 10043
+	HTTPDefaultPort = 10041
+	HTTPDefaultPath = "/d/"
 )
 
 // fillGQTP checks fields and fills missing fields in a GQTP address.
 func (a *Address) fillGQTP() error {
+	if a.Scheme == "" {
+		a.Scheme = "gqtp"
+	}
 	if a.Username != "" {
-		return fmt.Errorf("invalid username: raw = %s", a.Raw)
+		return NewError(StatusInvalidAddress, map[string]interface{}{
+			"username": a.Username,
+			"error":    "GQTP does not accept username.",
+		})
 	}
 	if a.Password != "" {
-		return fmt.Errorf("invalid password: raw = %s", a.Raw)
+		return NewError(StatusInvalidAddress, map[string]interface{}{
+			"password": a.Password,
+			"error":    "GQTP does not accept password.",
+		})
 	}
 	if a.Host == "" {
-		a.Host = gqtpDefaultHost
+		a.Host = DefaultHost
 	}
 	if a.Port == 0 {
-		a.Port = gqtpDefaultPort
+		a.Port = GQTPDefaultPort
 	}
 	if a.Path != "" {
-		return fmt.Errorf("invalid path: raw = %s", a.Raw)
+		return NewError(StatusInvalidAddress, map[string]interface{}{
+			"path":  a.Path,
+			"error": "GQTP does not accept path.",
+		})
 	}
 	if a.Query != "" {
-		return fmt.Errorf("invalid query: raw = %s", a.Raw)
+		return NewError(StatusInvalidAddress, map[string]interface{}{
+			"query": a.Query,
+			"error": "GQTP does not accept query.",
+		})
 	}
 	if a.Fragment != "" {
-		return fmt.Errorf("invalid fragment: raw = %s", a.Raw)
+		return NewError(StatusInvalidAddress, map[string]interface{}{
+			"fragment": a.Fragment,
+			"error":    "GQTP does not accept fragment.",
+		})
 	}
 	return nil
 }
-
-const (
-	httpScheme      = "http"
-	httpsScheme     = "https"
-	httpDefaultHost = "localhost"
-	httpDefaultPort = 10041
-	httpDefaultPath = "/d/"
-)
 
 // fillHTTP checks fields and fills missing fields in an HTTP address.
 func (a *Address) fillHTTP() error {
+	if a.Scheme == "" {
+		a.Scheme = "http"
+	}
 	if a.Host == "" {
-		a.Host = httpDefaultHost
+		a.Host = DefaultHost
 	}
 	if a.Port == 0 {
-		a.Port = httpDefaultPort
+		a.Port = HTTPDefaultPort
 	}
 	if a.Path == "" {
-		a.Path = httpDefaultPath
-	}
-	if a.Query != "" {
-		return fmt.Errorf("invalid query: raw = %s", a.Raw)
-	}
-	if a.Fragment != "" {
-		return fmt.Errorf("invalid fragment: raw = %s", a.Raw)
+		a.Path = HTTPDefaultPath
 	}
 	return nil
 }
-
-const (
-	defaultScheme = gqtpScheme
-)
 
 // fill checks fields and fills missing fields.
 func (a *Address) fill() error {
 	if a.Scheme == "" {
-		a.Scheme = defaultScheme
-	} else {
-		a.Scheme = strings.ToLower(a.Scheme)
+		a.Scheme = DefaultScheme
 	}
-	switch a.Scheme {
-	case gqtpScheme:
+	switch strings.ToLower(a.Scheme) {
+	case "gqtp":
 		if err := a.fillGQTP(); err != nil {
 			return err
 		}
-	case httpScheme, httpsScheme:
+	case "http", "https":
 		if err := a.fillHTTP(); err != nil {
 			return err
 		}
 	default:
-		return fmt.Errorf("invalid scheme: raw = %s", a.Raw)
+		return NewError(StatusInvalidAddress, map[string]interface{}{
+			"scheme": a.Scheme,
+			"error":  "The scheme is not supported.",
+		})
 	}
 	return nil
 }
@@ -142,7 +122,10 @@ func (a *Address) parseHostPort(s string) error {
 	if s[0] == '[' {
 		i := strings.IndexByte(s, ']')
 		if i == -1 {
-			return fmt.Errorf("missing ']': s = %s", s)
+			return NewError(StatusInvalidAddress, map[string]interface{}{
+				"address": s,
+				"error":   "IPv6 address must be enclosed in [].",
+			})
 		}
 		a.Host = s[:i+1]
 		rest := s[i+1:]
@@ -150,7 +133,10 @@ func (a *Address) parseHostPort(s string) error {
 			return nil
 		}
 		if rest[0] != ':' {
-			return fmt.Errorf("missing ':' after ']': s = %s", s)
+			return NewError(StatusInvalidAddress, map[string]interface{}{
+				"address": s,
+				"error":   "IPv6 address and port must be separated by ':'.",
+			})
 		}
 		portStr = rest[1:]
 	} else {
@@ -165,18 +151,21 @@ func (a *Address) parseHostPort(s string) error {
 	if portStr != "" {
 		port, err := net.LookupPort("tcp", portStr)
 		if err != nil {
-			return fmt.Errorf("net.LookupPort failed: %v", err)
+			return NewError(StatusInvalidAddress, map[string]interface{}{
+				"port":  portStr,
+				"error": err.Error(),
+			})
 		}
 		a.Port = port
 	}
 	return nil
 }
 
-// ParseAddress parses an address.
+// parseAddress parses an address.
 // The expected address format is
-// [scheme://][username[:password]@]host[:port][path][?query][#fragment].
-func ParseAddress(s string) (*Address, error) {
-	a := &Address{Raw: s}
+// [scheme://][username[:password]@]host[:port][path].
+func parseAddress(s string) (*Address, error) {
+	a := new(Address)
 	if i := strings.IndexByte(s, '#'); i != -1 {
 		a.Fragment = s[i+1:]
 		s = s[:i]
@@ -207,8 +196,87 @@ func ParseAddress(s string) (*Address, error) {
 	if err := a.parseHostPort(s); err != nil {
 		return nil, err
 	}
+	return a, nil
+}
+
+// ParseAddress parses an address.
+// The expected address format is
+// [scheme://][username[:password]@][host][:port][path][?query][#fragment].
+func ParseAddress(s string) (*Address, error) {
+	a, err := parseAddress(s)
+	if err != nil {
+		return nil, err
+	}
 	if err := a.fill(); err != nil {
 		return nil, err
 	}
 	return a, nil
+}
+
+// ParseGQTPAddress parses a GQTP address.
+// The expected address format is [scheme://][host][:port].
+func ParseGQTPAddress(s string) (*Address, error) {
+	a, err := parseAddress(s)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.ToLower(a.Scheme) {
+	case "", "gqtp":
+	default:
+		return nil, NewError(StatusInvalidAddress, map[string]interface{}{
+			"scheme": a.Scheme,
+			"error":  "The scheme is not supported.",
+		})
+	}
+	if err := a.fillGQTP(); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// ParseHTTPAddress parses an HTTP address.
+// The expected address format is
+// [scheme://][username[:password]@][host][:port][path][?query][#fragment].
+func ParseHTTPAddress(s string) (*Address, error) {
+	a, err := parseAddress(s)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.ToLower(a.Scheme) {
+	case "", "http", "https":
+	default:
+		return nil, NewError(StatusInvalidAddress, map[string]interface{}{
+			"scheme": a.Scheme,
+			"error":  "The scheme is not supported.",
+		})
+	}
+	if err := a.fillHTTP(); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// String assembles the fields into an address.
+func (a *Address) String() string {
+	var url string
+	if a.Scheme != "" {
+		url += a.Scheme + "://"
+	}
+	if a.Password != "" {
+		url += a.Username + ":" + a.Password + "@"
+	} else if a.Username != "" {
+		url += a.Username + "@"
+	}
+	url += a.Host
+	if a.Port != 0 {
+		url += ":" + strconv.Itoa(a.Port)
+	}
+	url += a.Path
+	if a.Query != "" {
+		url += "?" + a.Query
+	}
+	if a.Fragment != "" {
+		url += "#" + a.Fragment
+	}
+	return url
 }
