@@ -10,7 +10,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/s-yata/grnci"
+	"github.com/groonga/grnci/v2"
 )
 
 const (

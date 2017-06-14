@@ -3,7 +3,7 @@ package libgrn
 import (
 	"io"
 
-	"github.com/s-yata/grnci"
+	"github.com/groonga/grnci/v2"
 )
 
 const (

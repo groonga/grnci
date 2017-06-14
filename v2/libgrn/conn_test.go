@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/s-yata/grnci"
+	"github.com/groonga/grnci/v2"
 )
 
 func TestConnGQTP(t *testing.T) {
