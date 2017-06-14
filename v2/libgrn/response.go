@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/groonga/grnci/v2"
+	"github.com/s-yata/grnci"
 )
 
 // response is a response.

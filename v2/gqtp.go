@@ -378,7 +378,16 @@ func (c *GQTPConn) Exec(cmd string, body io.Reader) (Response, error) {
 	return c.execBody(cmd, body)
 }
 
-// Query sends a request and receives a response.
+// Invoke assembles cmd, params and body into a Request and calls Query.
+func (c *GQTPConn) Invoke(cmd string, params map[string]interface{}, body io.Reader) (Response, error) {
+	req, err := NewRequest(cmd, params, body)
+	if err != nil {
+		return nil, err
+	}
+	return c.Query(req)
+}
+
+// Query calls Exec with req.GQTPRequest and returns the result.
 func (c *GQTPConn) Query(req *Request) (Response, error) {
 	cmd, body, err := req.GQTPRequest()
 	if err != nil {
@@ -449,6 +458,15 @@ func (c *GQTPClient) Exec(cmd string, body io.Reader) (Response, error) {
 	}
 	resp.(*gqtpResponse).client = c
 	return resp, nil
+}
+
+// Invoke assembles cmd, params and body into a Request and calls Query.
+func (c *GQTPClient) Invoke(cmd string, params map[string]interface{}, body io.Reader) (Response, error) {
+	req, err := NewRequest(cmd, params, body)
+	if err != nil {
+		return nil, err
+	}
+	return c.Query(req)
 }
 
 // Query calls Exec with req.GQTPRequest and returns the result.

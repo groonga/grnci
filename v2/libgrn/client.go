@@ -3,7 +3,7 @@ package libgrn
 import (
 	"io"
 
-	"github.com/groonga/grnci/v2"
+	"github.com/s-yata/grnci"
 )
 
 const (
@@ -109,6 +109,15 @@ func (c *Client) Exec(cmd string, body io.Reader) (grnci.Response, error) {
 	}
 	resp.(*response).client = c
 	return resp, nil
+}
+
+// Invoke assembles cmd, params and body into a grnci.Request and calls Query.
+func (c *Client) Invoke(cmd string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
+	req, err := grnci.NewRequest(cmd, params, body)
+	if err != nil {
+		return nil, err
+	}
+	return c.Query(req)
 }
 
 // Query calls Exec with req.GQTPRequest and returns the result.

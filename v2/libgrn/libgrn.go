@@ -10,7 +10,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/groonga/grnci/v2"
+	"github.com/s-yata/grnci"
 )
 
 const (

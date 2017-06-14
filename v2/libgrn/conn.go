@@ -10,7 +10,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/groonga/grnci/v2"
+	"github.com/s-yata/grnci"
 )
 
 const (
@@ -282,6 +282,15 @@ func (c *Conn) Exec(cmd string, body io.Reader) (grnci.Response, error) {
 		return c.exec(cmd)
 	}
 	return c.execBody(cmd, body)
+}
+
+// Invoke assembles cmd, params and body into a grnci.Request and calls Query.
+func (c *Conn) Invoke(cmd string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
+	req, err := grnci.NewRequest(cmd, params, body)
+	if err != nil {
+		return nil, err
+	}
+	return c.Query(req)
 }
 
 // Query calls Exec with req.GQTPRequest and returns the result.

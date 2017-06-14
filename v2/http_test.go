@@ -37,12 +37,8 @@ func TestHTTPClient(t *testing.T) {
 		if pair.Body != "" {
 			body = strings.NewReader(pair.Body)
 		}
-		req, err := ParseRequest(pair.Command, body)
-		if err != nil {
-			t.Fatalf("ParseRequest failed: %v", err)
-		}
 		log.Printf("command = %s", pair.Command)
-		resp, err := client.Query(req)
+		resp, err := client.Exec(pair.Command, body)
 		if err != nil {
 			t.Fatalf("conn.Exec failed: %v", err)
 		}
@@ -56,5 +52,12 @@ func TestHTTPClient(t *testing.T) {
 		if err := resp.Close(); err != nil {
 			t.Fatalf("resp.Close failed: %v", err)
 		}
+	}
+}
+
+func TestHTTPClientHandler(t *testing.T) {
+	var i interface{} = &HTTPClient{}
+	if _, ok := i.(Handler); !ok {
+		t.Fatalf("Failed to cast from *HTTPClient to Handler")
 	}
 }

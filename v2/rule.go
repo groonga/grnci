@@ -1,5 +1,9 @@
 package grnci
 
+import (
+	"reflect"
+)
+
 // TODO: add functions to check parameters.
 
 // checkParamKeyDefault is the default function to check parameter keys.
@@ -30,12 +34,27 @@ func checkParamKeyDefault(k string) error {
 }
 
 // checkParamValueDefault is the default function to check parameter values.
-func checkParamValueDefault(v string) error {
+func checkParamValueDefault(v interface{}) error {
+	if v == nil {
+		return nil
+	}
+	val := reflect.ValueOf(v)
+	switch val.Kind() {
+	case reflect.Bool:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.String:
+	default:
+		return NewError(StatusInvalidCommand, map[string]interface{}{
+			"value": v,
+			"error": "The value type is not supported.",
+		})
+	}
 	return nil
 }
 
 // checkParamDefault is the default function to check parameters.
-func checkParamDefault(k, v string) error {
+func checkParamDefault(k string, v interface{}) error {
 	if err := checkParamKeyDefault(k); err != nil {
 		return EnhanceError(err, map[string]interface{}{
 			"value": v,
@@ -73,13 +92,13 @@ func checkCommand(s string) error {
 
 // ParamRule is a parameter rule.
 type ParamRule struct {
-	Key          string               // Parameter key
-	ValueChecker func(v string) error // Function to check parameter values
-	Required     bool                 // Whether the parameter is required
+	Key          string                    // Parameter key
+	ValueChecker func(v interface{}) error // Function to check parameter values
+	Required     bool                      // Whether the parameter is required
 }
 
 // NewParamRule returns a new ParamRule.
-func NewParamRule(key string, valueChecker func(v string) error, required bool) *ParamRule {
+func NewParamRule(key string, valueChecker func(v interface{}) error, required bool) *ParamRule {
 	return &ParamRule{
 		Key:          key,
 		ValueChecker: valueChecker,
@@ -88,7 +107,7 @@ func NewParamRule(key string, valueChecker func(v string) error, required bool) 
 }
 
 // CheckValue checks a parameter value.
-func (pr *ParamRule) CheckValue(v string) error {
+func (pr *ParamRule) CheckValue(v interface{}) error {
 	if pr.ValueChecker != nil {
 		return pr.ValueChecker(v)
 	}
@@ -97,9 +116,9 @@ func (pr *ParamRule) CheckValue(v string) error {
 
 // CommandRule is a command rule.
 type CommandRule struct {
-	ParamChecker  func(k, v string) error // Function to check uncommon parameters
-	ParamRules    []*ParamRule            // Ordered common parameters
-	ParamRulesMap map[string]*ParamRule   // Index for ParamRules
+	ParamChecker  func(k string, v interface{}) error // Function to check uncommon parameters
+	ParamRules    []*ParamRule                        // Ordered common parameters
+	ParamRulesMap map[string]*ParamRule               // Index for ParamRules
 }
 
 // GetCommandRule returns the command rule for the specified command.
@@ -111,7 +130,7 @@ func GetCommandRule(cmd string) *CommandRule {
 }
 
 // NewCommandRule returns a new CommandRule.
-func NewCommandRule(paramChecker func(k, v string) error, prs ...*ParamRule) *CommandRule {
+func NewCommandRule(paramChecker func(k string, v interface{}) error, prs ...*ParamRule) *CommandRule {
 	prMap := make(map[string]*ParamRule)
 	for _, pr := range prs {
 		prMap[pr.Key] = pr
@@ -124,7 +143,7 @@ func NewCommandRule(paramChecker func(k, v string) error, prs ...*ParamRule) *Co
 }
 
 // CheckParam checks a parameter.
-func (cr *CommandRule) CheckParam(k, v string) error {
+func (cr *CommandRule) CheckParam(k string, v interface{}) error {
 	if cr, ok := cr.ParamRulesMap[k]; ok {
 		if err := cr.CheckValue(v); err != nil {
 			return EnhanceError(err, map[string]interface{}{

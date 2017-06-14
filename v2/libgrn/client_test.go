@@ -6,6 +6,8 @@ import (
 	"log"
 	"strings"
 	"testing"
+
+	"github.com/s-yata/grnci"
 )
 
 func TestClientGQTP(t *testing.T) {
@@ -99,5 +101,12 @@ func TestClientDB(t *testing.T) {
 		if err := resp.Close(); err != nil {
 			t.Fatalf("resp.Close failed: %v", err)
 		}
+	}
+}
+
+func TestClientHandler(t *testing.T) {
+	var i interface{} = &Client{}
+	if _, ok := i.(grnci.Handler); !ok {
+		t.Fatalf("Failed to cast from *Client to grnci.Handler")
 	}
 }

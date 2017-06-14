@@ -363,22 +363,35 @@ func (c *HTTPClient) exec(cmd string, params map[string]string, body io.Reader) 
 	return resp, nil
 }
 
-// Exec sends a command and returns a response.
+// Exec assembles cmd and body into a Request and calls Query.
+func (c *HTTPClient) Exec(cmd string, body io.Reader) (Response, error) {
+	req, err := ParseRequest(cmd, body)
+	if err != nil {
+		return nil, err
+	}
+	return c.Query(req)
+}
+
+// Invoke assembles cmd, params and body into a Request and calls Query.
+func (c *HTTPClient) Invoke(cmd string, params map[string]interface{}, body io.Reader) (Response, error) {
+	req, err := NewRequest(cmd, params, body)
+	if err != nil {
+		return nil, err
+	}
+	return c.Query(req)
+}
+
+// Query sends a request and receives a response.
 // It is the caller's responsibility to close the response.
-func (c *HTTPClient) Exec(cmd string, params map[string]string, body io.Reader) (Response, error) {
+func (c *HTTPClient) Query(req *Request) (Response, error) {
 	start := time.Now()
+	cmd, params, body, err := req.HTTPRequest()
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.exec(cmd, params, body)
 	if err != nil {
 		return nil, err
 	}
 	return newHTTPResponse(resp, start)
-}
-
-// Query calls Exec with req.HTTPRequest and returns the result.
-func (c *HTTPClient) Query(req *Request) (Response, error) {
-	cmd, params, body, err := req.HTTPRequest()
-	if err != nil {
-		return nil, err
-	}
-	return c.Exec(cmd, params, body)
 }

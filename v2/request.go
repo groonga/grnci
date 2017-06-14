@@ -3,7 +3,9 @@ package grnci
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -16,27 +18,30 @@ type Request struct {
 	Body        io.Reader         // Body (nil is allowed)
 }
 
+// newRequest returns a new Request with empty Params.
+func newRequest(cmd string, body io.Reader) *Request {
+	return &Request{
+		Command:     cmd,
+		CommandRule: GetCommandRule(cmd),
+		Params:      make(map[string]string),
+		Body:        body,
+	}
+}
+
 // NewRequest returns a new Request.
-func NewRequest(cmd string, params map[string]string, body io.Reader) (*Request, error) {
+func NewRequest(cmd string, params map[string]interface{}, body io.Reader) (*Request, error) {
 	if err := checkCommand(cmd); err != nil {
 		return nil, err
 	}
-	cr := GetCommandRule(cmd)
-	paramsCopy := make(map[string]string)
+	r := newRequest(cmd, body)
 	for k, v := range params {
-		if err := cr.CheckParam(k, v); err != nil {
+		if err := r.AddParam(k, v); err != nil {
 			return nil, EnhanceError(err, map[string]interface{}{
 				"command": cmd,
 			})
 		}
-		paramsCopy[k] = v
 	}
-	return &Request{
-		Command:     cmd,
-		CommandRule: cr,
-		Params:      paramsCopy,
-		Body:        body,
-	}, nil
+	return r, nil
 }
 
 // unescapeCommandByte returns an unescaped byte.
@@ -120,12 +125,7 @@ func ParseRequest(cmd string, body io.Reader) (*Request, error) {
 	if err := checkCommand(tokens[0]); err != nil {
 		return nil, err
 	}
-	cr := GetCommandRule(tokens[0])
-	r := &Request{
-		Command:     tokens[0],
-		CommandRule: cr,
-		Body:        body,
-	}
+	r := newRequest(tokens[0], body)
 	for i := 1; i < len(tokens); i++ {
 		var k, v string
 		if strings.HasPrefix(tokens[i], "--") {
@@ -144,9 +144,33 @@ func ParseRequest(cmd string, body io.Reader) (*Request, error) {
 	return r, nil
 }
 
+// convertParamValue converts a parameter value.
+func (r *Request) convertParamValue(k string, v interface{}) (string, error) {
+	if v == nil {
+		return "null", nil
+	}
+	val := reflect.ValueOf(v)
+	switch val.Kind() {
+	case reflect.Bool:
+		return strconv.FormatBool(val.Bool()), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(val.Int(), 10), nil
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(val.Uint(), 10), nil
+	case reflect.String:
+		return val.String(), nil
+	default:
+		return "", NewError(StatusInvalidCommand, map[string]interface{}{
+			"key":   k,
+			"value": v,
+			"error": "The value type is not supported.",
+		})
+	}
+}
+
 // AddParam adds a parameter.
 // AddParam assumes that Command is already set.
-func (r *Request) AddParam(key, value string) error {
+func (r *Request) AddParam(key string, value interface{}) error {
 	if r.CommandRule == nil {
 		r.CommandRule = GetCommandRule(r.Command)
 	}
@@ -165,10 +189,16 @@ func (r *Request) AddParam(key, value string) error {
 				"key":     key,
 			})
 		}
+		v, err := r.convertParamValue(pr.Key, value)
+		if err != nil {
+			return EnhanceError(err, map[string]interface{}{
+				"command": r.Command,
+			})
+		}
 		if r.Params == nil {
 			r.Params = make(map[string]string)
 		}
-		r.Params[pr.Key] = value
+		r.Params[pr.Key] = v
 		r.NAnonParams++
 		return nil
 	}
@@ -177,10 +207,28 @@ func (r *Request) AddParam(key, value string) error {
 			"command": r.Command,
 		})
 	}
+	v, err := r.convertParamValue(key, value)
+	if err != nil {
+		return EnhanceError(err, map[string]interface{}{
+			"command": r.Command,
+		})
+	}
 	if r.Params == nil {
 		r.Params = make(map[string]string)
 	}
-	r.Params[key] = value
+	r.Params[key] = v
+	return nil
+}
+
+// RemoveParam removes a parameter.
+func (r *Request) RemoveParam(key string) error {
+	if _, ok := r.Params[key]; !ok {
+		return NewError(StatusInvalidOperation, map[string]interface{}{
+			"key":   key,
+			"error": "The key does not exist.",
+		})
+	}
+	delete(r.Params, key)
 	return nil
 }
 
@@ -213,7 +261,7 @@ func (r *Request) GQTPRequest() (cmd string, body io.Reader, err error) {
 		for i := 0; i < len(v); i++ {
 			switch v[i] {
 			case '\'', '\\', '\b', '\t', '\r', '\n':
-				buf = append(buf, '\'')
+				buf = append(buf, '\\')
 			}
 			buf = append(buf, v[i])
 		}

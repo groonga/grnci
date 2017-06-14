@@ -101,3 +101,17 @@ func TestGQTPClient(t *testing.T) {
 		}
 	}
 }
+
+func TestGQTPConnHandler(t *testing.T) {
+	var i interface{} = &GQTPConn{}
+	if _, ok := i.(Handler); !ok {
+		t.Fatalf("Failed to cast from *GQTPConn to Handler")
+	}
+}
+
+func TestGQTPClientHandler(t *testing.T) {
+	var i interface{} = &GQTPClient{}
+	if _, ok := i.(Handler); !ok {
+		t.Fatalf("Failed to cast from *GQTPClient to Handler")
+	}
+}

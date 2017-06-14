@@ -1,14 +1,17 @@
 package grnci
 
 import (
+	"fmt"
 	"testing"
 )
 
 func TestNewRequest(t *testing.T) {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"table":     "Tbl",
 		"filter":    "value < 100",
 		"sort_keys": "value",
+		"offset":    0,
+		"limit":     -1,
 	}
 	req, err := NewRequest("select", params, nil)
 	if err != nil {
@@ -19,8 +22,8 @@ func TestNewRequest(t *testing.T) {
 			req.Command, "select")
 	}
 	for key, value := range params {
-		if req.Params[key] != value {
-			t.Fatalf("ParseRequest failed: params[\"%s\"] = %s, want = %s",
+		if req.Params[key] != fmt.Sprint(value) {
+			t.Fatalf("ParseRequest failed: params[\"%s\"] = %s, want = %v",
 				key, req.Params[key], value)
 		}
 	}
@@ -50,10 +53,12 @@ func TestParseRequest(t *testing.T) {
 }
 
 func TestRequestAddParam(t *testing.T) {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"table":     "Tbl",
 		"filter":    "value < 100",
 		"sort_keys": "value",
+		"offset":    0,
+		"limit":     -1,
 	}
 	req, err := NewRequest("select", nil, nil)
 	if err != nil {
@@ -65,13 +70,47 @@ func TestRequestAddParam(t *testing.T) {
 		}
 	}
 	if req.Command != "select" {
-		t.Fatalf("ParseRequest failed: cmd = %s, want = %s",
+		t.Fatalf("req.AddParam failed: cmd = %s, want = %s",
 			req.Command, "select")
 	}
 	for key, value := range params {
-		if req.Params[key] != value {
-			t.Fatalf("ParseRequest failed: params[\"%s\"] = %s, want = %s",
+		if req.Params[key] != fmt.Sprint(value) {
+			t.Fatalf("req.AddParam failed: params[\"%s\"] = %s, want = %v",
 				key, req.Params[key], value)
+		}
+	}
+}
+
+func TestRequestRemoveParam(t *testing.T) {
+	params := map[string]interface{}{
+		"table":     "Tbl",
+		"filter":    "value < 100",
+		"sort_keys": "value",
+		"offset":    0,
+		"limit":     -1,
+	}
+	req, err := NewRequest("select", nil, nil)
+	if err != nil {
+		t.Fatalf("NewRequest failed: %v", err)
+	}
+	for key, value := range params {
+		if err := req.AddParam(key, value); err != nil {
+			t.Fatalf("req.AddParam failed: %v", err)
+		}
+	}
+	for key := range params {
+		if err := req.RemoveParam(key); err != nil {
+			t.Fatalf("req.RemoveParam failed: %v", err)
+		}
+	}
+	if req.Command != "select" {
+		t.Fatalf("req.RemoveParam failed: cmd = %s, want = %s",
+			req.Command, "select")
+	}
+	for key := range params {
+		if _, ok := req.Params[key]; ok {
+			t.Fatalf("req.RemoveParam failed: params[\"%s\"] = %s",
+				key, req.Params[key])
 		}
 	}
 }
@@ -100,10 +139,12 @@ func TestRequestCheck(t *testing.T) {
 }
 
 func TestRequestGQTPRequest(t *testing.T) {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"table":     "Tbl",
 		"filter":    "value < 100",
 		"sort_keys": "value",
+		"offset":    0,
+		"limit":     -1,
 	}
 	req, err := NewRequest("select", params, nil)
 	if err != nil {
@@ -113,7 +154,7 @@ func TestRequestGQTPRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("req.GQTPRequest failed: %v", err)
 	}
-	want := "select --filter 'value < 100' --sort_keys 'value' --table 'Tbl'"
+	want := "select --filter 'value < 100' --limit '-1' --offset '0' --sort_keys 'value' --table 'Tbl'"
 	if actual != want {
 		t.Fatalf("req.GQTPRequest failed: actual = %s, want = %s",
 			actual, want)
