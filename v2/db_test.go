@@ -7,6 +7,63 @@ import (
 	"testing"
 )
 
+func TestDBColumnList(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.ColumnList("Tbl")
+	if err != nil {
+		t.Fatalf("db.ColumnList failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
+func TestDBColumnCopy(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.ColumnCopy("Tbl.col", "Tbl.col2")
+	if err != nil {
+		t.Fatalf("db.ColumnCopy failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
+func TestDBColumnCreate(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.ColumnCreate("Tbl.col", "ShortText", nil)
+	if err != nil {
+		t.Fatalf("db.ColumnCreate failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
 func TestDBColumnRemove(t *testing.T) {
 	client, err := NewHTTPClient("", nil)
 	if err != nil {
@@ -15,7 +72,7 @@ func TestDBColumnRemove(t *testing.T) {
 	db := NewDB(client)
 	defer db.Close()
 
-	result, resp, err := db.ColumnRemove("no_such_table", "no_such_column")
+	result, resp, err := db.ColumnRemove("no_such_table.no_such_column")
 	if err != nil {
 		t.Fatalf("db.ColumnRemove failed: %v", err)
 	}
@@ -68,6 +125,44 @@ func TestDBLoad(t *testing.T) {
 	}
 }
 
+func TestDBNormalizerList(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.NormalizerList()
+	if err != nil {
+		t.Fatalf("db.NormalizerList failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
+func TestDBSchema(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.Schema()
+	if err != nil {
+		t.Fatalf("db.Schema failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
 func TestDBSelect(t *testing.T) {
 	client, err := NewHTTPClient("", nil)
 	if err != nil {
@@ -110,6 +205,25 @@ func TestDBStatus(t *testing.T) {
 	}
 }
 
+func TestDBTableList(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.TableList()
+	if err != nil {
+		t.Fatalf("db.TableList failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
 func TestDBTruncate(t *testing.T) {
 	client, err := NewHTTPClient("", nil)
 	if err != nil {
@@ -140,6 +254,25 @@ func TestDBTableRemove(t *testing.T) {
 	result, resp, err := db.TableRemove("no_such_table", false)
 	if err != nil {
 		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
+func TestDBTokenizerList(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.TokenizerList()
+	if err != nil {
+		t.Fatalf("db.TokenizerList failed: %v", err)
 	}
 	log.Printf("result = %#v", result)
 	log.Printf("resp = %#v", resp)

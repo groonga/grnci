@@ -293,7 +293,7 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("name", nil, true),
 		newParamFormat("flags", formatParamValueFlags, true),
 		newParamFormat("type", nil, true),
-		newParamFormat("source", nil, false),
+		newParamFormat("source", formatParamValueCSV, false),
 	),
 	"column_list": newCommandFormat(
 		nil,

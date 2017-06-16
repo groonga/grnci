@@ -21,173 +21,362 @@ func NewDB(h Handler) *DB {
 	return &DB{Handler: h}
 }
 
-// ColumnCreate executes column_create.
-func (db *DB) ColumnCreate(tbl, name, typ string, flags []string) (bool, Response, error) {
-	cmd, err := NewCommand("column_create", map[string]interface{}{
-		"table": tbl,
-		"name":  name,
-	})
+// recvBool reads the bool result from resp.
+func (db *DB) recvBool(resp Response) (bool, Response, error) {
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return false, resp, err
+	}
+	var result bool
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// recvInt reads the int result from resp.
+func (db *DB) recvInt(resp Response) (int, Response, error) {
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return 0, resp, err
+	}
+	var result int
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return 0, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// recvInt reads the string result from resp.
+func (db *DB) recvString(resp Response) (string, Response, error) {
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return "", resp, err
+	}
+	var result string
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return "", resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// CacheLimit executes cache_limit.
+// If max < 0, max is not passed to cache_limit.
+func (db *DB) CacheLimit(max int) (int, Response, error) {
+	var params map[string]interface{}
+	if max >= 0 {
+		params = map[string]interface{}{
+			"max": max,
+		}
+	}
+	resp, err := db.Invoke("cache_limit", params, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	return db.recvInt(resp)
+}
+
+// ColumnCopy executes column_copy.
+func (db *DB) ColumnCopy(from, to string) (bool, Response, error) {
+	i := strings.IndexByte(from, '.')
+	if i == -1 {
+		return false, nil, NewError(InvalidCommand, map[string]interface{}{
+			"from":  from,
+			"error": "The from must contain a dot.",
+		})
+	}
+	fromTable := from[:i]
+	fromName := from[i+1:]
+	if i = strings.IndexByte(to, '.'); i == -1 {
+		return false, nil, NewError(InvalidCommand, map[string]interface{}{
+			"to":    to,
+			"error": "The to must contain a dot.",
+		})
+	}
+	toTable := to[:i]
+	toName := to[i+1:]
+	resp, err := db.Invoke("column_copy", map[string]interface{}{
+		"from_table": fromTable,
+		"from_name":  fromName,
+		"to_table":   toTable,
+		"to_name":    toName,
+	}, nil)
 	if err != nil {
 		return false, nil, err
 	}
+	return db.recvBool(resp)
+}
+
+// ColumnCreate executes column_create.
+func (db *DB) ColumnCreate(name, typ string, flags []string) (bool, Response, error) {
+	i := strings.IndexByte(name, '.')
+	if i == -1 {
+		return false, nil, NewError(InvalidCommand, map[string]interface{}{
+			"name":  name,
+			"error": "The name must contain a dot.",
+		})
+	}
+	params := map[string]interface{}{
+		"table": name[:i],
+		"name":  name[i+1:],
+	}
 	typFlag := "COLUMN_SCALAR"
-	withSection := false
-	src := ""
+	var srcs []string
 	if strings.HasPrefix(typ, "[]") {
 		typFlag = "COLUMN_VECTOR"
 		typ = typ[2:]
 	} else if idx := strings.IndexByte(typ, '.'); idx != -1 {
 		typFlag = "COLUMN_INDEX"
-		src = typ[idx+1:]
+		srcs = strings.Split(typ[idx+1:], ",")
 		typ = typ[:idx]
-		if idx := strings.IndexByte(src, ','); idx != -1 {
-			withSection = true
-		}
 	}
 	flags = append(flags, typFlag)
-	if withSection {
+	if len(srcs) > 1 {
 		flags = append(flags, "WITH_SECTION")
 	}
-	if err := cmd.SetParam("flags", flags); err != nil {
-		return false, nil, err
+	params["flags"] = flags
+	params["type"] = typ
+	if srcs != nil {
+		params["source"] = srcs
 	}
-	if err := cmd.SetParam("type", typ); err != nil {
-		return false, nil, err
-	}
-	if src != "" {
-		if err := cmd.SetParam("source", src); err != nil {
-			return false, nil, err
-		}
-	}
-	resp, err := db.Query(cmd)
+	resp, err := db.Invoke("column_create", params, nil)
 	if err != nil {
 		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// DBColumn is a result of column_list.
+type DBColumn struct {
+	ID      uint32   `json:"id"`
+	Name    string   `json:"name"`
+	Path    string   `json:"path"`
+	Type    string   `json:"type"`
+	Flags   []string `json:"flags"`
+	Domain  string   `json:"domain"`
+	Range   string   `json:"range"`
+	Sources []string `json:"source"`
+}
+
+// ColumnList executes column_list.
+func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
+	resp, err := db.Invoke("column_list", map[string]interface{}{
+		"table": tbl,
+	}, nil)
+	if err != nil {
+		return nil, nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return false, resp, err
+		return nil, resp, err
 	}
-	var result bool
+	var result [][]interface{}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
 	}
-	return result, resp, nil
+	if len(result) == 0 {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"error": "The result is empty.",
+		})
+	}
+	var fields []string
+	for _, meta := range result[0] {
+		if values, ok := meta.([]interface{}); ok {
+			if field, ok := values[0].(string); ok {
+				fields = append(fields, field)
+			}
+		}
+	}
+	var columns []DBColumn
+	for _, values := range result[1:] {
+		var column DBColumn
+		for i := 0; i < len(fields) && i < len(values); i++ {
+			switch fields[i] {
+			case "id":
+				if v, ok := values[i].(float64); ok {
+					column.ID = uint32(v)
+				}
+			case "name":
+				if v, ok := values[i].(string); ok {
+					column.Name = v
+				}
+			case "path":
+				if v, ok := values[i].(string); ok {
+					column.Path = v
+				}
+			case "type":
+				if v, ok := values[i].(string); ok {
+					column.Type = v
+				}
+			case "flags":
+				if v, ok := values[i].(string); ok {
+					column.Flags = strings.Split(v, "|")
+				}
+			case "domain":
+				if v, ok := values[i].(string); ok {
+					column.Domain = v
+				}
+			case "range":
+				if v, ok := values[i].(string); ok {
+					column.Range = v
+				}
+			case "source":
+				if vs, ok := values[i].([]interface{}); ok {
+					for _, v := range vs {
+						if v, ok := v.(string); ok {
+							column.Sources = append(column.Sources, v)
+						}
+					}
+				}
+			}
+		}
+		columns = append(columns, column)
+	}
+	return columns, resp, nil
 }
 
 // ColumnRemove executes column_remove.
-func (db *DB) ColumnRemove(tbl, name string) (bool, Response, error) {
-	cmd, err := NewCommand("column_remove", map[string]interface{}{
-		"table": tbl,
-		"name":  name,
-	})
-	if err != nil {
-		return false, nil, err
-	}
-	resp, err := db.Query(cmd)
-	if err != nil {
-		return false, nil, err
-	}
-	defer resp.Close()
-	jsonData, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return false, resp, err
-	}
-	var result bool
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
+func (db *DB) ColumnRemove(name string) (bool, Response, error) {
+	i := strings.IndexByte(name, '.')
+	if i == -1 {
+		return false, nil, NewError(InvalidCommand, map[string]interface{}{
+			"name":  name,
+			"error": "The name must contain a dot.",
 		})
 	}
-	return result, resp, nil
+	resp, err := db.Invoke("column_remove", map[string]interface{}{
+		"table": name[:i],
+		"name":  name[i+1:],
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// ColumnRename executes column_rename.
+func (db *DB) ColumnRename(name, newName string) (bool, Response, error) {
+	i := strings.IndexByte(name, '.')
+	if i == -1 {
+		return false, nil, NewError(InvalidCommand, map[string]interface{}{
+			"name":  name,
+			"error": "The name must contain a dot.",
+		})
+	}
+	if j := strings.IndexByte(newName, '.'); j != -1 {
+		if i != j || name[:i] != newName[:i] {
+			return false, nil, NewError(InvalidCommand, map[string]interface{}{
+				"name":    name,
+				"newName": newName,
+				"error":   "The names have different table names.",
+			})
+		}
+		newName = newName[j+1:]
+	}
+	resp, err := db.Invoke("column_rename", map[string]interface{}{
+		"table":    name[:i],
+		"name":     name[i+1:],
+		"new_name": newName,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// ConfigDelete executes config_delete.
+func (db *DB) ConfigDelete(key, value string) (bool, Response, error) {
+	resp, err := db.Invoke("config_delete", map[string]interface{}{
+		"key": key,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// ConfigGet executes config_get.
+func (db *DB) ConfigGet(key string) (string, Response, error) {
+	resp, err := db.Invoke("config_get", map[string]interface{}{
+		"key": key,
+	}, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	return db.recvString(resp)
+}
+
+// ConfigSet executes config_set.
+func (db *DB) ConfigSet(key, value string) (bool, Response, error) {
+	resp, err := db.Invoke("config_set", map[string]interface{}{
+		"key":   key,
+		"value": value,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// DatabaseUnmap executes database_unmap.
+func (db *DB) DatabaseUnmap() (bool, Response, error) {
+	resp, err := db.Invoke("delete", nil, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
 }
 
 // DeleteByID executes delete.
 func (db *DB) DeleteByID(tbl string, id int) (bool, Response, error) {
-	cmd, err := NewCommand("delete", map[string]interface{}{
+	resp, err := db.Invoke("delete", map[string]interface{}{
 		"table": tbl,
 		"id":    id,
-	})
+	}, nil)
 	if err != nil {
 		return false, nil, err
 	}
-	resp, err := db.Query(cmd)
-	if err != nil {
-		return false, nil, err
-	}
-	defer resp.Close()
-	jsonData, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return false, resp, err
-	}
-	var result bool
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
-		})
-	}
-	return result, resp, nil
+	return db.recvBool(resp)
 }
 
 // DeleteByKey executes delete.
 func (db *DB) DeleteByKey(tbl string, key interface{}) (bool, Response, error) {
-	cmd, err := NewCommand("delete", map[string]interface{}{
+	resp, err := db.Invoke("delete", map[string]interface{}{
 		"table": tbl,
 		"key":   key,
-	})
+	}, nil)
 	if err != nil {
 		return false, nil, err
 	}
-	resp, err := db.Query(cmd)
-	if err != nil {
-		return false, nil, err
-	}
-	defer resp.Close()
-	jsonData, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return false, resp, err
-	}
-	var result bool
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
-		})
-	}
-	return result, resp, nil
+	return db.recvBool(resp)
 }
 
 // DeleteByFilter executes delete.
 func (db *DB) DeleteByFilter(tbl, filter string) (bool, Response, error) {
-	cmd, err := NewCommand("delete", map[string]interface{}{
+	resp, err := db.Invoke("delete", map[string]interface{}{
 		"table":  tbl,
 		"filter": filter,
-	})
+	}, nil)
 	if err != nil {
 		return false, nil, err
 	}
-	resp, err := db.Query(cmd)
-	if err != nil {
-		return false, nil, err
-	}
-	defer resp.Close()
-	jsonData, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return false, resp, err
-	}
-	var result bool
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
-		})
-	}
-	return result, resp, nil
+	return db.recvBool(resp)
 }
 
 // DBDumpOptions stores options for DB.Dump.
@@ -253,28 +442,11 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, R
 	if options.IfExists != "" {
 		params["ifexists"] = options.IfExists
 	}
-	cmd, err := NewCommand("load", params)
+	resp, err := db.Invoke("load", params, values)
 	if err != nil {
 		return 0, nil, err
 	}
-	cmd.SetBody(values)
-	resp, err := db.Query(cmd)
-	if err != nil {
-		return 0, nil, err
-	}
-	defer resp.Close()
-	jsonData, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return 0, resp, err
-	}
-	var result int
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return 0, resp, NewError(InvalidResponse, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
-		})
-	}
-	return result, resp, nil
+	return db.recvInt(resp)
 }
 
 // encodeRow encodes a row.
@@ -335,6 +507,292 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 		return 0, nil, err
 	}
 	return db.Load(tbl, bytes.NewReader(body), options)
+}
+
+// LockAcquire executes lock_acquire.
+func (db *DB) LockAcquire(target string) (bool, Response, error) {
+	var params map[string]interface{}
+	if target != "" {
+		params = map[string]interface{}{
+			"target_name": target,
+		}
+	}
+	resp, err := db.Invoke("lock_acquire", params, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// LockClear executes lock_clear.
+func (db *DB) LockClear(target string) (bool, Response, error) {
+	var params map[string]interface{}
+	if target != "" {
+		params = map[string]interface{}{
+			"target_name": target,
+		}
+	}
+	resp, err := db.Invoke("lock_clear", params, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// LockRelease executes lock_release.
+func (db *DB) LockRelease(target string) (bool, Response, error) {
+	var params map[string]interface{}
+	if target != "" {
+		params = map[string]interface{}{
+			"target_name": target,
+		}
+	}
+	resp, err := db.Invoke("lock_release", params, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// LogLevel executes log_level.
+func (db *DB) LogLevel(level string) (bool, Response, error) {
+	resp, err := db.Invoke("log_level", map[string]interface{}{
+		"level": level,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// LogPut executes log_put.
+func (db *DB) LogPut(level, msg string) (bool, Response, error) {
+	resp, err := db.Invoke("log_put", map[string]interface{}{
+		"level":   level,
+		"message": msg,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// LogReopen executes log_reopen.
+func (db *DB) LogReopen() (bool, Response, error) {
+	resp, err := db.Invoke("log_reopen", nil, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// DBNormalizer is a result of tokenizer_list.
+type DBNormalizer struct {
+	Name string `json:"name"`
+}
+
+// NormalizerList executes normalizer_list.
+func (db *DB) NormalizerList() ([]DBNormalizer, Response, error) {
+	resp, err := db.Invoke("normalizer_list", nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result []DBNormalizer
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// ObjectExist executes object_exist.
+func (db *DB) ObjectExist(name string) (bool, Response, error) {
+	resp, err := db.Invoke("object_exist", map[string]interface{}{
+		"name": name,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// ObjectRemove executes object_remove.
+func (db *DB) ObjectRemove(name string, force bool) (bool, Response, error) {
+	resp, err := db.Invoke("object_remove", map[string]interface{}{
+		"name":  name,
+		"force": force,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// PluginRegister executes plugin_register.
+func (db *DB) PluginRegister(name string) (bool, Response, error) {
+	resp, err := db.Invoke("plugin_register", map[string]interface{}{
+		"name": name,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// PluginUnregister executes plugin_unregister.
+func (db *DB) PluginUnregister(name string) (bool, Response, error) {
+	resp, err := db.Invoke("plugin_unregister", map[string]interface{}{
+		"name": name,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// Reindex executes reindex.
+func (db *DB) Reindex(target string) (bool, Response, error) {
+	var params map[string]interface{}
+	if target != "" {
+		params = map[string]interface{}{
+			"target_name": target,
+		}
+	}
+	resp, err := db.Invoke("reindex", params, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// DBSchemaPlugin is a part of DBSchema.
+type DBSchemaPlugin struct {
+	Name string `json:"name"`
+}
+
+// DBSchemaType is a part of DBSchema.
+type DBSchemaType struct {
+	Name           string `json:"name"`
+	Size           int    `json:"size"`
+	CanBeKeyType   bool   `json:"can_be_key_type"`
+	CanBeValueType bool   `json:"can_be_value_type"`
+}
+
+// DBSchemaTokenizer is a part of DBSchema.
+type DBSchemaTokenizer struct {
+	Name string `json:"name"`
+}
+
+// DBSchemaNormalizer is a part of DBSchema.
+type DBSchemaNormalizer struct {
+	Name string `json:"name"`
+}
+
+// DBSchemaTokenFilter is a part of DBSchema.
+type DBSchemaTokenFilter struct {
+	Name string `json:"name"`
+}
+
+// DBSchemaKeyType is a part of DBSchema.
+type DBSchemaKeyType struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// DBSchemaValueType is a part of DBSchema.
+type DBSchemaValueType struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// DBSchemaIndex is a part of DBSchema.
+type DBSchemaIndex struct {
+	Table    string `json:"table"`
+	Section  int    `json:"section"`
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+}
+
+// DBSchemaCommand is a part of DBSchema.
+type DBSchemaCommand struct {
+	Name        string            `json:"name"`
+	Arguments   map[string]string `json:"arguments"`
+	CommandLine string            `json:"command_line"`
+}
+
+// DBSchemaSource is a part of DBSchema.
+type DBSchemaSource struct {
+	Name     string `json:"name"`
+	Table    string `json:"table"`
+	FullName string `json:"full_name"`
+}
+
+// DBSchemaColumn is a part of DBSchema.
+type DBSchemaColumn struct {
+	Name      string            `json:"name"`
+	Table     string            `json:"table"`
+	FullName  string            `json:"full_name"`
+	Type      string            `json:"type"`
+	ValueType DBSchemaValueType `json:"value_type"`
+	Compress  string            `json:"compress"`
+	Section   bool              `json:"section"`
+	Weight    bool              `json:"weight"`
+	Position  bool              `json:"position"`
+	Sources   []DBSchemaSource  `json:"sources"`
+	Indexes   []DBSchemaIndex   `json:"indexes"`
+	Command   DBSchemaCommand   `json:"command"`
+}
+
+// DBSchemaTable is a part of DBSchema.
+type DBSchemaTable struct {
+	Name         string                    `json:"name"`
+	Type         string                    `json:"type"`
+	KeyType      *DBSchemaKeyType          `json:"key_type"`
+	ValueType    *DBSchemaValueType        `json:"value_type"`
+	Tokenizer    *DBSchemaTokenizer        `json:"tokenizer"`
+	Normalizer   *DBSchemaNormalizer       `json:"normalizer"`
+	TokenFilters []DBSchemaTokenFilter     `json:"token_filters"`
+	Indexes      []DBSchemaIndex           `json:"indexes"`
+	Command      DBSchemaCommand           `json:"command"`
+	Columns      map[string]DBSchemaColumn `json:"columns"`
+}
+
+// DBSchema is a result of schema.
+type DBSchema struct {
+	Plugins      map[string]DBSchemaPlugin      `json:"plugins"`
+	Types        map[string]DBSchemaType        `json:"types"`
+	Tokenizers   map[string]DBSchemaTokenizer   `json:"tokenizers"`
+	Normalizers  map[string]DBSchemaNormalizer  `json:"normalizers"`
+	TokenFilters map[string]DBSchemaTokenFilter `json:"token_filters"`
+	Tables       map[string]DBSchemaTable       `json:"tables"`
+}
+
+// Schema executes schema.
+func (db *DB) Schema() (*DBSchema, Response, error) {
+	resp, err := db.Invoke("schema", nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result DBSchema
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return &result, resp, nil
 }
 
 // DBSelectOptionsColumn stores --columns[NAME].
@@ -505,8 +963,8 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 	return 0, nil, nil
 }
 
-// DBStatusResult is a response of status.
-type DBStatusResult struct {
+// DBStatus is a response of status.
+type DBStatus struct {
 	AllocCount            int           `json:"alloc_count"`
 	CacheHitRate          float64       `json:"cache_hit_rate"`
 	CommandVersion        int           `json:"command_version"`
@@ -519,8 +977,8 @@ type DBStatusResult struct {
 }
 
 // Status executes status.
-func (db *DB) Status() (*DBStatusResult, Response, error) {
-	resp, err := db.Exec("status", nil)
+func (db *DB) Status() (*DBStatus, Response, error) {
+	resp, err := db.Invoke("status", nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -536,7 +994,7 @@ func (db *DB) Status() (*DBStatusResult, Response, error) {
 			"error":  err.Error(),
 		})
 	}
-	var result DBStatusResult
+	var result DBStatus
 	if v, ok := data["alloc_count"]; ok {
 		if v, ok := v.(float64); ok {
 			result.AllocCount = int(v)
@@ -583,6 +1041,18 @@ func (db *DB) Status() (*DBStatusResult, Response, error) {
 		}
 	}
 	return &result, resp, nil
+}
+
+// TableCopy executes table_copy.
+func (db *DB) TableCopy(from, to string) (bool, Response, error) {
+	resp, err := db.Invoke("table_copy", map[string]interface{}{
+		"from": from,
+		"to":   to,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
 }
 
 // DBTableCreateOptions stores options for DB.TableCreate.
@@ -677,42 +1147,155 @@ func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Res
 	if err != nil {
 		return false, nil, err
 	}
+	return db.recvBool(resp)
+}
+
+// DBTable is a result of table_list.
+type DBTable struct {
+	ID               uint32   `json:"id"`
+	Name             string   `json:"name"`
+	Path             string   `json:"path"`
+	Flags            []string `json:"flags"`
+	Domain           string   `json:"domain"`
+	Range            string   `json:"range"`
+	DefaultTokenizer string   `json:"default_tokenizer"`
+	Normalizer       string   `json:"normalizer"`
+}
+
+// TableList executes table_list.
+func (db *DB) TableList() ([]DBTable, Response, error) {
+	resp, err := db.Invoke("table_list", nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return false, resp, err
+		return nil, resp, err
 	}
-	var result bool
+	var result [][]interface{}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
 	}
-	return result, resp, nil
+	if len(result) == 0 {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"error": "The result is empty.",
+		})
+	}
+	var fields []string
+	for _, meta := range result[0] {
+		if values, ok := meta.([]interface{}); ok {
+			if field, ok := values[0].(string); ok {
+				fields = append(fields, field)
+			}
+		}
+	}
+	var tables []DBTable
+	for _, values := range result[1:] {
+		var table DBTable
+		for i := 0; i < len(fields) && i < len(values); i++ {
+			switch fields[i] {
+			case "id":
+				if v, ok := values[i].(float64); ok {
+					table.ID = uint32(v)
+				}
+			case "name":
+				if v, ok := values[i].(string); ok {
+					table.Name = v
+				}
+			case "path":
+				if v, ok := values[i].(string); ok {
+					table.Path = v
+				}
+			case "flags":
+				if v, ok := values[i].(string); ok {
+					table.Flags = strings.Split(v, "|")
+				}
+			case "domain":
+				if v, ok := values[i].(string); ok {
+					table.Domain = v
+				}
+			case "range":
+				if v, ok := values[i].(string); ok {
+					table.Range = v
+				}
+			case "default_tokenizer":
+				if v, ok := values[i].(string); ok {
+					table.DefaultTokenizer = v
+				}
+			case "normalizer":
+				if v, ok := values[i].(string); ok {
+					table.Normalizer = v
+				}
+			}
+		}
+		tables = append(tables, table)
+	}
+	return tables, resp, nil
 }
 
 // TableRemove executes table_remove.
 func (db *DB) TableRemove(name string, dependent bool) (bool, Response, error) {
-	cmd, err := NewCommand("table_remove", map[string]interface{}{
+	resp, err := db.Invoke("table_remove", map[string]interface{}{
 		"name":      name,
 		"dependent": dependent,
-	})
+	}, nil)
 	if err != nil {
 		return false, nil, err
 	}
-	resp, err := db.Query(cmd)
+	return db.recvBool(resp)
+}
+
+// TableRename executes table_rename.
+func (db *DB) TableRename(name, newName string) (bool, Response, error) {
+	resp, err := db.Invoke("table_rename", map[string]interface{}{
+		"name":     name,
+		"new_name": newName,
+	}, nil)
 	if err != nil {
 		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
+// ThreadLimit executes thread_limit.
+// If max < 0, max is not passed to thread_limit.
+func (db *DB) ThreadLimit(max int) (int, Response, error) {
+	var params map[string]interface{}
+	if max >= 0 {
+		params = map[string]interface{}{
+			"max": max,
+		}
+	}
+	resp, err := db.Invoke("thread_limit", params, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	return db.recvInt(resp)
+}
+
+// DBTokenizer is a result of tokenizer_list.
+type DBTokenizer struct {
+	Name string `json:"name"`
+}
+
+// TokenizerList executes tokenizer_list.
+func (db *DB) TokenizerList() ([]DBTokenizer, Response, error) {
+	resp, err := db.Invoke("tokenizer_list", nil, nil)
+	if err != nil {
+		return nil, nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return false, resp, err
+		return nil, resp, err
 	}
-	var result bool
+	var result []DBTokenizer
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
@@ -728,17 +1311,5 @@ func (db *DB) Truncate(target string) (bool, Response, error) {
 	if err != nil {
 		return false, nil, err
 	}
-	defer resp.Close()
-	jsonData, err := ioutil.ReadAll(resp)
-	if err != nil {
-		return false, resp, err
-	}
-	var result bool
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(InvalidResponse, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
-		})
-	}
-	return result, resp, nil
+	return db.recvBool(resp)
 }
