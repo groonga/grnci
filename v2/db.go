@@ -22,7 +22,7 @@ func NewDB(h Handler) *DB {
 }
 
 // ColumnCreate executes column_create.
-func (db *DB) ColumnCreate(tbl, name, typ, flags string) (bool, Response, error) {
+func (db *DB) ColumnCreate(tbl, name, typ string, flags []string) (bool, Response, error) {
 	cmd, err := NewCommand("column_create", map[string]interface{}{
 		"table": tbl,
 		"name":  name,
@@ -44,13 +44,9 @@ func (db *DB) ColumnCreate(tbl, name, typ, flags string) (bool, Response, error)
 			withSection = true
 		}
 	}
-	if flags == "" {
-		flags = typFlag
-	} else {
-		flags += "|" + typFlag
-	}
+	flags = append(flags, typFlag)
 	if withSection {
-		flags += "|WITH_SECTION"
+		flags = append(flags, "WITH_SECTION")
 	}
 	if err := cmd.SetParam("flags", flags); err != nil {
 		return false, nil, err
@@ -87,6 +83,90 @@ func (db *DB) ColumnRemove(tbl, name string) (bool, Response, error) {
 	cmd, err := NewCommand("column_remove", map[string]interface{}{
 		"table": tbl,
 		"name":  name,
+	})
+	if err != nil {
+		return false, nil, err
+	}
+	resp, err := db.Query(cmd)
+	if err != nil {
+		return false, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return false, resp, err
+	}
+	var result bool
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// DeleteByID executes delete.
+func (db *DB) DeleteByID(tbl string, id int) (bool, Response, error) {
+	cmd, err := NewCommand("delete", map[string]interface{}{
+		"table": tbl,
+		"id":    id,
+	})
+	if err != nil {
+		return false, nil, err
+	}
+	resp, err := db.Query(cmd)
+	if err != nil {
+		return false, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return false, resp, err
+	}
+	var result bool
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// DeleteByKey executes delete.
+func (db *DB) DeleteByKey(tbl string, key interface{}) (bool, Response, error) {
+	cmd, err := NewCommand("delete", map[string]interface{}{
+		"table": tbl,
+		"key":   key,
+	})
+	if err != nil {
+		return false, nil, err
+	}
+	resp, err := db.Query(cmd)
+	if err != nil {
+		return false, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return false, resp, err
+	}
+	var result bool
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// DeleteByFilter executes delete.
+func (db *DB) DeleteByFilter(tbl, filter string) (bool, Response, error) {
+	cmd, err := NewCommand("delete", map[string]interface{}{
+		"table":  tbl,
+		"filter": filter,
 	})
 	if err != nil {
 		return false, nil, err
@@ -315,7 +395,7 @@ type DBSelectOptions struct {
 	OutputColumns            []string // --output_columns
 	Offset                   int      // --offset
 	Limit                    int      // --limit
-	Drilldown                string   // --drilldown
+	Drilldown                []string // --drilldown
 	DrilldownSortKeys        []string // --drilldown_sort_keys
 	DrilldownOutputColumns   []string // --drilldown_output_columns
 	DrilldownOffset          int      // --drilldown_offset
@@ -374,7 +454,7 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (Response, error) {
 	if options.Limit != 10 {
 		params["limit"] = options.Limit
 	}
-	if options.Drilldown != "" {
+	if options.Drilldown != nil {
 		params["drilldown"] = options.Drilldown
 	}
 	if options.DrilldownSortKeys != nil {
@@ -420,9 +500,9 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (Response, error) {
 }
 
 // SelectRows executes select.
-func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions) (Response, error) {
+func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions) (int, Response, error) {
 	// TODO
-	return nil, nil
+	return 0, nil, nil
 }
 
 // DBStatusResult is a response of status.

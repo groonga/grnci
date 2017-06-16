@@ -334,7 +334,7 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("output_columns", formatParamValueCSV, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
-		newParamFormat("drilldown", nil, false),
+		newParamFormat("drilldown", formatParamValueCSV, false),
 		newParamFormat("drilldown_sortby", formatParamValueCSV, false),
 		newParamFormat("drilldown_output_columns", formatParamValueCSV, false),
 		newParamFormat("drilldown_offset", nil, false),
