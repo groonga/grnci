@@ -23,7 +23,7 @@ type response struct {
 
 // newGQTPResponse returns a new GQTP response.
 func newGQTPResponse(conn *Conn, start time.Time, name string, data []byte, flags byte, err error) *response {
-	resp := &response{
+	return &response{
 		conn:    conn,
 		start:   start,
 		elapsed: time.Now().Sub(start),
@@ -31,18 +31,6 @@ func newGQTPResponse(conn *Conn, start time.Time, name string, data []byte, flag
 		flags:   flags,
 		err:     err,
 	}
-	if resp.err != nil {
-		if _, ok := grnci.CommandRules[name]; !ok {
-			data, err := ioutil.ReadAll(resp)
-			resp.err = grnci.EnhanceError(resp.err, map[string]interface{}{
-				"error": string(data),
-			})
-			if err != nil {
-				resp.broken = true
-			}
-		}
-	}
-	return resp
 }
 
 // newDBResponse returns a new DB response.
@@ -55,14 +43,6 @@ func newDBResponse(conn *Conn, start time.Time, data []byte, flags byte, err err
 		flags:   flags,
 		err:     err,
 	}
-}
-
-// Status returns the status code.
-func (r *response) Status() int {
-	if err, ok := r.err.(*grnci.Error); ok {
-		return err.Code
-	}
-	return 0
 }
 
 // Start returns the start time.
@@ -107,7 +87,7 @@ func (r *response) Close() error {
 	if !r.broken {
 		if _, err = io.CopyBuffer(ioutil.Discard, r, r.conn.getBuffer()); err != nil {
 			r.broken = true
-			err = grnci.NewError(grnci.StatusNetworkError, map[string]interface{}{
+			err = grnci.NewError(grnci.NetworkError, map[string]interface{}{
 				"method": "io.CopyBuffer",
 				"error":  err.Error(),
 			})

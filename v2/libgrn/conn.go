@@ -89,7 +89,7 @@ func Create(path string) (*Conn, error) {
 // Dup duplicates the Conn if it is a DB handle.
 func (c *Conn) Dup() (*Conn, error) {
 	if c.db == nil {
-		return nil, grnci.NewError(grnci.StatusInvalidOperation, map[string]interface{}{
+		return nil, grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
 			"error": "GQTP clients do not support Dup.",
 		})
 	}
@@ -132,8 +132,8 @@ func (c *Conn) getBuffer() []byte {
 	return c.buf
 }
 
-// execGQTP sends a command and receives a response.
-func (c *Conn) execGQTP(cmd string) (grnci.Response, error) {
+// execNoBodyGQTP sends a command and receives a response.
+func (c *Conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
 	start := time.Now()
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
@@ -149,8 +149,8 @@ func (c *Conn) execGQTP(cmd string) (grnci.Response, error) {
 	return newGQTPResponse(c, start, name, data, flags, err), nil
 }
 
-// execDB executes a command and receives a response.
-func (c *Conn) execDB(cmd string) (grnci.Response, error) {
+// execNoBodyDB executes a command and receives a response.
+func (c *Conn) execNoBodyDB(cmd string) (grnci.Response, error) {
 	start := time.Now()
 	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
 		data, flags, _ := c.ctx.Recv()
@@ -160,12 +160,12 @@ func (c *Conn) execDB(cmd string) (grnci.Response, error) {
 	return newDBResponse(c, start, data, flags, err), nil
 }
 
-// exec sends a command without body and receives a response.
-func (c *Conn) exec(cmd string) (grnci.Response, error) {
+// execNoBody sends a command without body and receives a response.
+func (c *Conn) execNoBody(cmd string) (grnci.Response, error) {
 	if c.db == nil {
-		return c.execGQTP(cmd)
+		return c.execNoBodyGQTP(cmd)
 	}
-	return c.execDB(cmd)
+	return c.execNoBodyDB(cmd)
 }
 
 // execBodyGQTP sends a command and receives a response.
@@ -262,42 +262,52 @@ func (c *Conn) execBody(cmd string, body io.Reader) (grnci.Response, error) {
 	return c.execBodyDB(cmd, body)
 }
 
-// Exec sends a request and receives a response.
-// It is the caller's responsibility to close the response.
-// The Conn should not be used until the response is closed.
-func (c *Conn) Exec(cmd string, body io.Reader) (grnci.Response, error) {
+// exec sends a command and receives a response.
+func (c *Conn) exec(cmd string, body io.Reader) (grnci.Response, error) {
 	if !c.ready {
-		return nil, grnci.NewError(grnci.StatusInvalidOperation, map[string]interface{}{
-			"error": "The connection is not ready to send a request.",
+		return nil, grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
+			"error": "The connection is not ready to send a command.",
 		})
 	}
 	if len(cmd) > maxChunkSize {
-		return nil, grnci.NewError(grnci.StatusInvalidCommand, map[string]interface{}{
+		return nil, grnci.NewError(grnci.InvalidCommand, map[string]interface{}{
 			"length": len(cmd),
 			"error":  "The command is too long.",
 		})
 	}
 	c.ready = false
 	if body == nil {
-		return c.exec(cmd)
+		return c.execNoBody(cmd)
 	}
 	return c.execBody(cmd, body)
 }
 
-// Invoke assembles cmd, params and body into a grnci.Request and calls Query.
-func (c *Conn) Invoke(cmd string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
-	req, err := grnci.NewRequest(cmd, params, body)
+// Exec parses cmd, reassembles it and calls Query.
+// The Conn must not be used until the response is closed.
+func (c *Conn) Exec(cmd string, body io.Reader) (grnci.Response, error) {
+	command, err := grnci.ParseCommand(cmd)
 	if err != nil {
 		return nil, err
 	}
-	return c.Query(req)
+	command.SetBody(body)
+	return c.Query(command)
 }
 
-// Query calls Exec with req.GQTPRequest and returns the result.
-func (c *Conn) Query(req *grnci.Request) (grnci.Response, error) {
-	cmd, body, err := req.GQTPRequest()
+// Invoke assembles name, params and body into a command and calls Query.
+func (c *Conn) Invoke(name string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
+	cmd, err := grnci.NewCommand(name, params)
 	if err != nil {
 		return nil, err
 	}
-	return c.Exec(cmd, body)
+	cmd.SetBody(body)
+	return c.Query(cmd)
+}
+
+// Query sends a command and receives a response.
+// It is the caller's responsibility to close the response.
+func (c *Conn) Query(cmd *grnci.Command) (grnci.Response, error) {
+	if err := cmd.Check(); err != nil {
+		return nil, err
+	}
+	return c.exec(cmd.String(), cmd.Body())
 }

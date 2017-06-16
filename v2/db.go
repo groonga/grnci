@@ -1,10 +1,12 @@
 package grnci
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -21,10 +23,10 @@ func NewDB(h Handler) *DB {
 
 // ColumnCreate executes column_create.
 func (db *DB) ColumnCreate(tbl, name, typ, flags string) (bool, Response, error) {
-	req, err := NewRequest("column_create", map[string]interface{}{
+	cmd, err := NewCommand("column_create", map[string]interface{}{
 		"table": tbl,
 		"name":  name,
-	}, nil)
+	})
 	if err != nil {
 		return false, nil, err
 	}
@@ -50,18 +52,18 @@ func (db *DB) ColumnCreate(tbl, name, typ, flags string) (bool, Response, error)
 	if withSection {
 		flags += "|WITH_SECTION"
 	}
-	if err := req.AddParam("flags", flags); err != nil {
+	if err := cmd.SetParam("flags", flags); err != nil {
 		return false, nil, err
 	}
-	if err := req.AddParam("type", typ); err != nil {
+	if err := cmd.SetParam("type", typ); err != nil {
 		return false, nil, err
 	}
 	if src != "" {
-		if err := req.AddParam("source", src); err != nil {
+		if err := cmd.SetParam("source", src); err != nil {
 			return false, nil, err
 		}
 	}
-	resp, err := db.Query(req)
+	resp, err := db.Query(cmd)
 	if err != nil {
 		return false, nil, err
 	}
@@ -72,7 +74,7 @@ func (db *DB) ColumnCreate(tbl, name, typ, flags string) (bool, Response, error)
 	}
 	var result bool
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(StatusInvalidResponse, map[string]interface{}{
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
@@ -82,14 +84,14 @@ func (db *DB) ColumnCreate(tbl, name, typ, flags string) (bool, Response, error)
 
 // ColumnRemove executes column_remove.
 func (db *DB) ColumnRemove(tbl, name string) (bool, Response, error) {
-	req, err := NewRequest("column_remove", map[string]interface{}{
+	cmd, err := NewCommand("column_remove", map[string]interface{}{
 		"table": tbl,
 		"name":  name,
-	}, nil)
+	})
 	if err != nil {
 		return false, nil, err
 	}
-	resp, err := db.Query(req)
+	resp, err := db.Query(cmd)
 	if err != nil {
 		return false, nil, err
 	}
@@ -100,7 +102,7 @@ func (db *DB) ColumnRemove(tbl, name string) (bool, Response, error) {
 	}
 	var result bool
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(StatusInvalidResponse, map[string]interface{}{
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
@@ -108,30 +110,30 @@ func (db *DB) ColumnRemove(tbl, name string) (bool, Response, error) {
 	return result, resp, nil
 }
 
-// DumpOptions stores options for DB.Dump.
-type DumpOptions struct {
+// DBDumpOptions stores options for DB.Dump.
+type DBDumpOptions struct {
 	Tables      string // --table
-	DumpPlugins string // --dump_plugins
-	DumpSchema  string // --dump_schema
-	DumpRecords string // --dump_records
-	DumpIndexes string // --dump_indexes
+	DumpPlugins bool   // --dump_plugins
+	DumpSchema  bool   // --dump_schema
+	DumpRecords bool   // --dump_records
+	DumpIndexes bool   // --dump_indexes
 }
 
-// NewDumpOptions returns the default DumpOptions.
-func NewDumpOptions() *DumpOptions {
-	return &DumpOptions{
-		DumpPlugins: "yes",
-		DumpSchema:  "yes",
-		DumpRecords: "yes",
-		DumpIndexes: "yes",
+// NewDBDumpOptions returns the default DBDumpOptions.
+func NewDBDumpOptions() *DBDumpOptions {
+	return &DBDumpOptions{
+		DumpPlugins: true,
+		DumpSchema:  true,
+		DumpRecords: true,
+		DumpIndexes: true,
 	}
 }
 
 // Dump executes dump.
 // On success, it is the caller's responsibility to close the response.
-func (db *DB) Dump(options *DumpOptions) (Response, error) {
+func (db *DB) Dump(options *DBDumpOptions) (Response, error) {
 	if options == nil {
-		options = NewDumpOptions()
+		options = NewDBDumpOptions()
 	}
 	params := map[string]interface{}{
 		"dump_plugins": options.DumpPlugins,
@@ -142,38 +144,41 @@ func (db *DB) Dump(options *DumpOptions) (Response, error) {
 	if options.Tables != "" {
 		params["tables"] = options.Tables
 	}
-	req, err := NewRequest("dump", params, nil)
-	if err != nil {
-		return nil, err
-	}
-	return db.Query(req)
+	return db.Invoke("dump", params, nil)
 }
 
-// LoadOptions stores options for DB.Load.
+// DBLoadOptions stores options for DB.Load.
 // http://groonga.org/docs/reference/commands/load.html
-type LoadOptions struct {
-	Columns  string // --columns
-	IfExists string // --ifexists
+type DBLoadOptions struct {
+	Columns  []string // --columns
+	IfExists string   // --ifexists
+}
+
+// NewDBLoadOptions returns the default DBLoadOptions.
+func NewDBLoadOptions() *DBLoadOptions {
+	return &DBLoadOptions{}
 }
 
 // Load executes load.
-func (db *DB) Load(tbl string, values io.Reader, options *LoadOptions) (int, Response, error) {
+func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, Response, error) {
 	params := map[string]interface{}{
 		"table": tbl,
 	}
-	if options != nil {
-		if options.Columns != "" {
-			params["columns"] = options.Columns
-		}
-		if options.IfExists != "" {
-			params["ifexists"] = options.IfExists
-		}
+	if options == nil {
+		options = NewDBLoadOptions()
 	}
-	req, err := NewRequest("load", params, values)
+	if options.Columns != nil {
+		params["columns"] = options.Columns
+	}
+	if options.IfExists != "" {
+		params["ifexists"] = options.IfExists
+	}
+	cmd, err := NewCommand("load", params)
 	if err != nil {
 		return 0, nil, err
 	}
-	resp, err := db.Query(req)
+	cmd.SetBody(values)
+	resp, err := db.Query(cmd)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -184,7 +189,7 @@ func (db *DB) Load(tbl string, values io.Reader, options *LoadOptions) (int, Res
 	}
 	var result int
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return 0, resp, NewError(StatusInvalidResponse, map[string]interface{}{
+		return 0, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
@@ -192,99 +197,236 @@ func (db *DB) Load(tbl string, values io.Reader, options *LoadOptions) (int, Res
 	return result, resp, nil
 }
 
-// For --columns[NAME].stage, type, value.
-// type SelectOptionsColumn struct {
-// 	Stage string // --columns[NAME].stage
-// 	Type  string // --columns[NAME].type
-// 	Value string // --columns[NAME].value
-// }
-
-// For --drilldowns[LABEL].columns[NAME].
-// type SelectOptionsDorilldownColumn struct {
-// 	Stage           string // --drilldowns[LABEL].columns[NAME].stage
-// 	Flags           string // --drilldowns[LABEL].columns[NAME].flags
-// 	Type            string // --drilldowns[LABEL].columns[NAME].type
-// 	Value           string // --drilldowns[LABEL].columns[NAME].value
-// 	WindowSortKeys  string // --drilldowns[LABEL].columns[NAME].window.sort_keys
-// 	WindowGroupKeys string // --drilldowns[LABEL].columns[NAME].window.group_keys
-// }
-
-// For --drilldowns[LABEL].keys, sort_keys, output_columns, offset, limit, calc_types, calc_target, filter, columns[].
-// type SelectOptionsDrilldown struct {
-// 	Keys          string // --drilldowns[LABEL].keys
-// 	SortKeys      string // --drilldowns[LABEL].sort_keys
-// 	OutputColumns string // --drilldowns[LABEL].output_columns
-// 	Offset        int    // --drilldowns[LABEL].offset
-// 	Limit         int    // --drilldowns[LABEL].limit
-// 	CalcTypes     string // --drilldowns[LABEL].calc_types
-// 	CalcTarget    string // --drilldowns[LABEL].calc_target
-// 	Filter        string // --drilldowns[LABEL].filter
-// 	Columns       map[string]*SelectOptionsDorilldownColumn
-// }
-
-// NewSelectOptionsDrilldown returns the default SelectOptionsDrilldown.
-// func NewSelectOptionsDrilldown() *SelectOptionsDrilldown {
-// 	return &SelectOptionsDrilldown{
-// 		Limit: 10,
-// 	}
-// }
-
-// SelectOptions stores options for DB.Select.
-// http://groonga.org/docs/reference/commands/select.html
-type SelectOptions struct {
-	MatchColumns             string // --match_columns
-	Query                    string // --query
-	Filter                   string // --filter
-	Scorer                   string // --scorer
-	SortKeys                 string // --sort_keys
-	OutputColumns            string // --output_columns
-	Offset                   int    // --offset
-	Limit                    int    // --limit
-	Drilldown                string // --drilldown
-	DrilldownSortKeys        string // --drilldown_sort_keys
-	DrilldownOutputColumns   string // --drilldown_output_columns
-	DrillDownOffset          int    // drilldown_offset
-	DrillDownLimit           int    // drilldown_limit
-	Cache                    bool   // --cache
-	MatchEscalationThreshold int    // --match_escalation_threshold
-	QueryExpansion           string // --query_expansion
-	QueryFlags               string // --query_flags
-	QueryExpander            string // --query_expander
-	Adjuster                 string // --adjuster
-	DrilldownCalcTypes       string // --drilldown_calc_types
-	DrilldownCalcTarget      string // --drilldown_calc_target
-	DrilldownFilter          string // --drilldown_filter
-	// Columns    map[string]*SelectOptionsColumn    // --columns[NAME]
-	// Drilldowns map[string]*SelectOptionsDrilldown // --drilldowns[LABEL]
+// encodeRow encodes a row.
+func (db *DB) encodeRow(body []byte, row reflect.Value, fis []*StructFieldInfo) []byte {
+	// TODO
+	return body
 }
 
-// NewSelectOptions returns the default SelectOptions.
-func NewSelectOptions() *SelectOptions {
-	return &SelectOptions{
+// encodeRows encodes rows.
+func (db *DB) encodeRows(rows reflect.Value, fis []*StructFieldInfo) ([]byte, error) {
+	body := []byte("[")
+	for rows.Kind() == reflect.Ptr {
+		rows = rows.Elem()
+	}
+	switch rows.Kind() {
+	case reflect.Array, reflect.Slice:
+		for i := 0; i < rows.Len(); i++ {
+			row := rows.Index(i)
+			for row.Kind() == reflect.Ptr {
+				row = row.Elem()
+			}
+			body = db.encodeRow(body, row, fis)
+		}
+	case reflect.Struct:
+	}
+	body = append(body, ']')
+	return body, nil
+}
+
+// LoadRows executes load.
+func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (int, Response, error) {
+	if options == nil {
+		options = NewDBLoadOptions()
+	}
+	si, err := GetStructInfo(rows)
+	if err != nil {
+		return 0, nil, err
+	}
+	var fis []*StructFieldInfo
+	if options.Columns == nil {
+		fis = si.Fields
+		for _, fi := range fis {
+			options.Columns = append(options.Columns, fi.ColumnName)
+		}
+	} else {
+		for _, col := range options.Columns {
+			fi, ok := si.FieldsByColumnName[col]
+			if !ok {
+				return 0, nil, NewError(InvalidCommand, map[string]interface{}{
+					"error": "",
+				})
+			}
+			fis = append(fis, fi)
+		}
+	}
+	body, err := db.encodeRows(reflect.ValueOf(rows), fis)
+	if err != nil {
+		return 0, nil, err
+	}
+	return db.Load(tbl, bytes.NewReader(body), options)
+}
+
+// DBSelectOptionsColumn stores --columns[NAME].
+type DBSelectOptionsColumn struct {
+	Stage string // --columns[NAME].stage
+	Type  string // --columns[NAME].type
+	Value string // --columns[NAME].value
+}
+
+// NewDBSelectOptionsColumn returns the default DBSelectOptionsColumn.
+func NewDBSelectOptionsColumn() *DBSelectOptionsColumn {
+	return &DBSelectOptionsColumn{}
+}
+
+// DBSelectOptionsDrilldownColumn stores --drilldowns[LABEL].columns[NAME].
+type DBSelectOptionsDrilldownColumn struct {
+	Stage           string   // --drilldowns[LABEL].columns[NAME].stage
+	Flags           string   // --drilldowns[LABEL].columns[NAME].flags
+	Type            string   // --drilldowns[LABEL].columns[NAME].type
+	Value           string   // --drilldowns[LABEL].columns[NAME].value
+	WindowSortKeys  []string // --drilldowns[LABEL].columns[NAME].window.sort_keys
+	WindowGroupKeys []string // --drilldowns[LABEL].columns[NAME].window.group_keys
+}
+
+// NewDBSelectOptionsDrilldownColumn returns the default DBSelectOptionsDrilldownColumn.
+func NewDBSelectOptionsDrilldownColumn() *DBSelectOptionsDrilldownColumn {
+	return &DBSelectOptionsDrilldownColumn{}
+}
+
+// DBSelectOptionsDrilldown stores --drilldowns[LABEL].
+type DBSelectOptionsDrilldown struct {
+	Keys          []string // --drilldowns[LABEL].keys
+	SortKeys      []string // --drilldowns[LABEL].sort_keys
+	OutputColumns []string // --drilldowns[LABEL].output_columns
+	Offset        int      // --drilldowns[LABEL].offset
+	Limit         int      // --drilldowns[LABEL].limit
+	CalcTypes     []string // --drilldowns[LABEL].calc_types
+	CalcTarget    string   // --drilldowns[LABEL].calc_target
+	Filter        string   // --drilldowns[LABEL].filter
+	Columns       map[string]*DBSelectOptionsDrilldownColumn
+}
+
+// NewDBSelectOptionsDrilldown returns the default DBSelectOptionsDrilldown.
+func NewDBSelectOptionsDrilldown() *DBSelectOptionsDrilldown {
+	return &DBSelectOptionsDrilldown{
+		Limit: 10,
+	}
+}
+
+// DBSelectOptions stores options for DB.Select.
+// http://groonga.org/docs/reference/commands/select.html
+type DBSelectOptions struct {
+	MatchColumns             []string // --match_columns
+	Query                    string   // --query
+	Filter                   string   // --filter
+	Scorer                   string   // --scorer
+	SortKeys                 []string // --sort_keys
+	OutputColumns            []string // --output_columns
+	Offset                   int      // --offset
+	Limit                    int      // --limit
+	Drilldown                string   // --drilldown
+	DrilldownSortKeys        []string // --drilldown_sort_keys
+	DrilldownOutputColumns   []string // --drilldown_output_columns
+	DrilldownOffset          int      // --drilldown_offset
+	DrilldownLimit           int      // --drilldown_limit
+	Cache                    bool     // --cache
+	MatchEscalationThreshold int      // --match_escalation_threshold
+	QueryExpansion           string   // --query_expansion
+	QueryFlags               []string // --query_flags
+	QueryExpander            string   // --query_expander
+	Adjuster                 string   // --adjuster
+	DrilldownCalcTypes       []string // --drilldown_calc_types
+	DrilldownCalcTarget      string   // --drilldown_calc_target
+	DrilldownFilter          string   // --drilldown_filter
+	Columns                  map[string]*DBSelectOptionsColumn
+	Drilldowns               map[string]*DBSelectOptionsDrilldown
+}
+
+// NewDBSelectOptions returns the default DBSelectOptions.
+func NewDBSelectOptions() *DBSelectOptions {
+	return &DBSelectOptions{
 		Limit:          10,
-		DrillDownLimit: 10,
+		DrilldownLimit: 10,
 	}
 }
 
 // Select executes select.
 // On success, it is the caller's responsibility to close the response.
-func (db *DB) Select(tbl string, options *SelectOptions) (Response, error) {
+func (db *DB) Select(tbl string, options *DBSelectOptions) (Response, error) {
 	if options == nil {
-		options = NewSelectOptions()
+		options = NewDBSelectOptions()
 	}
 	params := map[string]interface{}{
 		"table": tbl,
 	}
-	// TODO: copy entries from options to params.
-	req, err := NewRequest("dump", params, nil)
-	if err != nil {
-		return nil, err
+	if options.MatchColumns != nil {
+		params["match_columns"] = options.MatchColumns
 	}
-	return db.Query(req)
+	if options.Query != "" {
+		params["query"] = options.Query
+	}
+	if options.Filter != "" {
+		params["filter"] = options.Filter
+	}
+	if options.Scorer != "" {
+		params["scorer"] = options.Scorer
+	}
+	if options.SortKeys != nil {
+		params["sort_keys"] = options.SortKeys
+	}
+	if options.OutputColumns != nil {
+		params["query"] = options.Query
+	}
+	if options.Offset != 0 {
+		params["offset"] = options.Offset
+	}
+	if options.Limit != 10 {
+		params["limit"] = options.Limit
+	}
+	if options.Drilldown != "" {
+		params["drilldown"] = options.Drilldown
+	}
+	if options.DrilldownSortKeys != nil {
+		params["drilldown_sort_keys"] = options.DrilldownSortKeys
+	}
+	if options.DrilldownOutputColumns != nil {
+		params["drilldown_output_columns"] = options.DrilldownOutputColumns
+	}
+	if options.DrilldownOffset != 0 {
+		params["drilldown_offset"] = options.DrilldownOffset
+	}
+	if options.DrilldownLimit != 10 {
+		params["drilldown_limit"] = options.DrilldownLimit
+	}
+	if !options.Cache {
+		params["cache"] = options.Cache
+	}
+	if options.MatchEscalationThreshold != 0 {
+		params["match_escalation_threshold"] = options.MatchEscalationThreshold
+	}
+	if options.QueryExpansion != "" {
+		params["query_expansion"] = options.QueryExpansion
+	}
+	if options.QueryFlags != nil {
+		params["query_flags"] = options.QueryFlags
+	}
+	if options.QueryExpander != "" {
+		params["query_expander"] = options.QueryExpander
+	}
+	if options.Adjuster != "" {
+		params["adjuster"] = options.Adjuster
+	}
+	if options.DrilldownCalcTypes != nil {
+		params["drilldown_calc_types"] = options.DrilldownCalcTypes
+	}
+	if options.DrilldownCalcTarget != "" {
+		params["drilldown_calc_target"] = options.DrilldownCalcTarget
+	}
+	if options.DrilldownFilter != "" {
+		params["drilldown_filter"] = options.DrilldownFilter
+	}
+	return db.Invoke("select", params, nil)
 }
 
-// StatusResult is a response of status.
-type StatusResult struct {
+// SelectRows executes select.
+func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions) (Response, error) {
+	// TODO
+	return nil, nil
+}
+
+// DBStatusResult is a response of status.
+type DBStatusResult struct {
 	AllocCount            int           `json:"alloc_count"`
 	CacheHitRate          float64       `json:"cache_hit_rate"`
 	CommandVersion        int           `json:"command_version"`
@@ -297,7 +439,7 @@ type StatusResult struct {
 }
 
 // Status executes status.
-func (db *DB) Status() (*StatusResult, Response, error) {
+func (db *DB) Status() (*DBStatusResult, Response, error) {
 	resp, err := db.Exec("status", nil)
 	if err != nil {
 		return nil, nil, err
@@ -309,12 +451,12 @@ func (db *DB) Status() (*StatusResult, Response, error) {
 	}
 	var data map[string]interface{}
 	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return nil, resp, NewError(StatusInvalidResponse, map[string]interface{}{
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
 	}
-	var result StatusResult
+	var result DBStatusResult
 	if v, ok := data["alloc_count"]; ok {
 		if v, ok := v.(float64); ok {
 			result.AllocCount = int(v)
@@ -363,48 +505,67 @@ func (db *DB) Status() (*StatusResult, Response, error) {
 	return &result, resp, nil
 }
 
-// TableCreateOptions stores options for DB.TableCreate.
+// DBTableCreateOptions stores options for DB.TableCreate.
 // http://groonga.org/docs/reference/commands/table_create.html
-type TableCreateOptions struct {
-	Flags            string // --flags
-	KeyType          string // --key_type
-	ValueType        string // --value_type
-	DefaultTokenizer string // --default_tokenizer
-	Normalizer       string // --normalizer
-	TokenFilters     string // --token_filters
+type DBTableCreateOptions struct {
+	Flags            []string // --flags
+	KeyType          string   // --key_type
+	ValueType        string   // --value_type
+	DefaultTokenizer string   // --default_tokenizer
+	Normalizer       string   // --normalizer
+	TokenFilters     []string // --token_filters
+}
+
+// NewDBTableCreateOptions returns the default DBTableCreateOptions.
+func NewDBTableCreateOptions() *DBTableCreateOptions {
+	return &DBTableCreateOptions{}
 }
 
 // TableCreate executes table_create.
-func (db *DB) TableCreate(name string, options *TableCreateOptions) (bool, Response, error) {
+func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Response, error) {
 	if options == nil {
-		options = &TableCreateOptions{}
+		options = NewDBTableCreateOptions()
 	}
 	params := map[string]interface{}{
 		"name": name,
 	}
-	flags, keyFlag := "", ""
-	if options.Flags != "" {
-		for _, flag := range strings.Split(options.Flags, "|") {
+	flags := options.Flags
+	var keyFlag string
+	if options.Flags != nil {
+		for _, flag := range flags {
 			switch flag {
 			case "TABLE_NO_KEY":
 				if keyFlag != "" {
-					return false, nil, fmt.Errorf("TABLE_NO_KEY must not be set with %s", keyFlag)
+					return false, nil, NewError(InvalidCommand, map[string]interface{}{
+						"flags": flags,
+						"error": "The combination of flags is wrong.",
+					})
 				}
 				if options.KeyType != "" {
-					return false, nil, fmt.Errorf("TABLE_NO_KEY disallows KeyType")
+					return false, nil, NewError(InvalidCommand, map[string]interface{}{
+						"flags":    flags,
+						"key_type": options.KeyType,
+						"error":    "TABLE_NO_KEY denies key_type.",
+					})
 				}
 				keyFlag = flag
 			case "TABLE_HASH_KEY", "TABLE_PAT_KEY", "TABLE_DAT_KEY":
 				if keyFlag != "" {
-					return false, nil, fmt.Errorf("%s must not be set with %s", flag, keyFlag)
+					return false, nil, NewError(InvalidCommand, map[string]interface{}{
+						"flags": flags,
+						"error": "The combination of flags is wrong.",
+					})
 				}
 				if options.KeyType == "" {
-					return false, nil, fmt.Errorf("%s requires KeyType", flag)
+					return false, nil, NewError(InvalidCommand, map[string]interface{}{
+						"flags":    flags,
+						"key_type": options.KeyType,
+						"error":    fmt.Sprintf("%s requires key_type.", flag),
+					})
 				}
 				keyFlag = flag
 			}
 		}
-		flags = options.Flags
 	}
 	if keyFlag == "" {
 		if options.KeyType == "" {
@@ -412,15 +573,11 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) (bool, Respo
 		} else {
 			keyFlag = "TABLE_HASH_KEY"
 		}
-		if flags == "" {
-			flags = keyFlag
-		} else {
-			flags += "|" + keyFlag
+		if len(flags) == 0 {
+			flags = append(flags, keyFlag)
 		}
 	}
-	if flags != "" {
-		params["flags"] = flags
-	}
+	params["flags"] = flags
 	if options.KeyType != "" {
 		params["key_type"] = options.KeyType
 	}
@@ -433,7 +590,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) (bool, Respo
 	if options.Normalizer != "" {
 		params["normalizer"] = options.Normalizer
 	}
-	if options.TokenFilters != "" {
+	if options.TokenFilters != nil {
 		params["token_filters"] = options.TokenFilters
 	}
 	resp, err := db.Invoke("table_create", params, nil)
@@ -447,7 +604,7 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) (bool, Respo
 	}
 	var result bool
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(StatusInvalidResponse, map[string]interface{}{
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
@@ -457,14 +614,14 @@ func (db *DB) TableCreate(name string, options *TableCreateOptions) (bool, Respo
 
 // TableRemove executes table_remove.
 func (db *DB) TableRemove(name string, dependent bool) (bool, Response, error) {
-	req, err := NewRequest("table_remove", map[string]interface{}{
+	cmd, err := NewCommand("table_remove", map[string]interface{}{
 		"name":      name,
 		"dependent": dependent,
-	}, nil)
+	})
 	if err != nil {
 		return false, nil, err
 	}
-	resp, err := db.Query(req)
+	resp, err := db.Query(cmd)
 	if err != nil {
 		return false, nil, err
 	}
@@ -475,7 +632,7 @@ func (db *DB) TableRemove(name string, dependent bool) (bool, Response, error) {
 	}
 	var result bool
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(StatusInvalidResponse, map[string]interface{}{
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
@@ -498,7 +655,7 @@ func (db *DB) Truncate(target string) (bool, Response, error) {
 	}
 	var result bool
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		return false, resp, NewError(StatusInvalidResponse, map[string]interface{}{
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})

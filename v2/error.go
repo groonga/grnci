@@ -5,23 +5,22 @@ import (
 	"net/http"
 )
 
-// Error status codes.
+// Error codes.
 const (
-	StatusInvalidAddress = 1000 + iota
-	StatusInvalidCommand
-	StatusInvalidOperation
-	StatusInvalidResponse
-	StatusNetworkError
-	StatusUnknownError
+	InvalidAddress = 1000 + iota
+	InvalidCommand
+	InvalidOperation
+	InvalidResponse
+	InvalidType
+	NetworkError
+	UnknownError
 )
 
-// StatusText returns a status text.
-func StatusText(status int) string {
-	text := http.StatusText(status)
-	if text != "" {
-		return text
-	}
-	switch status {
+// getCodeText returns a string that briefly describes the specified code.
+// getCodeText supports Groonga return codes (C.grn_rc) [,0],
+// Grnci error codes [1000,] and HTTP status codes [100,999].
+func getCodeText(code int) string {
+	switch code {
 	case 0:
 		return "GRN_SUCCESS"
 	case 1:
@@ -185,20 +184,25 @@ func StatusText(status int) string {
 	case -79:
 		return "GRN_ZSTD_ERROR"
 
-	case StatusInvalidAddress:
+	case InvalidAddress:
 		return "invalid address"
-	case StatusInvalidCommand:
+	case InvalidCommand:
 		return "invalid command"
-	case StatusInvalidOperation:
+	case InvalidOperation:
 		return "invalid operation"
-	case StatusInvalidResponse:
+	case InvalidResponse:
 		return "invalid response"
-	case StatusNetworkError:
+	case InvalidType:
+		return "invalid type"
+	case NetworkError:
 		return "network error"
-	case StatusUnknownError:
+	case UnknownError:
 		return "unknown error"
 
 	default:
+		if text := http.StatusText(code); text != "" {
+			return text
+		}
 		return "undefined error"
 	}
 }
@@ -214,7 +218,7 @@ type Error struct {
 func NewError(code int, data map[string]interface{}) *Error {
 	return &Error{
 		Code: code,
-		Text: StatusText(code),
+		Text: getCodeText(code),
 		Data: data,
 	}
 }
@@ -239,7 +243,7 @@ func EnhanceError(err error, data map[string]interface{}) *Error {
 	} else if _, ok := data["error"]; !ok {
 		data["error"] = err.Error()
 	}
-	return NewError(StatusUnknownError, data)
+	return NewError(UnknownError, data)
 }
 
 // Error returns a string which describes the Error.

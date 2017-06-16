@@ -16,7 +16,7 @@ func TestConnGQTP(t *testing.T) {
 		Body    string
 	}
 	pairs := []Pair{
-		Pair{"no_such_command", ""},
+		// Pair{"no_such_command", ""},
 		Pair{"status", ""},
 		Pair{`table_create Tbl TABLE_PAT_KEY ShortText`, ""},
 		Pair{`column_create Tbl Col COLUMN_SCALAR Int32`, ""},
@@ -48,9 +48,11 @@ func TestConnGQTP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ioutil.ReadAll failed: %v", err)
 		}
-		log.Printf("status = %d, err = %v", resp.Status(), resp.Err())
 		log.Printf("start = %v, elapsed = %v", resp.Start(), resp.Elapsed())
 		log.Printf("result = %s", result)
+		if err := resp.Err(); err != nil {
+			log.Printf("err = %v", err)
+		}
 		if err := resp.Close(); err != nil {
 			t.Fatalf("resp.Close failed: %v", err)
 		}
@@ -63,7 +65,7 @@ func TestConnDB(t *testing.T) {
 		Body    string
 	}
 	pairs := []Pair{
-		Pair{"no_such_command", ""},
+		// Pair{"no_such_command", ""},
 		Pair{"status", ""},
 		Pair{`table_create Tbl TABLE_PAT_KEY ShortText`, ""},
 		Pair{`column_create Tbl Col COLUMN_SCALAR Int32`, ""},
@@ -95,9 +97,11 @@ func TestConnDB(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ioutil.ReadAll failed: %v", err)
 		}
-		log.Printf("status = %d, err = %v", resp.Status(), resp.Err())
 		log.Printf("start = %v, elapsed = %v", resp.Start(), resp.Elapsed())
 		log.Printf("result = %s", result)
+		if err := resp.Err(); err != nil {
+			log.Printf("err = %v", err)
+		}
 		if err := resp.Close(); err != nil {
 			t.Fatalf("resp.Close failed: %v", err)
 		}

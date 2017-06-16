@@ -63,7 +63,7 @@ func Fin() error {
 	libMutex.Lock()
 	defer libMutex.Unlock()
 	if libCount <= 0 {
-		return grnci.NewError(grnci.StatusInvalidOperation, map[string]interface{}{
+		return grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
 			"libCount": libCount,
 			"error":    "libCount must be greater than 0.",
 		})
@@ -100,7 +100,7 @@ func newGrnCtx() (*grnCtx, error) {
 	ctx := C.grn_ctx_open(C.int(0))
 	if ctx == nil {
 		Fin()
-		return nil, grnci.NewError(grnci.StatusUnknownError, map[string]interface{}{
+		return nil, grnci.NewError(grnci.UnknownError, map[string]interface{}{
 			"method": "C.grn_ctx_open",
 		})
 	}
@@ -193,7 +193,7 @@ func createGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 		if err := ctx.Err("C.grn_db_create"); err != nil {
 			return nil, err
 		}
-		return nil, grnci.NewError(grnci.StatusUnknownError, map[string]interface{}{
+		return nil, grnci.NewError(grnci.UnknownError, map[string]interface{}{
 			"method": "C.grn_db_create",
 		})
 	}
@@ -212,7 +212,7 @@ func openGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 		if err := ctx.Err("C.grn_db_open"); err != nil {
 			return nil, err
 		}
-		return nil, grnci.NewError(grnci.StatusUnknownError, map[string]interface{}{
+		return nil, grnci.NewError(grnci.UnknownError, map[string]interface{}{
 			"method": "C.grn_db_open",
 		})
 	}
@@ -227,7 +227,7 @@ func (db *grnDB) Close(ctx *grnCtx) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	if db.count <= 0 {
-		return grnci.NewError(grnci.StatusInvalidOperation, map[string]interface{}{
+		return grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
 			"count": db.count,
 			"error": "count must be greater than 0.",
 		})

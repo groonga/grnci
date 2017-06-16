@@ -82,9 +82,8 @@ Loop:
 	return err
 }
 
-// Exec sends a request and receives a response.
-// It is the caller's responsibility to close the response.
-func (c *Client) Exec(cmd string, body io.Reader) (grnci.Response, error) {
+// exec sends a command and receives a response.
+func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 	var conn *Conn
 	var err error
 	select {
@@ -111,20 +110,31 @@ func (c *Client) Exec(cmd string, body io.Reader) (grnci.Response, error) {
 	return resp, nil
 }
 
-// Invoke assembles cmd, params and body into a grnci.Request and calls Query.
-func (c *Client) Invoke(cmd string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
-	req, err := grnci.NewRequest(cmd, params, body)
+// Exec parses cmd, reassembles it and calls Query.
+func (c *Client) Exec(cmd string, body io.Reader) (grnci.Response, error) {
+	command, err := grnci.ParseCommand(cmd)
 	if err != nil {
 		return nil, err
 	}
-	return c.Query(req)
+	command.SetBody(body)
+	return c.Query(command)
 }
 
-// Query calls Exec with req.GQTPRequest and returns the result.
-func (c *Client) Query(req *grnci.Request) (grnci.Response, error) {
-	cmd, body, err := req.GQTPRequest()
+// Invoke assembles name, params and body into a command and calls Query.
+func (c *Client) Invoke(name string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
+	cmd, err := grnci.NewCommand(name, params)
 	if err != nil {
 		return nil, err
 	}
-	return c.Exec(cmd, body)
+	cmd.SetBody(body)
+	return c.Query(cmd)
+}
+
+// Query sends a command and receives a response.
+// It is the caller's responsibility to close the response.
+func (c *Client) Query(cmd *grnci.Command) (grnci.Response, error) {
+	if err := cmd.Check(); err != nil {
+		return nil, err
+	}
+	return c.exec(cmd.String(), cmd.Body())
 }

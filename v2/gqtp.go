@@ -69,27 +69,10 @@ func newGQTPResponse(conn *GQTPConn, head gqtpHeader, start time.Time, name stri
 		left:    int(head.Size),
 	}
 	if head.Status > 32767 {
-		status := int(head.Status) - 65536
-		resp.err = NewError(status, nil)
-		if _, ok := CommandRules[name]; !ok {
-			data, err := ioutil.ReadAll(resp)
-			if err != nil {
-				resp.broken = true
-			} else {
-				resp.err = EnhanceError(resp.err, map[string]interface{}{
-					"error": string(data),
-				})
-			}
-		}
+		code := int(head.Status) - 65536
+		resp.err = NewError(code, nil)
 	}
 	return resp
-}
-
-func (r *gqtpResponse) Status() int {
-	if err, ok := r.err.(*Error); ok {
-		return err.Code
-	}
-	return 0
 }
 
 func (r *gqtpResponse) Start() time.Time {
@@ -126,7 +109,7 @@ func (r *gqtpResponse) Read(p []byte) (int, error) {
 	}
 	if err != nil {
 		r.broken = true
-		return n, NewError(StatusNetworkError, map[string]interface{}{
+		return n, NewError(NetworkError, map[string]interface{}{
 			"method": "net.Conn.Read",
 			"n":      n,
 			"error":  err.Error(),
@@ -142,7 +125,7 @@ func (r *gqtpResponse) Close() error {
 	var err error
 	if _, e := io.CopyBuffer(ioutil.Discard, r, r.conn.getBuffer()); e != nil {
 		r.broken = true
-		err = NewError(StatusNetworkError, map[string]interface{}{
+		err = NewError(NetworkError, map[string]interface{}{
 			"method": "io.CopyBuffer",
 			"error":  err.Error(),
 		})
@@ -190,7 +173,7 @@ func DialGQTP(addr string) (*GQTPConn, error) {
 	}
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", a.Host, a.Port))
 	if err != nil {
-		return nil, NewError(StatusNetworkError, map[string]interface{}{
+		return nil, NewError(NetworkError, map[string]interface{}{
 			"host":  a.Host,
 			"port":  a.Port,
 			"error": err.Error(),
@@ -211,7 +194,7 @@ func NewGQTPConn(conn net.Conn) *GQTPConn {
 // Close closes the connection.
 func (c *GQTPConn) Close() error {
 	if err := c.conn.Close(); err != nil {
-		return NewError(StatusNetworkError, map[string]interface{}{
+		return NewError(NetworkError, map[string]interface{}{
 			"method": "net.Conn.Close",
 			"error":  err.Error(),
 		})
@@ -243,7 +226,7 @@ func (c *GQTPConn) sendHeader(flags byte, size int) error {
 		Size:     uint32(size),
 	}
 	if err := binary.Write(c.conn, binary.BigEndian, head); err != nil {
-		return NewError(StatusNetworkError, map[string]interface{}{
+		return NewError(NetworkError, map[string]interface{}{
 			"method": "binary.Write",
 			"error":  err.Error(),
 		})
@@ -257,7 +240,7 @@ func (c *GQTPConn) sendChunkBytes(data []byte, flags byte) error {
 		return err
 	}
 	if _, err := c.conn.Write(data); err != nil {
-		return NewError(StatusNetworkError, map[string]interface{}{
+		return NewError(NetworkError, map[string]interface{}{
 			"method": "net.Conn.Write",
 			"error":  err.Error(),
 		})
@@ -271,7 +254,7 @@ func (c *GQTPConn) sendChunkString(data string, flags byte) error {
 		return err
 	}
 	if _, err := io.WriteString(c.conn, data); err != nil {
-		return NewError(StatusNetworkError, map[string]interface{}{
+		return NewError(NetworkError, map[string]interface{}{
 			"method": "io.WriteString",
 			"error":  err.Error(),
 		})
@@ -283,7 +266,7 @@ func (c *GQTPConn) sendChunkString(data string, flags byte) error {
 func (c *GQTPConn) recvHeader() (gqtpHeader, error) {
 	var head gqtpHeader
 	if err := binary.Read(c.conn, binary.BigEndian, &head); err != nil {
-		return head, NewError(StatusNetworkError, map[string]interface{}{
+		return head, NewError(NetworkError, map[string]interface{}{
 			"method": "binary.Read",
 			"error":  err.Error(),
 		})
@@ -291,8 +274,8 @@ func (c *GQTPConn) recvHeader() (gqtpHeader, error) {
 	return head, nil
 }
 
-// exec sends a command without body and receives a response.
-func (c *GQTPConn) exec(cmd string) (Response, error) {
+// execNoBody sends a command without body and receives a response.
+func (c *GQTPConn) execNoBody(cmd string) (Response, error) {
 	start := time.Now()
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
@@ -356,44 +339,54 @@ func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
 	}
 }
 
-// Exec sends a request and receives a response.
-// It is the caller's responsibility to close the response.
-// The GQTPConn should not be used until the response is closed.
-func (c *GQTPConn) Exec(cmd string, body io.Reader) (Response, error) {
+// exec sends a command without body and receives a response.
+func (c *GQTPConn) exec(cmd string, body io.Reader) (Response, error) {
 	if !c.ready {
-		return nil, NewError(StatusInvalidOperation, map[string]interface{}{
-			"error": "The connection is not ready to send a request.",
+		return nil, NewError(InvalidOperation, map[string]interface{}{
+			"error": "The connection is not ready to send a command.",
 		})
 	}
 	if len(cmd) > gqtpMaxChunkSize {
-		return nil, NewError(StatusInvalidCommand, map[string]interface{}{
+		return nil, NewError(InvalidCommand, map[string]interface{}{
 			"length": len(cmd),
 			"error":  "The command is too long.",
 		})
 	}
 	c.ready = false
 	if body == nil {
-		return c.exec(cmd)
+		return c.execNoBody(cmd)
 	}
 	return c.execBody(cmd, body)
 }
 
-// Invoke assembles cmd, params and body into a Request and calls Query.
-func (c *GQTPConn) Invoke(cmd string, params map[string]interface{}, body io.Reader) (Response, error) {
-	req, err := NewRequest(cmd, params, body)
+// Exec parses cmd, reassembles it and calls Query.
+// The GQTPConn must not be used until the response is closed.
+func (c *GQTPConn) Exec(cmd string, body io.Reader) (Response, error) {
+	command, err := ParseCommand(cmd)
 	if err != nil {
 		return nil, err
 	}
-	return c.Query(req)
+	command.SetBody(body)
+	return c.Query(command)
 }
 
-// Query calls Exec with req.GQTPRequest and returns the result.
-func (c *GQTPConn) Query(req *Request) (Response, error) {
-	cmd, body, err := req.GQTPRequest()
+// Invoke assembles name, params and body into a command and calls Query.
+func (c *GQTPConn) Invoke(name string, params map[string]interface{}, body io.Reader) (Response, error) {
+	cmd, err := NewCommand(name, params)
 	if err != nil {
 		return nil, err
 	}
-	return c.Exec(cmd, body)
+	cmd.SetBody(body)
+	return c.Query(cmd)
+}
+
+// Query sends a command and receives a response.
+// It is the caller's responsibility to close the response.
+func (c *GQTPConn) Query(cmd *Command) (Response, error) {
+	if err := cmd.Check(); err != nil {
+		return nil, err
+	}
+	return c.exec(cmd.String(), cmd.Body())
 }
 
 // GQTPClient is a thread-safe GQTP client.
@@ -438,9 +431,8 @@ func (c *GQTPClient) Close() error {
 	}
 }
 
-// Exec sends a request and receives a response.
-// It is the caller's responsibility to close the response.
-func (c *GQTPClient) Exec(cmd string, body io.Reader) (Response, error) {
+// exec sends a request and receives a response.
+func (c *GQTPClient) exec(cmd string, body io.Reader) (Response, error) {
 	var conn *GQTPConn
 	var err error
 	select {
@@ -460,20 +452,31 @@ func (c *GQTPClient) Exec(cmd string, body io.Reader) (Response, error) {
 	return resp, nil
 }
 
-// Invoke assembles cmd, params and body into a Request and calls Query.
-func (c *GQTPClient) Invoke(cmd string, params map[string]interface{}, body io.Reader) (Response, error) {
-	req, err := NewRequest(cmd, params, body)
+// Exec parses cmd, reassembles it and calls Query.
+func (c *GQTPClient) Exec(cmd string, body io.Reader) (Response, error) {
+	command, err := ParseCommand(cmd)
 	if err != nil {
 		return nil, err
 	}
-	return c.Query(req)
+	command.SetBody(body)
+	return c.Query(command)
 }
 
-// Query calls Exec with req.GQTPRequest and returns the result.
-func (c *GQTPClient) Query(req *Request) (Response, error) {
-	cmd, body, err := req.GQTPRequest()
+// Invoke assembles name, params and body into a command and calls Query.
+func (c *GQTPClient) Invoke(name string, params map[string]interface{}, body io.Reader) (Response, error) {
+	cmd, err := NewCommand(name, params)
 	if err != nil {
 		return nil, err
 	}
-	return c.Exec(cmd, body)
+	cmd.SetBody(body)
+	return c.Query(cmd)
+}
+
+// Query sends a command and receives a response.
+// It is the caller's responsibility to close the response.
+func (c *GQTPClient) Query(cmd *Command) (Response, error) {
+	if err := cmd.Check(); err != nil {
+		return nil, err
+	}
+	return c.exec(cmd.String(), cmd.Body())
 }

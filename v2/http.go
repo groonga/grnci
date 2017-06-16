@@ -31,7 +31,7 @@ type httpResponse struct {
 func extractHTTPResponseHeader(data []byte) (head, left []byte, err error) {
 	left = bytes.TrimLeft(data[1:], " \t\r\n")
 	if !bytes.HasPrefix(left, []byte("[")) {
-		err = NewError(StatusInvalidResponse, map[string]interface{}{
+		err = NewError(InvalidResponse, map[string]interface{}{
 			"error": "The response does not contain a header.",
 		})
 		return
@@ -47,7 +47,7 @@ Loop:
 			stack = append(stack, '}')
 		case ']', '}':
 			if left[i] != stack[len(stack)-1] {
-				err = NewError(StatusInvalidResponse, map[string]interface{}{
+				err = NewError(InvalidResponse, map[string]interface{}{
 					"error": "The response header is broken.",
 				})
 				return
@@ -69,7 +69,7 @@ Loop:
 		}
 	}
 	if len(stack) != 0 {
-		err = NewError(StatusInvalidResponse, map[string]interface{}{
+		err = NewError(InvalidResponse, map[string]interface{}{
 			"error": "The response header is too long or broken.",
 		})
 		return
@@ -83,8 +83,8 @@ Loop:
 }
 
 // parseHTTPResponseHeaderError parses the error information in the HTTP resonse header.
-func parseHTTPResponseHeaderError(status int, elems []interface{}) error {
-	err := NewError(status, nil)
+func parseHTTPResponseHeaderError(code int, elems []interface{}) error {
+	err := NewError(code, nil)
 	if len(elems) >= 1 {
 		err = EnhanceError(err, map[string]interface{}{
 			"message": elems[0],
@@ -131,28 +131,28 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 
 	var elems []interface{}
 	if err := json.Unmarshal(head, &elems); err != nil {
-		return nil, NewError(StatusInvalidResponse, map[string]interface{}{
+		return nil, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
 	}
 	if len(elems) < 3 {
-		return nil, NewError(StatusInvalidResponse, map[string]interface{}{
+		return nil, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  "Too few elements in the response header.",
 		})
 	}
 	f, ok := elems[0].(float64)
 	if !ok {
-		return nil, NewError(StatusInvalidResponse, map[string]interface{}{
-			"status": elems[0],
-			"error":  "status must be a number.",
+		return nil, NewError(InvalidResponse, map[string]interface{}{
+			"code":  elems[0],
+			"error": "code must be a number.",
 		})
 	}
-	status := int(f)
+	code := int(f)
 	f, ok = elems[1].(float64)
 	if !ok {
-		return nil, NewError(StatusInvalidResponse, map[string]interface{}{
+		return nil, NewError(InvalidResponse, map[string]interface{}{
 			"start": elems[1],
 			"error": "start must be a number.",
 		})
@@ -161,15 +161,15 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	start := time.Unix(int64(i), int64(math.Floor(f*1000000+0.5))*1000).Local()
 	f, ok = elems[2].(float64)
 	if !ok {
-		return nil, NewError(StatusInvalidResponse, map[string]interface{}{
+		return nil, NewError(InvalidResponse, map[string]interface{}{
 			"elapsed": elems[2],
 			"error":   "elapsed must be a number.",
 		})
 	}
 	elapsed := time.Duration(f * float64(time.Second))
 
-	if status != 0 {
-		err = parseHTTPResponseHeaderError(status, elems[3:])
+	if code != 0 {
+		err = parseHTTPResponseHeaderError(code, elems[3:])
 	}
 
 	return &httpResponse{
@@ -192,7 +192,7 @@ func newHTTPResponse(resp *http.Response, start time.Time) (*httpResponse, error
 			break
 		}
 		if err != nil {
-			return nil, NewError(StatusNetworkError, map[string]interface{}{
+			return nil, NewError(NetworkError, map[string]interface{}{
 				"method": "http.Response.Body.Read",
 				"error":  err.Error(),
 			})
@@ -216,13 +216,6 @@ func newHTTPResponse(resp *http.Response, start time.Time) (*httpResponse, error
 		err:     err,
 		left:    data,
 	}, nil
-}
-
-func (r *httpResponse) Status() int {
-	if err, ok := r.err.(*Error); ok {
-		return err.Code
-	}
-	return 0
 }
 
 func (r *httpResponse) Start() time.Time {
@@ -250,7 +243,7 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 				n--
 			}
 			if err != io.EOF {
-				err = NewError(StatusNetworkError, map[string]interface{}{
+				err = NewError(NetworkError, map[string]interface{}{
 					"method": "http.Response.Body.Read",
 					"error":  err.Error(),
 				})
@@ -270,7 +263,7 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 		n--
 	}
 	if err != io.EOF {
-		err = NewError(StatusNetworkError, map[string]interface{}{
+		err = NewError(NetworkError, map[string]interface{}{
 			"method": "http.Response.Body.Read",
 			"error":  err.Error(),
 		})
@@ -281,7 +274,7 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 func (r *httpResponse) Close() error {
 	io.Copy(ioutil.Discard, r.resp.Body)
 	if err := r.resp.Body.Close(); err != nil {
-		return NewError(StatusNetworkError, map[string]interface{}{
+		return NewError(NetworkError, map[string]interface{}{
 			"method": "http.Response.Body.Close",
 			"error":  err.Error(),
 		})
@@ -310,7 +303,7 @@ func NewHTTPClient(addr string, client *http.Client) (*HTTPClient, error) {
 	}
 	url, err := url.Parse(a.String())
 	if err != nil {
-		return nil, NewError(StatusInvalidAddress, map[string]interface{}{
+		return nil, NewError(InvalidAddress, map[string]interface{}{
 			"url":    a.String(),
 			"method": "url.Parse",
 			"error":  err.Error(),
@@ -330,10 +323,11 @@ func (c *HTTPClient) Close() error {
 	return nil
 }
 
-// exec sends a request and receives a response.
-func (c *HTTPClient) exec(cmd string, params map[string]string, body io.Reader) (*http.Response, error) {
+// exec sends a command and receives a response.
+func (c *HTTPClient) exec(name string, params map[string]string, body io.Reader) (Response, error) {
+	start := time.Now()
 	url := *c.url
-	url.Path = path.Join(url.Path, cmd)
+	url.Path = path.Join(url.Path, name)
 	if len(params) != 0 {
 		query := url.Query()
 		for k, v := range params {
@@ -344,54 +338,50 @@ func (c *HTTPClient) exec(cmd string, params map[string]string, body io.Reader) 
 	if body == nil {
 		resp, err := c.client.Get(url.String())
 		if err != nil {
-			return nil, NewError(StatusNetworkError, map[string]interface{}{
+			return nil, NewError(NetworkError, map[string]interface{}{
 				"url":    url.String(),
 				"method": "http.Client.Get",
 				"error":  err.Error(),
 			})
 		}
-		return resp, nil
+		return newHTTPResponse(resp, start)
 	}
 	resp, err := c.client.Post(url.String(), "application/json", body)
 	if err != nil {
-		return nil, NewError(StatusNetworkError, map[string]interface{}{
+		return nil, NewError(NetworkError, map[string]interface{}{
 			"url":    url.String(),
 			"method": "http.Client.Post",
 			"error":  err.Error(),
 		})
 	}
-	return resp, nil
-}
-
-// Exec assembles cmd and body into a Request and calls Query.
-func (c *HTTPClient) Exec(cmd string, body io.Reader) (Response, error) {
-	req, err := ParseRequest(cmd, body)
-	if err != nil {
-		return nil, err
-	}
-	return c.Query(req)
-}
-
-// Invoke assembles cmd, params and body into a Request and calls Query.
-func (c *HTTPClient) Invoke(cmd string, params map[string]interface{}, body io.Reader) (Response, error) {
-	req, err := NewRequest(cmd, params, body)
-	if err != nil {
-		return nil, err
-	}
-	return c.Query(req)
-}
-
-// Query sends a request and receives a response.
-// It is the caller's responsibility to close the response.
-func (c *HTTPClient) Query(req *Request) (Response, error) {
-	start := time.Now()
-	cmd, params, body, err := req.HTTPRequest()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.exec(cmd, params, body)
-	if err != nil {
-		return nil, err
-	}
 	return newHTTPResponse(resp, start)
+}
+
+// Exec assembles cmd and body into a Command and calls Query.
+func (c *HTTPClient) Exec(cmd string, body io.Reader) (Response, error) {
+	command, err := ParseCommand(cmd)
+	if err != nil {
+		return nil, err
+	}
+	command.SetBody(body)
+	return c.Query(command)
+}
+
+// Invoke assembles name, params and body into a Command and calls Query.
+func (c *HTTPClient) Invoke(name string, params map[string]interface{}, body io.Reader) (Response, error) {
+	cmd, err := NewCommand(name, params)
+	if err != nil {
+		return nil, err
+	}
+	cmd.SetBody(body)
+	return c.Query(cmd)
+}
+
+// Query sends a command and receives a response.
+// It is the caller's responsibility to close the response.
+func (c *HTTPClient) Query(cmd *Command) (Response, error) {
+	if err := cmd.Check(); err != nil {
+		return nil, err
+	}
+	return c.exec(cmd.Name(), cmd.Params(), cmd.Body())
 }

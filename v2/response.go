@@ -6,9 +6,6 @@ import (
 
 // Response is an interface for responses.
 type Response interface {
-	// Status returns the status code.
-	Status() int
-
 	// Start returns the start time.
 	Start() time.Time
 

@@ -3,44 +3,49 @@ package grnci
 import "testing"
 
 func TestNewError(t *testing.T) {
-	err := NewError(StatusInvalidAddress, map[string]interface{}{
-		"key": "value",
-	})
-	if err.Code != StatusInvalidAddress {
+	data := map[string]interface{}{
+		"string": "value",
+		"int":    100,
+	}
+	err := NewError(InvalidAddress, data)
+	if err.Code != InvalidAddress {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
-			err.Code, StatusInvalidAddress)
+			err.Code, InvalidAddress)
 	}
-	if err.Text != StatusText(StatusInvalidAddress) {
+	if err.Text != getCodeText(InvalidAddress) {
 		t.Fatalf("NewError failed: Text: actual = %s, want = %s",
-			err.Text, StatusText(StatusInvalidAddress))
+			err.Text, getCodeText(InvalidAddress))
 	}
-	if err.Data["key"] != "value" {
-		t.Fatalf("NewError failed: Data[\"key\"]: actual = %s, want = %s",
-			err.Data["key"], "value")
+	for k, v := range data {
+		if err.Data[k] != v {
+			t.Fatalf("NewError failed: Data[\"key\"]: actual = %s, want = %s", err.Data[k], v)
+		}
 	}
 }
 
 func TestEnhanceError(t *testing.T) {
-	err := NewError(StatusInvalidAddress, map[string]interface{}{
-		"key": "value",
-	})
-	err = EnhanceError(err, map[string]interface{}{
-		"newKey": "newValue",
-	})
-	if err.Code != StatusInvalidAddress {
+	data := map[string]interface{}{
+		"string": "value",
+		"int":    100,
+	}
+	newData := map[string]interface{}{
+		"string": "value2",
+		"int":    1000,
+		"float":  1.0,
+	}
+	err := NewError(InvalidAddress, data)
+	err = EnhanceError(err, newData)
+	if err.Code != InvalidAddress {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
-			err.Code, StatusInvalidAddress)
+			err.Code, InvalidAddress)
 	}
-	if err.Text != StatusText(StatusInvalidAddress) {
+	if err.Text != getCodeText(InvalidAddress) {
 		t.Fatalf("NewError failed: Text: actual = %s, want = %s",
-			err.Text, StatusText(StatusInvalidAddress))
+			err.Text, getCodeText(InvalidAddress))
 	}
-	if err.Data["key"] != "value" {
-		t.Fatalf("NewError failed: Data[\"key\"]: actual = %s, want = %s",
-			err.Data["key"], "value")
-	}
-	if err.Data["newKey"] != "newValue" {
-		t.Fatalf("NewError failed: Data[\"newKey\"]: actual = %s, want = %s",
-			err.Data["newKey"], "newValue")
+	for k, v := range newData {
+		if err.Data[k] != v {
+			t.Fatalf("NewError failed: Data[\"key\"]: actual = %s, want = %s", err.Data[k], v)
+		}
 	}
 }
