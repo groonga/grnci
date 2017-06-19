@@ -11,7 +11,6 @@ import (
 const (
 	// tagKey is the tag key for struct fields associated with Groonga columns.
 	tagKey = "grnci"
-
 	// tagSep is the separator in a struct field tag value.
 	tagSep = ';'
 )
@@ -62,20 +61,19 @@ func newStructFieldInfo(index int, field *reflect.StructField) (*StructFieldInfo
 	case float32, float64:
 	case string:
 	case time.Time:
-	case Geo:
 	default:
 		return nil, NewError(InvalidType, map[string]interface{}{
 			"type":  typ.Name(),
 			"error": "The type is not supported.",
 		})
 	}
-
 	return &StructFieldInfo{
-		Index:     index,
-		Field:     field,
-		Tags:      tags,
-		Type:      field.Type,
-		Dimension: dim,
+		Index:      index,
+		Field:      field,
+		Tags:       tags,
+		Type:       field.Type,
+		ColumnName: tags[0],
+		Dimension:  dim,
 	}, nil
 }
 

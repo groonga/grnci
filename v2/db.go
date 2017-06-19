@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -449,31 +450,95 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, R
 	return db.recvInt(resp)
 }
 
+// encodeValue encodes a value.
+func (db *DB) encodeValue(body []byte, v reflect.Value) []byte {
+	for v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return append(body, "null"...)
+		}
+		v = v.Elem()
+	}
+	switch v := v.Interface().(type) {
+	case bool:
+		return strconv.AppendBool(body, v)
+	case int:
+		return strconv.AppendInt(body, int64(v), 10)
+	case int8:
+		return strconv.AppendInt(body, int64(v), 10)
+	case int16:
+		return strconv.AppendInt(body, int64(v), 10)
+	case int32:
+		return strconv.AppendInt(body, int64(v), 10)
+	case int64:
+		return strconv.AppendInt(body, v, 10)
+	case uint:
+		return strconv.AppendUint(body, uint64(v), 10)
+	case uint8:
+		return strconv.AppendUint(body, uint64(v), 10)
+	case uint16:
+		return strconv.AppendUint(body, uint64(v), 10)
+	case uint32:
+		return strconv.AppendUint(body, uint64(v), 10)
+	case uint64:
+		return strconv.AppendUint(body, v, 10)
+	case float32:
+		return strconv.AppendFloat(body, float64(v), 'e', -1, 32)
+	case float64:
+		return strconv.AppendFloat(body, v, 'e', -1, 64)
+	case string:
+		b, _ := json.Marshal(v)
+		return append(body, b...)
+	case time.Time:
+		return strconv.AppendFloat(body, float64(v.UnixNano())/1000000000.0, 'f', -1, 64)
+	default:
+		return body
+	}
+}
+
 // encodeRow encodes a row.
 func (db *DB) encodeRow(body []byte, row reflect.Value, fis []*StructFieldInfo) []byte {
-	// TODO
+	body = append(body, '[')
+	for i, fi := range fis {
+		if i != 0 {
+			body = append(body, ',')
+		}
+		v := row.Field(fi.Index)
+		if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				body = append(body, "null"...)
+				continue
+			}
+			v = v.Elem()
+		}
+		switch v.Kind() {
+		case reflect.Array, reflect.Slice:
+			body = append(body, '[')
+			for i := 0; i < v.Len(); i++ {
+				if i != 0 {
+					body = append(body, ',')
+				}
+				body = db.encodeValue(body, v.Index(i))
+			}
+			body = append(body, ']')
+		default:
+			body = db.encodeValue(body, v)
+		}
+	}
+	body = append(body, ']')
 	return body
 }
 
 // encodeRows encodes rows.
-func (db *DB) encodeRows(rows reflect.Value, fis []*StructFieldInfo) ([]byte, error) {
-	body := []byte("[")
-	for rows.Kind() == reflect.Ptr {
-		rows = rows.Elem()
-	}
-	switch rows.Kind() {
-	case reflect.Array, reflect.Slice:
-		for i := 0; i < rows.Len(); i++ {
-			row := rows.Index(i)
-			for row.Kind() == reflect.Ptr {
-				row = row.Elem()
-			}
-			body = db.encodeRow(body, row, fis)
+func (db *DB) encodeRows(body []byte, rows reflect.Value, fis []*StructFieldInfo) []byte {
+	n := rows.Len()
+	for i := 0; i < n; i++ {
+		if i != 0 {
+			body = append(body, ',')
 		}
-	case reflect.Struct:
+		row := rows.Index(i)
+		body = db.encodeRow(body, row, fis)
 	}
-	body = append(body, ']')
-	return body, nil
+	return body
 }
 
 // LoadRows executes load.
@@ -496,16 +561,43 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 			fi, ok := si.FieldsByColumnName[col]
 			if !ok {
 				return 0, nil, NewError(InvalidCommand, map[string]interface{}{
-					"error": "",
+					"column": col,
+					"error":  "The column has no assciated field.",
 				})
 			}
 			fis = append(fis, fi)
 		}
 	}
-	body, err := db.encodeRows(reflect.ValueOf(rows), fis)
-	if err != nil {
-		return 0, nil, err
+
+	body := []byte("[")
+	v := reflect.ValueOf(rows)
+	switch v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() {
+			return 0, nil, NewError(InvalidCommand, map[string]interface{}{
+				"rows":  nil,
+				"error": "The rows must not be nil.",
+			})
+		}
+		v = v.Elem()
+		if v.Kind() != reflect.Struct {
+			return 0, nil, NewError(InvalidCommand, map[string]interface{}{
+				"type":  reflect.TypeOf(rows).Name(),
+				"error": "The type is not supported.",
+			})
+		}
+		body = db.encodeRow(body, v, fis)
+	case reflect.Array, reflect.Slice:
+		body = db.encodeRows(body, v, fis)
+	case reflect.Struct:
+		body = db.encodeRow(body, v, fis)
+	default:
+		return 0, nil, NewError(InvalidCommand, map[string]interface{}{
+			"type":  reflect.TypeOf(rows).Name(),
+			"error": "The type is not supported.",
+		})
 	}
+	body = append(body, ']')
 	return db.Load(tbl, bytes.NewReader(body), options)
 }
 
@@ -584,6 +676,41 @@ func (db *DB) LogReopen() (bool, Response, error) {
 		return false, nil, err
 	}
 	return db.recvBool(resp)
+}
+
+// DBNormalizedText is a result of normalize.
+type DBNormalizedText struct {
+	Normalized string   `json:"normalized"`
+	Types      []string `json:"types"`
+	Checks     []int    `json:"checks"`
+}
+
+// Normalize executes normalize.
+func (db *DB) Normalize(normalizer, str string, flags []string) (*DBNormalizedText, Response, error) {
+	params := map[string]interface{}{
+		"normalizer": normalizer,
+		"string":     str,
+	}
+	if flags != nil {
+		params["flags"] = flags
+	}
+	resp, err := db.Invoke("normalize", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result DBNormalizedText
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return &result, resp, nil
 }
 
 // DBNormalizer is a result of tokenizer_list.
@@ -904,6 +1031,9 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (Response, error) {
 		params["sort_keys"] = options.SortKeys
 	}
 	if options.OutputColumns != nil {
+		params["output_columns"] = options.OutputColumns
+	}
+	if options.OutputColumns != nil {
 		params["query"] = options.Query
 	}
 	if options.Offset != 0 {
@@ -957,10 +1087,342 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (Response, error) {
 	return db.Invoke("select", params, nil)
 }
 
+// parseRows parses rows.
+func (db *DB) parseRows(rows interface{}, data []byte, fis []*StructFieldInfo) (int, error) {
+	var raw [][][]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return 0, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+
+	var nHits int
+	if err := json.Unmarshal(raw[0][0][0], &nHits); err != nil {
+		return 0, err
+	}
+
+	rawCols := raw[0][1]
+	nCols := len(rawCols)
+	if nCols != len(fis) {
+		// Remove _score from fields if _score does not exist in the response.
+		for i, field := range fis {
+			if field.ColumnName == "_score" {
+				hasScore := false
+				for _, rawCol := range rawCols {
+					var nameType []string
+					if err := json.Unmarshal(rawCol, &nameType); err != nil {
+						return 0, NewError(InvalidResponse, map[string]interface{}{
+							"method": "json.Unmarshal",
+							"error":  err.Error(),
+						})
+					}
+					if nameType[0] == "_score" {
+						hasScore = true
+						break
+					}
+				}
+				if !hasScore {
+					for j := i + 1; j < len(fis); j++ {
+						fis[j-1] = fis[j]
+					}
+					fis = fis[:len(fis)-1]
+				}
+				break
+			}
+		}
+		if nCols != len(fis) {
+			return 0, NewError(InvalidResponse, map[string]interface{}{
+				"nFields": len(fis),
+				"nCols":   nCols,
+				"error":   "nFields and nColumns must be same.",
+			})
+		}
+	}
+	// FIXME: the following check disallows functions.
+	//	for i, rawCol := range rawCols {
+	//		var nameType []string
+	//		if err := json.Unmarshal(rawCol, &nameType); err != nil {
+	//			return 0, err
+	//		}
+	//		if nameType[0] != fields[i].ColumnName() {
+	//			return 0, fmt.Errorf("column %#v expected but column %#v actual",
+	//				fields[i].ColumnName(), nameType[0])
+	//		}
+	//	}
+
+	rawRecs := raw[0][2:]
+	nRecs := len(rawRecs)
+
+	recs := reflect.ValueOf(rows).Elem()
+	recs.Set(reflect.MakeSlice(recs.Type(), nRecs, nRecs))
+	for i := 0; i < nRecs; i++ {
+		rec := recs.Index(i)
+		for j, field := range fis {
+			ptr := rec.Field(field.Index).Addr()
+			switch v := ptr.Interface().(type) {
+			case *bool:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *int:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *int8:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *int16:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *int32:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *int64:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *uint:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *uint8:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *uint16:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *uint32:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *uint64:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *float32:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *float64:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *string:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *time.Time:
+				var f float64
+				if err := json.Unmarshal(rawRecs[i][j], &f); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+				*v = time.Unix(int64(f), int64(f*1000000)%1000000)
+			case *[]bool:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]int:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]int8:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]int16:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]int32:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]int64:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]uint:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]uint8:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]uint16:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]uint32:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]uint64:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]float32:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]float64:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]string:
+				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+			case *[]time.Time:
+				var f []float64
+				if err := json.Unmarshal(rawRecs[i][j], &f); err != nil {
+					return 0, NewError(InvalidResponse, map[string]interface{}{
+						"method": "json.Unmarshal",
+						"error":  err.Error(),
+					})
+				}
+				*v = make([]time.Time, len(f))
+				for i := range f {
+					(*v)[i] = time.Unix(int64(f[i]), int64(f[i]*1000000)%1000000)
+				}
+			}
+		}
+	}
+	return nHits, nil
+
+}
+
 // SelectRows executes select.
 func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions) (int, Response, error) {
-	// TODO
-	return 0, nil, nil
+	if options == nil {
+		options = NewDBSelectOptions()
+	}
+	si, err := GetStructInfo(rows)
+	if err != nil {
+		return 0, nil, err
+	}
+	var fis []*StructFieldInfo
+	if options.OutputColumns == nil {
+		fis = si.Fields
+		for _, fi := range fis {
+			options.OutputColumns = append(options.OutputColumns, fi.ColumnName)
+		}
+	} else {
+		for _, col := range options.OutputColumns {
+			fi, ok := si.FieldsByColumnName[col]
+			if !ok {
+				return 0, nil, NewError(InvalidCommand, map[string]interface{}{
+					"column": col,
+					"error":  "The column has no assciated field.",
+				})
+			}
+			fis = append(fis, fi)
+		}
+	}
+	resp, err := db.Select(tbl, options)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Close()
+	data, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return 0, nil, err
+	}
+	n, err := db.parseRows(rows, data, fis)
+	return n, resp, err
 }
 
 // DBStatus is a response of status.
@@ -1261,6 +1723,62 @@ func (db *DB) TableRename(name, newName string) (bool, Response, error) {
 	return db.recvBool(resp)
 }
 
+// DBTableTokenizeOptions is options of DB.TableTokenize.
+type DBTableTokenizeOptions struct {
+	Flags       []string
+	Mode        string
+	IndexColumn string
+}
+
+// NewDBTableTokenizeOptions returns the default DBTableTokenizeOptions.
+func NewDBTableTokenizeOptions() *DBTableTokenizeOptions {
+	return &DBTableTokenizeOptions{}
+}
+
+// DBToken is a result of table_tokenize and tokenize.
+type DBToken struct {
+	Position    int    `json:"position"`
+	ForcePrefix bool   `json:"force_prefix"`
+	Value       string `json:"value"`
+}
+
+// TableTokenize executes tokenize.
+func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([]DBToken, Response, error) {
+	if options == nil {
+		options = NewDBTableTokenizeOptions()
+	}
+	params := map[string]interface{}{
+		"table":  tbl,
+		"string": str,
+	}
+	if options.Flags != nil {
+		params["flags"] = options.Flags
+	}
+	if options.Mode != "" {
+		params["mode"] = options.Mode
+	}
+	if options.IndexColumn != "" {
+		params["index_column"] = options.IndexColumn
+	}
+	resp, err := db.Invoke("table_tokenize", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result []DBToken
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
 // ThreadLimit executes thread_limit.
 // If max < 0, max is not passed to thread_limit.
 func (db *DB) ThreadLimit(max int) (int, Response, error) {
@@ -1275,6 +1793,59 @@ func (db *DB) ThreadLimit(max int) (int, Response, error) {
 		return 0, nil, err
 	}
 	return db.recvInt(resp)
+}
+
+// DBTokenizeOptions is options of DB.Tokenize.
+type DBTokenizeOptions struct {
+	Normalizer   string
+	Flags        []string
+	Mode         string
+	TokenFilters []string
+}
+
+// NewDBTokenizeOptions returns the default DBTokenizeOptions.
+func NewDBTokenizeOptions() *DBTokenizeOptions {
+	return &DBTokenizeOptions{}
+}
+
+// Tokenize executes tokenize.
+func (db *DB) Tokenize(tokenizer, str string, options *DBTokenizeOptions) ([]DBToken, Response, error) {
+	if options == nil {
+		options = NewDBTokenizeOptions()
+	}
+	params := map[string]interface{}{
+		"tokenizer": tokenizer,
+		"string":    str,
+	}
+	if options.Normalizer != "" {
+		params["normalizer"] = options.Normalizer
+	}
+	if options.Flags != nil {
+		params["flags"] = options.Flags
+	}
+	if options.Mode != "" {
+		params["mode"] = options.Mode
+	}
+	if options.TokenFilters != nil {
+		params["token_filters"] = options.TokenFilters
+	}
+	resp, err := db.Invoke("tokenize", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result []DBToken
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
 }
 
 // DBTokenizer is a result of tokenizer_list.

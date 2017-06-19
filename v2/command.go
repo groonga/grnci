@@ -42,6 +42,8 @@ var formatParamValueDefault = func(value interface{}) (string, error) {
 		return strconv.FormatFloat(v, 'f', -1, 64), nil
 	case string:
 		return v, nil
+	// TODO: case time.Time:
+	// TODO: case Geo:
 	default:
 		return "", NewError(InvalidCommand, map[string]interface{}{
 			"value": value,
