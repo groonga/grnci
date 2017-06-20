@@ -135,47 +135,47 @@ func TestDBLoadRows(t *testing.T) {
 	defer db.Close()
 
 	type Row struct {
-		Key          string      `grnci:"_key"`
-		Bool         bool        `grnci:"bool"`
-		Int          int         `grnci:"int"`
-		Int8         int8        `grnci:"int8"`
-		Int16        int16       `grnci:"int16"`
-		Int32        int32       `grnci:"int32"`
-		Int64        int64       `grnci:"int64"`
-		UInt         uint        `grnci:"uint"`
-		UInt8        uint8       `grnci:"uint8"`
-		UInt16       uint16      `grnci:"uint16"`
-		UInt32       uint32      `grnci:"uint32"`
-		UInt64       uint64      `grnci:"uint64"`
-		Float32      float32     `grnci:"float32"`
-		Float64      float64     `grnci:"float64"`
-		String       string      `grnci:"string"`
-		Time         time.Time   `grnci:"time"`
-		BoolSlice    []bool      `grnci:"bool_slice"`
-		IntSlice     []int       `grnci:"int_slice"`
-		Int8Slice    []int8      `grnci:"int8_slice"`
-		Int16Slice   []int16     `grnci:"int16_slice"`
-		Int32Slice   []int32     `grnci:"int32_slice"`
-		Int64Slice   []int64     `grnci:"int64_slice"`
-		UIntSlice    []uint      `grnci:"uint_slice"`
-		UInt8Slice   []uint8     `grnci:"uint8_slice"`
-		UInt16Slice  []uint16    `grnci:"uint16_slice"`
-		UInt32Slice  []uint32    `grnci:"uint32_slice"`
-		UInt64Slice  []uint64    `grnci:"uint64_slice"`
-		Float32Slice []float32   `grnci:"float32_slice"`
-		Float64Slice []float64   `grnci:"float64_slice"`
-		StringSlice  []string    `grnci:"string_slice"`
-		TimeSlice    []time.Time `grnci:"time_slice"`
+		Key         string      `grnci:"_key"`
+		Bool        bool        `grnci:"bool"`
+		Int         int         `grnci:"int"`
+		Int8        int8        `grnci:"int8"`
+		Int16       int16       `grnci:"int16"`
+		Int32       int32       `grnci:"int32"`
+		Int64       int64       `grnci:"int64"`
+		UInt        uint        `grnci:"uint"`
+		UInt8       uint8       `grnci:"uint8"`
+		UInt16      uint16      `grnci:"uint16"`
+		UInt32      uint32      `grnci:"uint32"`
+		UInt64      uint64      `grnci:"uint64"`
+		Float       float64     `grnci:"float64"`
+		String      string      `grnci:"string"`
+		Time        time.Time   `grnci:"time"`
+		BoolSlice   []bool      `grnci:"bool_slice"`
+		IntSlice    []int       `grnci:"int_slice"`
+		Int8Slice   []int8      `grnci:"int8_slice"`
+		Int16Slice  []int16     `grnci:"int16_slice"`
+		Int32Slice  []int32     `grnci:"int32_slice"`
+		Int64Slice  []int64     `grnci:"int64_slice"`
+		UIntSlice   []uint      `grnci:"uint_slice"`
+		UInt8Slice  []uint8     `grnci:"uint8_slice"`
+		UInt16Slice []uint16    `grnci:"uint16_slice"`
+		UInt32Slice []uint32    `grnci:"uint32_slice"`
+		UInt64Slice []uint64    `grnci:"uint64_slice"`
+		FloatSlice  []float64   `grnci:"float64_slice"`
+		StringSlice []string    `grnci:"string_slice"`
+		TimeSlice   []time.Time `grnci:"time_slice"`
 	}
 	rows := []Row{
 		Row{
-			Key:         "Appke",
+			Key:         "Apple",
 			Time:        time.Now(),
+			Float:       1.23,
 			StringSlice: []string{"iOS", "Safari"},
 		},
 		Row{
 			Key:         "Microsoft",
 			Time:        time.Now(),
+			Float:       4.56,
 			StringSlice: []string{"Windows", "Edge"},
 		},
 	}

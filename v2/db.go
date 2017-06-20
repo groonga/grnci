@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -450,51 +450,6 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, R
 	return db.recvInt(resp)
 }
 
-// encodeValue encodes a value.
-func (db *DB) encodeValue(body []byte, v reflect.Value) []byte {
-	for v.Kind() == reflect.Ptr {
-		if v.IsNil() {
-			return append(body, "null"...)
-		}
-		v = v.Elem()
-	}
-	switch v := v.Interface().(type) {
-	case bool:
-		return strconv.AppendBool(body, v)
-	case int:
-		return strconv.AppendInt(body, int64(v), 10)
-	case int8:
-		return strconv.AppendInt(body, int64(v), 10)
-	case int16:
-		return strconv.AppendInt(body, int64(v), 10)
-	case int32:
-		return strconv.AppendInt(body, int64(v), 10)
-	case int64:
-		return strconv.AppendInt(body, v, 10)
-	case uint:
-		return strconv.AppendUint(body, uint64(v), 10)
-	case uint8:
-		return strconv.AppendUint(body, uint64(v), 10)
-	case uint16:
-		return strconv.AppendUint(body, uint64(v), 10)
-	case uint32:
-		return strconv.AppendUint(body, uint64(v), 10)
-	case uint64:
-		return strconv.AppendUint(body, v, 10)
-	case float32:
-		return strconv.AppendFloat(body, float64(v), 'e', -1, 32)
-	case float64:
-		return strconv.AppendFloat(body, v, 'e', -1, 64)
-	case string:
-		b, _ := json.Marshal(v)
-		return append(body, b...)
-	case time.Time:
-		return strconv.AppendFloat(body, float64(v.UnixNano())/1000000000.0, 'f', -1, 64)
-	default:
-		return body
-	}
-}
-
 // encodeRow encodes a row.
 func (db *DB) encodeRow(body []byte, row reflect.Value, fis []*StructFieldInfo) []byte {
 	body = append(body, '[')
@@ -502,27 +457,7 @@ func (db *DB) encodeRow(body []byte, row reflect.Value, fis []*StructFieldInfo) 
 		if i != 0 {
 			body = append(body, ',')
 		}
-		v := row.Field(fi.Index)
-		if v.Kind() == reflect.Ptr {
-			if v.IsNil() {
-				body = append(body, "null"...)
-				continue
-			}
-			v = v.Elem()
-		}
-		switch v.Kind() {
-		case reflect.Array, reflect.Slice:
-			body = append(body, '[')
-			for i := 0; i < v.Len(); i++ {
-				if i != 0 {
-					body = append(body, ',')
-				}
-				body = db.encodeValue(body, v.Index(i))
-			}
-			body = append(body, ']')
-		default:
-			body = db.encodeValue(body, v)
-		}
+		body = encodeValue(body, row.Field(fi.Index))
 	}
 	body = append(body, ']')
 	return body
@@ -538,6 +473,7 @@ func (db *DB) encodeRows(body []byte, rows reflect.Value, fis []*StructFieldInfo
 		row := rows.Index(i)
 		body = db.encodeRow(body, row, fis)
 	}
+	log.Printf("body = %s", body)
 	return body
 }
 
@@ -1419,7 +1355,10 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 	defer resp.Close()
 	data, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return 0, nil, err
+		return 0, resp, err
+	}
+	if resp.Err() != nil {
+		return 0, resp, err
 	}
 	n, err := db.parseRows(rows, data, fis)
 	return n, resp, err
