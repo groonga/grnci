@@ -17,7 +17,7 @@ const (
 )
 
 // getCodeText returns a string that briefly describes the specified code.
-// getCodeText supports Groonga return codes (C.grn_rc) [,0],
+// getCodeText supports Groonga result codes (C.grn_rc) [,0],
 // Grnci error codes [1000,] and HTTP status codes [100,999].
 func getCodeText(code int) string {
 	switch code {
@@ -215,38 +215,34 @@ type Error struct {
 }
 
 // NewError returns a new Error.
-func NewError(code int, data map[string]interface{}) *Error {
-	return &Error{
+func NewError(code int, data map[string]interface{}) error {
+	err := &Error{
 		Code: code,
 		Text: getCodeText(code),
-		Data: data,
+		Data: make(map[string]interface{}),
 	}
+	for k, v := range data {
+		err.Data[k] = v
+	}
+	return err
 }
 
-// EnhanceError adds data to err and returns it.
-// Note that the arguments err and data may be modified.
-func EnhanceError(err error, data map[string]interface{}) *Error {
-	if err, ok := err.(*Error); ok {
-		if err.Data == nil {
-			err.Data = data
-		} else {
-			for k, v := range data {
-				err.Data[k] = v
-			}
+// EnhanceError adds data to err and returns the modified Error.
+func EnhanceError(err error, data map[string]interface{}) error {
+	if e, ok := err.(*Error); ok {
+		for k, v := range data {
+			e.Data[k] = v
 		}
-		return err
+		return e
 	}
-	if data == nil {
-		data = map[string]interface{}{
-			"error": err.Error(),
-		}
-	} else if _, ok := data["error"]; !ok {
+	e := NewError(UnknownError, data).(*Error)
+	if _, ok := e.Data["error"]; !ok {
 		data["error"] = err.Error()
 	}
-	return NewError(UnknownError, data)
+	return e
 }
 
-// Error returns a string which describes the Error.
+// Error returns the JSON-encoded error object.
 func (e *Error) Error() string {
 	b, _ := json.Marshal(e)
 	return string(b)

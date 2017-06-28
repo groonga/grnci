@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"reflect"
 	"strings"
 	"time"
@@ -400,8 +399,8 @@ func NewDBDumpOptions() *DBDumpOptions {
 }
 
 // Dump executes dump.
-// On success, it is the caller's responsibility to close the response.
-func (db *DB) Dump(options *DBDumpOptions) (Response, error) {
+// On success, it is the caller's responsibility to close the result.
+func (db *DB) Dump(options *DBDumpOptions) (io.ReadCloser, Response, error) {
 	if options == nil {
 		options = NewDBDumpOptions()
 	}
@@ -414,7 +413,44 @@ func (db *DB) Dump(options *DBDumpOptions) (Response, error) {
 	if options.Tables != "" {
 		params["tables"] = options.Tables
 	}
-	return db.Invoke("dump", params, nil)
+	resp, err := db.Invoke("dump", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, resp, err
+}
+
+// DBIOFlushOptions stores options for DB.IOFlush.
+type DBIOFlushOptions struct {
+	TargetName string // --target_name
+	Recursive  bool   // --recursive
+	OnlyOpened bool   // --only_opened
+}
+
+// NewDBIOFlushOptions returns the default DBIOFlushOptions.
+func NewDBIOFlushOptions() *DBIOFlushOptions {
+	return &DBIOFlushOptions{
+		Recursive: true,
+	}
+}
+
+// IOFlush executes io_flush.
+func (db *DB) IOFlush(options *DBIOFlushOptions) (bool, Response, error) {
+	if options == nil {
+		options = NewDBIOFlushOptions()
+	}
+	params := map[string]interface{}{
+		"recursive":   options.Recursive,
+		"only_opened": options.OnlyOpened,
+	}
+	if options.TargetName != "" {
+		params["target_name"] = options.TargetName
+	}
+	resp, err := db.Invoke("io_flush", params, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
 }
 
 // DBLoadOptions stores options for DB.Load.
@@ -450,30 +486,29 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, R
 	return db.recvInt(resp)
 }
 
-// encodeRow encodes a row.
-func (db *DB) encodeRow(body []byte, row reflect.Value, fis []*StructFieldInfo) []byte {
+// appendRow appends the JSON-encoded row to buf nad returns the exetended buffer.
+func (db *DB) appendRow(body []byte, row reflect.Value, cfs []*columnField) []byte {
 	body = append(body, '[')
-	for i, fi := range fis {
+	for i, fi := range cfs {
 		if i != 0 {
 			body = append(body, ',')
 		}
-		body = encodeValue(body, row.Field(fi.Index))
+		body = jsonAppendValue(body, row.Field(fi.Index))
 	}
 	body = append(body, ']')
 	return body
 }
 
-// encodeRows encodes rows.
-func (db *DB) encodeRows(body []byte, rows reflect.Value, fis []*StructFieldInfo) []byte {
+// appendRows appends the JSON-encoded rows to buf nad returns the exetended buffer.
+func (db *DB) appendRows(body []byte, rows reflect.Value, cfs []*columnField) []byte {
 	n := rows.Len()
 	for i := 0; i < n; i++ {
 		if i != 0 {
 			body = append(body, ',')
 		}
 		row := rows.Index(i)
-		body = db.encodeRow(body, row, fis)
+		body = db.appendRow(body, row, cfs)
 	}
-	log.Printf("body = %s", body)
 	return body
 }
 
@@ -482,26 +517,28 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 	if options == nil {
 		options = NewDBLoadOptions()
 	}
-	si, err := GetStructInfo(rows)
+	rs, err := getRowStruct(rows)
 	if err != nil {
 		return 0, nil, err
 	}
-	var fis []*StructFieldInfo
+	var cfs []*columnField
 	if options.Columns == nil {
-		fis = si.Fields
-		for _, fi := range fis {
-			options.Columns = append(options.Columns, fi.ColumnName)
+		for _, cf := range rs.Columns {
+			if cf.Loadable {
+				options.Columns = append(options.Columns, cf.Name)
+				cfs = append(cfs, cf)
+			}
 		}
 	} else {
 		for _, col := range options.Columns {
-			fi, ok := si.FieldsByColumnName[col]
+			cf, ok := rs.ColumnsByName[col]
 			if !ok {
 				return 0, nil, NewError(InvalidCommand, map[string]interface{}{
 					"column": col,
-					"error":  "The column has no assciated field.",
+					"error":  "The column has no associated field.",
 				})
 			}
-			fis = append(fis, fi)
+			cfs = append(cfs, cf)
 		}
 	}
 
@@ -522,11 +559,11 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 				"error": "The type is not supported.",
 			})
 		}
-		body = db.encodeRow(body, v, fis)
+		body = db.appendRow(body, v, cfs)
 	case reflect.Array, reflect.Slice:
-		body = db.encodeRows(body, v, fis)
+		body = db.appendRows(body, v, cfs)
 	case reflect.Struct:
-		body = db.encodeRow(body, v, fis)
+		body = db.appendRow(body, v, cfs)
 	default:
 		return 0, nil, NewError(InvalidCommand, map[string]interface{}{
 			"type":  reflect.TypeOf(rows).Name(),
@@ -614,6 +651,308 @@ func (db *DB) LogReopen() (bool, Response, error) {
 	return db.recvBool(resp)
 }
 
+// DBLogicalCountOptions stores options for DB.LogicalCount.
+type DBLogicalCountOptions struct {
+	Min       time.Time //--min
+	MinBorder bool      // --min_border
+	Max       time.Time // --max
+	MaxBorder bool      // --max_border
+	Filter    string    // --filter
+}
+
+// NewDBLogicalCountOptions returns the default DBLogicalCountOptions.
+func NewDBLogicalCountOptions() *DBLogicalCountOptions {
+	return &DBLogicalCountOptions{
+		MinBorder: true,
+		MaxBorder: true,
+	}
+}
+
+// LogicalCount executes logical_count.
+func (db *DB) LogicalCount(logicalTable, shardKey string, options *DBLogicalCountOptions) (int, Response, error) {
+	params := map[string]interface{}{
+		"logical_table": logicalTable,
+		"shard_key":     shardKey,
+	}
+	if options == nil {
+		options = NewDBLogicalCountOptions()
+	}
+	if !options.Min.IsZero() {
+		params["min"] = options.Min
+	}
+	params["min_border"] = options.MinBorder
+	if !options.Max.IsZero() {
+		params["max"] = options.Max
+	}
+	params["max_border"] = options.MaxBorder
+	if options.Filter != "" {
+		params["filter"] = options.Filter
+	}
+	resp, err := db.Invoke("logical_count", params, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	return db.recvInt(resp)
+}
+
+// DBLogicalParameters is a result of logical_parameters.
+type DBLogicalParameters struct {
+	RangeIndex string `json:"range_index"`
+}
+
+// LogicalParameters executes logical_parameters.
+func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, Response, error) {
+	var params map[string]interface{}
+	if rangeIndex != "" {
+		params = map[string]interface{}{
+			"range_index": rangeIndex,
+		}
+	}
+	resp, err := db.Invoke("logical_parameters", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result DBLogicalParameters
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return &result, resp, nil
+}
+
+// LogicalRangeFilter executes logical_range_filter.
+func (db *DB) LogicalRangeFilter() (bool, Response, error) {
+	// TODO
+	return false, nil, nil
+}
+
+// DBLogicalSelectOptions stores options for DB.LogicalSelect.
+// http://groonga.org/docs/reference/commands/logical_select.html
+type DBLogicalSelectOptions struct {
+	Min                    time.Time //--min
+	MinBorder              bool      // --min_border
+	Max                    time.Time // --max
+	MaxBorder              bool      // --max_border
+	Filter                 string    // --filter
+	SortKeys               []string  // --sort_keys
+	OutputColumns          []string  // --output_columns
+	Offset                 int       // --offset
+	Limit                  int       // --limit
+	Drilldown              []string  // --drilldown
+	DrilldownSortKeys      []string  // --drilldown_sort_keys
+	DrilldownOutputColumns []string  // --drilldown_output_columns
+	DrilldownOffset        int       // --drilldown_offset
+	DrilldownLimit         int       // --drilldown_limit
+	DrilldownCalcTypes     []string  // --drilldown_calc_types
+	DrilldownCalcTarget    string    // --drilldown_calc_target
+	MatchColumns           []string  // --match_columns
+	Query                  string    // --query
+	DrilldownFilter        string    // --drilldown_filter
+	Columns                map[string]*DBSelectOptionsColumn
+	Drilldowns             map[string]*DBSelectOptionsDrilldown
+}
+
+// NewDBLogicalSelectOptions returns the default DBLogicalSelectOptions.
+func NewDBLogicalSelectOptions() *DBLogicalSelectOptions {
+	return &DBLogicalSelectOptions{
+		Limit:          10,
+		DrilldownLimit: 10,
+	}
+}
+
+// LogicalSelect executes logical_select.
+func (db *DB) LogicalSelect(logicalTable, shardKey string, options *DBLogicalSelectOptions) (io.ReadCloser, Response, error) {
+	if options == nil {
+		options = NewDBLogicalSelectOptions()
+	}
+	params := map[string]interface{}{
+		"command_version": 2,
+		"logical_table":   logicalTable,
+		"shard_key":       shardKey,
+	}
+	if options.MatchColumns != nil {
+		params["match_columns"] = options.MatchColumns
+	}
+	if options.Query != "" {
+		params["query"] = options.Query
+	}
+	if options.Filter != "" {
+		params["filter"] = options.Filter
+	}
+	if options.SortKeys != nil {
+		params["sort_keys"] = options.SortKeys
+	}
+	if options.OutputColumns != nil {
+		params["output_columns"] = options.OutputColumns
+	}
+	if options.OutputColumns != nil {
+		params["query"] = options.Query
+	}
+	if options.Offset != 0 {
+		params["offset"] = options.Offset
+	}
+	if options.Limit != 10 {
+		params["limit"] = options.Limit
+	}
+	if options.Drilldown != nil {
+		params["drilldown"] = options.Drilldown
+	}
+	if options.DrilldownSortKeys != nil {
+		params["drilldown_sort_keys"] = options.DrilldownSortKeys
+	}
+	if options.DrilldownOutputColumns != nil {
+		params["drilldown_output_columns"] = options.DrilldownOutputColumns
+	}
+	if options.DrilldownOffset != 0 {
+		params["drilldown_offset"] = options.DrilldownOffset
+	}
+	if options.DrilldownLimit != 10 {
+		params["drilldown_limit"] = options.DrilldownLimit
+	}
+	if options.DrilldownCalcTypes != nil {
+		params["drilldown_calc_types"] = options.DrilldownCalcTypes
+	}
+	if options.DrilldownCalcTarget != "" {
+		params["drilldown_calc_target"] = options.DrilldownCalcTarget
+	}
+	if options.DrilldownFilter != "" {
+		params["drilldown_filter"] = options.DrilldownFilter
+	}
+	for name, col := range options.Columns {
+		col.setParams("--columns["+name+"]", params)
+	}
+	for label, drilldown := range options.Drilldowns {
+		drilldown.setParams("--drilldowns["+label+"]", params)
+	}
+	resp, err := db.Invoke("logical_select", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, resp, err
+}
+
+// LogicalSelectRows executes logical_select.
+func (db *DB) LogicalSelectRows(logicalTable, shardKey string, rows interface{}, options *DBLogicalSelectOptions) (int, Response, error) {
+	if options == nil {
+		options = NewDBLogicalSelectOptions()
+	}
+	rs, err := getRowStruct(rows)
+	if err != nil {
+		return 0, nil, err
+	}
+	var cfs []*columnField
+	if options.OutputColumns == nil {
+		cfs = rs.Columns
+		for _, cf := range cfs {
+			options.OutputColumns = append(options.OutputColumns, cf.Name)
+		}
+	} else {
+		for _, col := range options.OutputColumns {
+			cf, ok := rs.ColumnsByName[col]
+			if !ok {
+				return 0, nil, NewError(InvalidCommand, map[string]interface{}{
+					"column": col,
+					"error":  "The column has no associated field.",
+				})
+			}
+			cfs = append(cfs, cf)
+		}
+	}
+	result, resp, err := db.LogicalSelect(logicalTable, shardKey, options)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer result.Close()
+	data, err := ioutil.ReadAll(result)
+	if err != nil {
+		return 0, resp, err
+	}
+	if resp.Err() != nil {
+		return 0, resp, err
+	}
+	n, err := db.parseRows(rows, data, cfs)
+	return n, resp, err
+}
+
+// DBLogicalShard is a result of logical_shard_list.
+type DBLogicalShard struct {
+	Name string `json:"name"`
+}
+
+// LogicalShardList executes logical_shard_list.
+func (db *DB) LogicalShardList(logicalTable string) ([]DBLogicalShard, Response, error) {
+	resp, err := db.Invoke("logical_shard_list", map[string]interface{}{
+		"logical_table": logicalTable,
+	}, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result []DBLogicalShard
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
+// DBLogicalTableRemoveOptions stores options for DB.LogicalTableRemove.
+type DBLogicalTableRemoveOptions struct {
+	Min       time.Time //--min
+	MinBorder bool      // --min_border
+	Max       time.Time // --max
+	MaxBorder bool      // --max_border
+	Dependent bool      // --dependent
+	Force     bool      // --force
+}
+
+// NewDBLogicalTableRemoveOptions returns the default DBLogicalTableRemoveOptions.
+func NewDBLogicalTableRemoveOptions() *DBLogicalTableRemoveOptions {
+	return &DBLogicalTableRemoveOptions{
+		MinBorder: true,
+		MaxBorder: true,
+	}
+}
+
+// LogicalTableRemove executes logical_table_remove.
+func (db *DB) LogicalTableRemove(logicalTable, shardKey string, options *DBLogicalTableRemoveOptions) (bool, Response, error) {
+	params := map[string]interface{}{
+		"logical_table": logicalTable,
+		"shard_key":     shardKey,
+	}
+	if options == nil {
+		options = NewDBLogicalTableRemoveOptions()
+	}
+	if !options.Min.IsZero() {
+		params["min"] = options.Min
+	}
+	params["min_border"] = options.MinBorder
+	if !options.Max.IsZero() {
+		params["max"] = options.Max
+	}
+	params["max_border"] = options.MaxBorder
+	params["dependent"] = options.Dependent
+	params["force"] = options.Force
+	resp, err := db.Invoke("logical_table_remove", params, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
 // DBNormalizedText is a result of normalize.
 type DBNormalizedText struct {
 	Normalized string   `json:"normalized"`
@@ -686,6 +1025,218 @@ func (db *DB) ObjectExist(name string) (bool, Response, error) {
 	return db.recvBool(resp)
 }
 
+// DBObjectIDName is a part of DBObject*.
+type DBObjectIDName struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// DBObjectType is a part of DBObject*.
+type DBObjectType struct {
+	ID   int            `json:"id"`
+	Name string         `json:"name"`
+	Type DBObjectIDName `json:"type"`
+	Size int            `json:"size"`
+}
+
+// DBObjectColumnType is a part of DBObjectColumn.
+type DBObjectColumnType struct {
+	Name string         `json:"name"`
+	Raw  DBObjectIDName `json:"raw"`
+}
+
+// DBObjectColumnStatistics is a part of DBObjectColumn.
+type DBObjectColumnStatistics struct {
+	MaxSectionID              int   `json:"max_section_id"`
+	NGarbageSegments          int   `json:"n_garbage_segments"`
+	MaxArraySegmentID         int   `json:"max_array_segment_id"`
+	NArraySegments            int   `json:"n_array_segments"`
+	MaxBufferSegmentID        int   `json:"max_buffer_segment_id"`
+	NBufferSegments           int   `json:"n_buffer_segments"`
+	MaxInUsePhysicalSegmentID int   `json:"max_in_use_physical_segment_id"`
+	NUnmanagedSegments        int   `json:"n_unmanaged_segments"`
+	TotalChunkSize            int   `json:"total_chunk_size"`
+	MaxInUseChunkID           int   `json:"max_in_use_chunk_id"`
+	NGarbageChunks            []int `json:"n_garbage_chunks"`
+}
+
+// DBObjectColumnValue is a part of DBObjectColumn.
+type DBObjectColumnValue struct {
+	Type       DBObjectType             `json:"type"`
+	Section    bool                     `json:"section"`
+	Weight     bool                     `json:"weight"`
+	Position   bool                     `json:"position"`
+	Size       int                      `json:"size"`
+	Statistics DBObjectColumnStatistics `json:"statistics"`
+}
+
+// DBObjectColumnSource is a par of DBObjectColumn.
+type DBObjectColumnSource struct {
+	ID       int           `json:"id"`
+	Name     string        `json:"name"`
+	Table    DBObjectTable `json:"table"`
+	FullName string        `json:"full_name"`
+}
+
+// DBObjectColumn is a result of object_inspect.
+type DBObjectColumn struct {
+	ID       int                    `json:"id"`
+	Name     string                 `json:"name"`
+	Table    DBObjectTable          `json:"table"`
+	FullName string                 `json:"full_name"`
+	Type     DBObjectColumnType     `json:"type"`
+	Value    DBObjectColumnValue    `json:"value"`
+	Sources  []DBObjectColumnSource `json:"sources"`
+}
+
+// DBObjectKey is a part of DBObjectTable.
+type DBObjectKey struct {
+	Type         string `json:"type"`
+	TotalSize    int    `json:"total_size"`
+	MaxTotalSize int    `json:"max_total_size"`
+}
+
+// DBObjectValue is a part of DBObjectTable.
+type DBObjectValue struct {
+	Type DBObjectType `json:"type"`
+}
+
+// DBObjectTable stores a result of object_inspect.
+type DBObjectTable struct {
+	ID       int            `json:"id"`
+	Name     string         `json:"name"`
+	Type     DBObjectIDName `json:"type"`
+	Key      DBObjectKey    `json:"key"`
+	Value    DBObjectValue  `json:"value"`
+	NRecords int            `json:"n_records"`
+}
+
+// DBObjectDatabase stores a result of object_inspect.
+type DBObjectDatabase struct {
+	Type      DBObjectIDName `json:"type"`
+	NameTable DBObjectTable  `json:"name_table"`
+}
+
+// ObjectInspect executes object_inspect.
+func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
+	var params map[string]interface{}
+	if name != "" {
+		params = map[string]interface{}{
+			"name": name,
+		}
+	}
+	resp, err := db.Invoke("object_inspect", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	switch {
+	case name == "": // Database
+		var result DBObjectDatabase
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+				"method": "json.Unmarshal",
+				"error":  err.Error(),
+			})
+		}
+		return &result, resp, nil
+	case strings.Contains(name, "."): // Column
+		var result DBObjectColumn
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+				"method": "json.Unmarshal",
+				"error":  err.Error(),
+			})
+		}
+		return &result, resp, nil
+	default: // Table of type
+		type SizeNRecords struct {
+			Size     *int `json:"size"`
+			NRecords *int `json:"n_records"`
+		}
+		var sizeNRecords SizeNRecords
+		if err := json.Unmarshal(jsonData, &sizeNRecords); err != nil {
+			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+				"method": "json.Unmarshal",
+				"error":  err.Error(),
+			})
+		}
+		switch {
+		case sizeNRecords.Size != nil:
+			var result DBObjectType
+			if err := json.Unmarshal(jsonData, &result); err != nil {
+				return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+					"method": "json.Unmarshal",
+					"error":  err.Error(),
+				})
+			}
+			return &result, resp, nil
+		case sizeNRecords.NRecords != nil:
+			var result DBObjectTable
+			if err := json.Unmarshal(jsonData, &result); err != nil {
+				return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+					"method": "json.Unmarshal",
+					"error":  err.Error(),
+				})
+			}
+			return &result, resp, nil
+		default:
+			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+				"command": "object_inspect",
+				"error":   "The response format is not invalid.",
+			})
+		}
+	}
+}
+
+// DBObjectFlags is a part of DBObject.
+type DBObjectFlags struct {
+	Names string `json:"names"`
+	Value int    `json:"value"`
+}
+
+// DBObject stores options for DB.ObjectList.
+type DBObject struct {
+	ID           int              `json:"id"`
+	Name         string           `json:"name"`
+	Opened       bool             `json:"opened"`
+	ValueSize    int              `json:"value_size"`
+	NElements    int              `json:"n_elements"`
+	Type         DBObjectIDName   `json:"type"`
+	Flags        DBObjectFlags    `json:"flags"`
+	Path         string           `json:"path"`
+	Size         int              `json:"size"`
+	PluginID     int              `json:"plugin_id"`
+	Range        *DBObjectIDName  `json:"range"`
+	TokenFilters []DBObjectIDName `json:"token_filters"`
+	Sources      []DBObjectIDName `json:"sources"`
+}
+
+// ObjectList executes object_list.
+func (db *DB) ObjectList() (map[string]*DBObject, Response, error) {
+	resp, err := db.Invoke("object_list", nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	var result map[string]*DBObject
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result, resp, nil
+}
+
 // ObjectRemove executes object_remove.
 func (db *DB) ObjectRemove(name string, force bool) (bool, Response, error) {
 	resp, err := db.Invoke("object_remove", map[string]interface{}{
@@ -720,6 +1271,15 @@ func (db *DB) PluginUnregister(name string) (bool, Response, error) {
 	return db.recvBool(resp)
 }
 
+// Quit executes quit.
+func (db *DB) Quit() (bool, Response, error) {
+	resp, err := db.Invoke("quit", nil, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
+}
+
 // Reindex executes reindex.
 func (db *DB) Reindex(target string) (bool, Response, error) {
 	var params map[string]interface{}
@@ -733,6 +1293,85 @@ func (db *DB) Reindex(target string) (bool, Response, error) {
 		return false, nil, err
 	}
 	return db.recvBool(resp)
+}
+
+// RequestCancel executes request_cancel.
+func (db *DB) RequestCancel(id int) (bool, Response, error) {
+	resp, err := db.Invoke("request_cancel", map[string]interface{}{
+		"id": id,
+	}, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return false, resp, err
+	}
+	type Result struct {
+		ID       int  `json:"id"`
+		Canceled bool `json:"canceled"`
+	}
+	var result Result
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result.Canceled, resp, nil
+}
+
+// RubyEval executes ruby_eval.
+func (db *DB) RubyEval(script string) (interface{}, Response, error) {
+	resp, err := db.Invoke("ruby_eval", map[string]interface{}{
+		"script": script,
+	}, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	type Result struct {
+		Value interface{} `json:"vlaue"`
+	}
+	var result Result
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result.Value, resp, nil
+}
+
+// RubyLoad executes ruby_load.
+func (db *DB) RubyLoad(path string) (interface{}, Response, error) {
+	resp, err := db.Invoke("ruby_load", map[string]interface{}{
+		"path": path,
+	}, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return nil, resp, err
+	}
+	type Result struct {
+		Value interface{} `json:"vlaue"`
+	}
+	var result Result
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, resp, NewError(InvalidResponse, map[string]interface{}{
+			"method": "json.Unmarshal",
+			"error":  err.Error(),
+		})
+	}
+	return result.Value, resp, nil
 }
 
 // DBSchemaPlugin is a part of DBSchema.
@@ -860,9 +1499,12 @@ func (db *DB) Schema() (*DBSchema, Response, error) {
 
 // DBSelectOptionsColumn stores --columns[NAME].
 type DBSelectOptionsColumn struct {
-	Stage string // --columns[NAME].stage
-	Type  string // --columns[NAME].type
-	Value string // --columns[NAME].value
+	Stage           string   // --columns[NAME].stage
+	Flags           []string // --columns[NAME].flags
+	Type            string   // --columns[NAME].type
+	Value           string   // --columns[NAME].value
+	WindowSortKeys  []string // --columns[NAME].window.sort_keys
+	WindowGroupKeys []string // --columns[NAME].window.group_keys
 }
 
 // NewDBSelectOptionsColumn returns the default DBSelectOptionsColumn.
@@ -870,19 +1512,21 @@ func NewDBSelectOptionsColumn() *DBSelectOptionsColumn {
 	return &DBSelectOptionsColumn{}
 }
 
-// DBSelectOptionsDrilldownColumn stores --drilldowns[LABEL].columns[NAME].
-type DBSelectOptionsDrilldownColumn struct {
-	Stage           string   // --drilldowns[LABEL].columns[NAME].stage
-	Flags           string   // --drilldowns[LABEL].columns[NAME].flags
-	Type            string   // --drilldowns[LABEL].columns[NAME].type
-	Value           string   // --drilldowns[LABEL].columns[NAME].value
-	WindowSortKeys  []string // --drilldowns[LABEL].columns[NAME].window.sort_keys
-	WindowGroupKeys []string // --drilldowns[LABEL].columns[NAME].window.group_keys
-}
-
-// NewDBSelectOptionsDrilldownColumn returns the default DBSelectOptionsDrilldownColumn.
-func NewDBSelectOptionsDrilldownColumn() *DBSelectOptionsDrilldownColumn {
-	return &DBSelectOptionsDrilldownColumn{}
+// setParams sets options to params.
+func (options *DBSelectOptionsColumn) setParams(prefix string, params map[string]interface{}) {
+	// FIXME: slice options are not supported.
+	params[prefix+".stage"] = options.Stage
+	if options.Flags != nil {
+		params[prefix+".flags"] = options.Flags
+	}
+	params[prefix+".type"] = options.Type
+	params[prefix+".value"] = options.Value
+	if options.WindowSortKeys != nil {
+		params[prefix+".window.sort_keys"] = options.WindowSortKeys
+	}
+	if options.WindowGroupKeys != nil {
+		params[prefix+".window.group_keys"] = options.WindowGroupKeys
+	}
 }
 
 // DBSelectOptionsDrilldown stores --drilldowns[LABEL].
@@ -895,13 +1539,35 @@ type DBSelectOptionsDrilldown struct {
 	CalcTypes     []string // --drilldowns[LABEL].calc_types
 	CalcTarget    string   // --drilldowns[LABEL].calc_target
 	Filter        string   // --drilldowns[LABEL].filter
-	Columns       map[string]*DBSelectOptionsDrilldownColumn
+	Columns       map[string]*DBSelectOptionsColumn
 }
 
 // NewDBSelectOptionsDrilldown returns the default DBSelectOptionsDrilldown.
 func NewDBSelectOptionsDrilldown() *DBSelectOptionsDrilldown {
 	return &DBSelectOptionsDrilldown{
 		Limit: 10,
+	}
+}
+
+// setParams sets options to params.
+func (options *DBSelectOptionsDrilldown) setParams(prefix string, params map[string]interface{}) {
+	// FIXME: slice options are not supported.
+	params[prefix+".keys"] = options.Keys
+	if options.SortKeys != nil {
+		params[prefix+".sort_keys"] = options.SortKeys
+	}
+	if options.OutputColumns != nil {
+		params[prefix+".output_columns"] = options.OutputColumns
+	}
+	params[prefix+".offset"] = options.Offset
+	params[prefix+".limit"] = options.Limit
+	if options.CalcTypes != nil {
+		params[prefix+".calc_types"] = options.CalcTypes
+	}
+	params[prefix+".calc_target"] = options.CalcTarget
+	params[prefix+".filter"] = options.Filter
+	for name, col := range options.Columns {
+		col.setParams(prefix+".columns["+name+"]", params)
 	}
 }
 
@@ -943,13 +1609,14 @@ func NewDBSelectOptions() *DBSelectOptions {
 }
 
 // Select executes select.
-// On success, it is the caller's responsibility to close the response.
-func (db *DB) Select(tbl string, options *DBSelectOptions) (Response, error) {
+// On success, it is the caller's responsibility to close the result.
+func (db *DB) Select(tbl string, options *DBSelectOptions) (io.ReadCloser, Response, error) {
 	if options == nil {
 		options = NewDBSelectOptions()
 	}
 	params := map[string]interface{}{
-		"table": tbl,
+		"command_version": 2,
+		"table":           tbl,
 	}
 	if options.MatchColumns != nil {
 		params["match_columns"] = options.MatchColumns
@@ -1020,11 +1687,21 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (Response, error) {
 	if options.DrilldownFilter != "" {
 		params["drilldown_filter"] = options.DrilldownFilter
 	}
-	return db.Invoke("select", params, nil)
+	for name, col := range options.Columns {
+		col.setParams("--columns["+name+"]", params)
+	}
+	for label, drilldown := range options.Drilldowns {
+		drilldown.setParams("--drilldowns["+label+"]", params)
+	}
+	resp, err := db.Invoke("select", params, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, resp, err
 }
 
 // parseRows parses rows.
-func (db *DB) parseRows(rows interface{}, data []byte, fis []*StructFieldInfo) (int, error) {
+func (db *DB) parseRows(rows interface{}, data []byte, cfs []*columnField) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return 0, NewError(InvalidResponse, map[string]interface{}{
@@ -1040,10 +1717,10 @@ func (db *DB) parseRows(rows interface{}, data []byte, fis []*StructFieldInfo) (
 
 	rawCols := raw[0][1]
 	nCols := len(rawCols)
-	if nCols != len(fis) {
+	if nCols != len(cfs) {
 		// Remove _score from fields if _score does not exist in the response.
-		for i, field := range fis {
-			if field.ColumnName == "_score" {
+		for i, cf := range cfs {
+			if cf.Name == "_score" {
 				hasScore := false
 				for _, rawCol := range rawCols {
 					var nameType []string
@@ -1059,17 +1736,17 @@ func (db *DB) parseRows(rows interface{}, data []byte, fis []*StructFieldInfo) (
 					}
 				}
 				if !hasScore {
-					for j := i + 1; j < len(fis); j++ {
-						fis[j-1] = fis[j]
+					for j := i + 1; j < len(cfs); j++ {
+						cfs[j-1] = cfs[j]
 					}
-					fis = fis[:len(fis)-1]
+					cfs = cfs[:len(cfs)-1]
 				}
 				break
 			}
 		}
-		if nCols != len(fis) {
+		if nCols != len(cfs) {
 			return 0, NewError(InvalidResponse, map[string]interface{}{
-				"nFields": len(fis),
+				"nFields": len(cfs),
 				"nCols":   nCols,
 				"error":   "nFields and nColumns must be same.",
 			})
@@ -1094,8 +1771,8 @@ func (db *DB) parseRows(rows interface{}, data []byte, fis []*StructFieldInfo) (
 	recs.Set(reflect.MakeSlice(recs.Type(), nRecs, nRecs))
 	for i := 0; i < nRecs; i++ {
 		rec := recs.Index(i)
-		for j, field := range fis {
-			ptr := rec.Field(field.Index).Addr()
+		for j, cf := range cfs {
+			ptr := rec.Field(cf.Index).Addr()
 			switch v := ptr.Interface().(type) {
 			case *bool:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
@@ -1326,42 +2003,51 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 	if options == nil {
 		options = NewDBSelectOptions()
 	}
-	si, err := GetStructInfo(rows)
+	rs, err := getRowStruct(rows)
 	if err != nil {
 		return 0, nil, err
 	}
-	var fis []*StructFieldInfo
+	var cfs []*columnField
 	if options.OutputColumns == nil {
-		fis = si.Fields
-		for _, fi := range fis {
-			options.OutputColumns = append(options.OutputColumns, fi.ColumnName)
+		cfs = rs.Columns
+		for _, cf := range cfs {
+			options.OutputColumns = append(options.OutputColumns, cf.Name)
 		}
 	} else {
 		for _, col := range options.OutputColumns {
-			fi, ok := si.FieldsByColumnName[col]
+			cf, ok := rs.ColumnsByName[col]
 			if !ok {
 				return 0, nil, NewError(InvalidCommand, map[string]interface{}{
 					"column": col,
-					"error":  "The column has no assciated field.",
+					"error":  "The column has no associated field.",
 				})
 			}
-			fis = append(fis, fi)
+			cfs = append(cfs, cf)
 		}
 	}
-	resp, err := db.Select(tbl, options)
+	result, resp, err := db.Select(tbl, options)
 	if err != nil {
 		return 0, nil, err
 	}
-	defer resp.Close()
-	data, err := ioutil.ReadAll(resp)
+	defer result.Close()
+	data, err := ioutil.ReadAll(result)
 	if err != nil {
 		return 0, resp, err
 	}
 	if resp.Err() != nil {
 		return 0, resp, err
 	}
-	n, err := db.parseRows(rows, data, fis)
+	n, err := db.parseRows(rows, data, cfs)
 	return n, resp, err
+}
+
+// Shutdown executes shutdown.
+func (db *DB) Shutdown() (bool, Response, error) {
+	resp, err := db.Invoke("shutdown", nil, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return db.recvBool(resp)
 }
 
 // DBStatus is a response of status.

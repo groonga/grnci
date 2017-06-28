@@ -92,15 +92,16 @@ func TestDBDump(t *testing.T) {
 	db := NewDB(client)
 	defer db.Close()
 
-	resp, err := db.Dump(nil)
+	result, resp, err := db.Dump(nil)
 	if err != nil {
 		t.Fatalf("db.Dump failed: %v", err)
 	}
-	result, err := ioutil.ReadAll(resp)
+	body, err := ioutil.ReadAll(result)
 	if err != nil {
 		t.Fatalf("ioutil.ReadAll failed: %v", err)
 	}
-	log.Printf("result = %s", result)
+	result.Close()
+	log.Printf("body = %s", body)
 	log.Printf("resp = %#v", resp)
 	if err := resp.Err(); err != nil {
 		log.Printf("error = %#v", err)
@@ -230,6 +231,44 @@ func TestDBNormalizerList(t *testing.T) {
 	}
 }
 
+func TestDBObjectList(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.ObjectList()
+	if err != nil {
+		t.Fatalf("db.ObjectList failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
+func TestDBQuit(t *testing.T) {
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		t.Skipf("NewHTTPClient failed: %v", err)
+	}
+	db := NewDB(client)
+	defer db.Close()
+
+	result, resp, err := db.Quit()
+	if err != nil {
+		t.Fatalf("db.Quit failed: %v", err)
+	}
+	log.Printf("result = %#v", result)
+	log.Printf("resp = %#v", resp)
+	if err := resp.Err(); err != nil {
+		log.Printf("error = %#v", err)
+	}
+}
+
 func TestDBSchema(t *testing.T) {
 	client, err := NewHTTPClient("", nil)
 	if err != nil {
@@ -257,15 +296,16 @@ func TestDBSelect(t *testing.T) {
 	db := NewDB(client)
 	defer db.Close()
 
-	resp, err := db.Select("Tbl", nil)
+	result, resp, err := db.Select("Tbl", nil)
 	if err != nil {
 		t.Fatalf("db.Select failed: %v", err)
 	}
-	result, err := ioutil.ReadAll(resp)
+	body, err := ioutil.ReadAll(result)
 	if err != nil {
 		t.Fatalf("ioutil.ReadAll failed: %v", err)
 	}
-	log.Printf("result = %s", result)
+	result.Close()
+	log.Printf("body = %s", body)
 	log.Printf("resp = %#v", resp)
 	if err := resp.Err(); err != nil {
 		log.Printf("error = %#v", err)
@@ -303,7 +343,9 @@ func TestDBSelectRows(t *testing.T) {
 	}
 	log.Printf("n = %d", n)
 	log.Printf("rows = %#v", rows)
-	log.Printf("time = %s", rows[0].Time)
+	if len(rows) != 0 {
+		log.Printf("time = %s", rows[0].Time)
+	}
 	log.Printf("resp = %#v", resp)
 	if err := resp.Err(); err != nil {
 		log.Printf("error = %#v", err)

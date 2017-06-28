@@ -4,8 +4,8 @@ import (
 	"io"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
+	"time"
 )
 
 // formatParamValue is a function to format a parameter value.
@@ -13,61 +13,46 @@ type formatParamValue func(value interface{}) (string, error)
 
 // formatParamValueDefault is the default formatParamValue.
 var formatParamValueDefault = func(value interface{}) (string, error) {
-	switch v := value.(type) {
-	case bool:
-		return strconv.FormatBool(v), nil
-	case int:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int8:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int16:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int32:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int64:
-		return strconv.FormatInt(v, 10), nil
-	case uint:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint8:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint16:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint32:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint64:
-		return strconv.FormatUint(v, 10), nil
-	case float32:
-		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
-	case float64:
-		return strconv.FormatFloat(v, 'f', -1, 64), nil
-	case string:
-		return v, nil
-	// TODO: case time.Time:
-	// TODO: case Geo:
-	default:
-		return "", NewError(InvalidCommand, map[string]interface{}{
-			"value": value,
-			"type":  reflect.TypeOf(value).Name(),
-			"error": "The type is not supported.",
-		})
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Bool:
+		return formatBool(v.Bool()), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return formatInt(v.Int()), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return formatUint(v.Uint()), nil
+	case reflect.Float32:
+		return formatFloat(v.Float(), 32), nil
+	case reflect.Float64:
+		return formatFloat(v.Float(), 64), nil
+	case reflect.String:
+		return formatString(v.String()), nil
+	case reflect.Struct:
+		switch v := value.(type) {
+		case time.Time:
+			return formatTime(v), nil
+		case Geo:
+			return formatGeo(v), nil
+		}
 	}
+	return "", NewError(InvalidCommand, map[string]interface{}{
+		"value": value,
+		"type":  reflect.TypeOf(value).Name(),
+		"error": "The type is not supported.",
+	})
 }
 
-// yesNo returns yes or no.
-func yesNo(value bool) string {
-	if value {
-		return "yes"
-	}
-	return "no"
-}
-
-// formatParamValueYesNo formats an yes/no value.
+// formatParamValueYesNo formats an 3/no value.
 func formatParamValueYesNo(value interface{}) (string, error) {
-	switch v := value.(type) {
-	case bool:
-		return yesNo(v), nil
-	case string:
-		switch v {
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Bool:
+		if v.Bool() {
+			return "yes", nil
+		}
+		return "no", nil
+	case reflect.String:
+		switch v := v.String(); v {
 		case "yes", "no":
 			return v, nil
 		default:
@@ -87,34 +72,83 @@ func formatParamValueYesNo(value interface{}) (string, error) {
 
 // formatParamValueCSV formats comma-separated values.
 func formatParamValueCSV(value interface{}) (string, error) {
-	switch v := value.(type) {
-	case string:
-		return v, nil
-	case []string:
-		return strings.Join(v, ","), nil
-	default:
-		return "", NewError(InvalidCommand, map[string]interface{}{
-			"value": value,
-			"type":  reflect.TypeOf(value).Name(),
-			"error": "The type is not supported.",
-		})
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.String:
+		return formatString(v.String()), nil
+	case reflect.Array, reflect.Slice:
+		if v.Type().Elem().Kind() != reflect.String {
+			break
+		}
+		var buf []byte
+		n := v.Len()
+		for i := 0; i < n; i++ {
+			if i != 0 {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, formatString(v.Index(i).String())...)
+		}
+		return string(buf), nil
 	}
+	return "", NewError(InvalidCommand, map[string]interface{}{
+		"value": value,
+		"type":  reflect.TypeOf(value).Name(),
+		"error": "The type is not supported.",
+	})
 }
 
 // formatParamValueFlags formats pipe-separated values.
 func formatParamValueFlags(value interface{}) (string, error) {
-	switch v := value.(type) {
-	case string:
-		return v, nil
-	case []string:
-		return strings.Join(v, "|"), nil
-	default:
-		return "", NewError(InvalidCommand, map[string]interface{}{
-			"value": value,
-			"type":  reflect.TypeOf(value).Name(),
-			"error": "The type is not supported.",
-		})
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.String:
+		return formatString(v.String()), nil
+	case reflect.Array, reflect.Slice:
+		if v.Type().Elem().Kind() != reflect.String {
+			break
+		}
+		var buf []byte
+		n := v.Len()
+		for i := 0; i < n; i++ {
+			if i != 0 {
+				buf = append(buf, '|')
+			}
+			buf = append(buf, formatString(v.Index(i).String())...)
+		}
+		return string(buf), nil
 	}
+	return "", NewError(InvalidCommand, map[string]interface{}{
+		"value": value,
+		"type":  reflect.TypeOf(value).Name(),
+		"error": "The type is not supported.",
+	})
+}
+
+// formatParamValueMatchColumns formats pipe-separated values.
+func formatParamValueMatchColumns(value interface{}) (string, error) {
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.String:
+		return formatString(v.String()), nil
+	case reflect.Array, reflect.Slice:
+		if v.Type().Elem().Kind() != reflect.String {
+			break
+		}
+		var buf []byte
+		n := v.Len()
+		for i := 0; i < n; i++ {
+			if i != 0 {
+				buf = append(buf, "||"...)
+			}
+			buf = append(buf, formatString(v.Index(i).String())...)
+		}
+		return string(buf), nil
+	}
+	return "", NewError(InvalidCommand, map[string]interface{}{
+		"value": value,
+		"type":  reflect.TypeOf(value).Name(),
+		"error": "The type is not supported.",
+	})
 }
 
 // formatParamValueBorder formats an include/exclude value.
@@ -142,6 +176,11 @@ func formatParamValueBorder(value interface{}) (string, error) {
 			"error": "The type is not supported.",
 		})
 	}
+}
+
+// formatParamValueJSON returns the JSON-encoded value.
+func formatParamValueJSON(value interface{}) (string, error) {
+	return string(jsonAppendValue(nil, reflect.ValueOf(value))), nil
 }
 
 type paramFormat struct {
@@ -328,7 +367,7 @@ var commandFormats = map[string]*commandFormat{
 		nil,
 		newParamFormat("name", nil, true),
 		newParamFormat("table", nil, true),
-		newParamFormat("match_columns", formatParamValueCSV, false),
+		newParamFormat("match_columns", formatParamValueMatchColumns, false),
 		newParamFormat("query", nil, false),
 		newParamFormat("filter", nil, false),
 		newParamFormat("scorer", nil, false),
@@ -350,7 +389,7 @@ var commandFormats = map[string]*commandFormat{
 	"delete": newCommandFormat(
 		nil,
 		newParamFormat("table", nil, true),
-		newParamFormat("key", nil, false),
+		newParamFormat("key", formatParamValueJSON, false),
 		newParamFormat("id", nil, false),
 		newParamFormat("filter", nil, false),
 	),
@@ -435,7 +474,7 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("max", nil, false),
 		newParamFormat("max_border", formatParamValueBorder, false),
 		newParamFormat("filter", nil, false),
-		newParamFormat("sortby", nil, false),
+		newParamFormat("sortby", formatParamValueCSV, false),
 		newParamFormat("output_columns", formatParamValueCSV, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
@@ -446,9 +485,9 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("drilldown_limit", nil, false),
 		newParamFormat("drilldown_calc_types", formatParamValueCSV, false),
 		newParamFormat("drilldown_calc_target", nil, false),
-		newParamFormat("sort_keys", nil, false),
+		newParamFormat("sort_keys", formatParamValueCSV, false),
 		newParamFormat("drilldown_sort_keys", formatParamValueCSV, false),
-		newParamFormat("match_columns", formatParamValueCSV, false),
+		newParamFormat("match_columns", formatParamValueMatchColumns, false),
 		newParamFormat("query", nil, false),
 		newParamFormat("drilldown_filter", nil, false),
 	),
@@ -523,11 +562,11 @@ var commandFormats = map[string]*commandFormat{
 	"select": newCommandFormat(
 		formatParamSelect,
 		newParamFormat("table", nil, true),
-		newParamFormat("match_columns", formatParamValueCSV, false),
+		newParamFormat("match_columns", formatParamValueMatchColumns, false),
 		newParamFormat("query", nil, false),
 		newParamFormat("filter", nil, false),
 		newParamFormat("scorer", nil, false),
-		newParamFormat("sortby", nil, false),
+		newParamFormat("sortby", formatParamValueCSV, false),
 		newParamFormat("output_columns", formatParamValueCSV, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
