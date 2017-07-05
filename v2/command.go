@@ -1,68 +1,64 @@
 package grnci
 
 import (
+	"fmt"
 	"io"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
-	"time"
 )
 
-// formatParamValue is a function to format a parameter value.
-type formatParamValue func(value interface{}) (string, error)
-
-// formatParamValueDefault is the default formatParamValue.
-var formatParamValueDefault = func(value interface{}) (string, error) {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
-	case reflect.Bool:
-		return formatBool(v.Bool()), nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return formatInt(v.Int()), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return formatUint(v.Uint()), nil
-	case reflect.Float32:
-		return formatFloat(v.Float(), 32), nil
-	case reflect.Float64:
-		return formatFloat(v.Float(), 64), nil
-	case reflect.String:
-		return formatString(v.String()), nil
-	case reflect.Struct:
-		switch v := value.(type) {
-		case time.Time:
-			return formatTime(v), nil
-		case Geo:
-			return formatGeo(v), nil
-		}
-	}
-	return "", NewError(InvalidCommand, map[string]interface{}{
-		"value": value,
-		"type":  reflect.TypeOf(value).Name(),
-		"error": "The type is not supported.",
-	})
-}
-
-// formatParamValueYesNo formats an 3/no value.
-func formatParamValueYesNo(value interface{}) (string, error) {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
+// formatParamValue is the default function to format a parameter value.
+func formatParamValue(key string, value interface{}) (string, error) {
+	switch v := reflect.ValueOf(value); v.Kind() {
 	case reflect.Bool:
 		if v.Bool() {
 			return "yes", nil
 		}
 		return "no", nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(v.Uint(), 10), nil
+	case reflect.Float32:
+		return strconv.FormatFloat(v.Float(), 'g', -1, 32), nil
+	case reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'g', -1, 64), nil
+	case reflect.String:
+		return v.String(), nil
+	default:
+		return "", NewError(InvalidCommand, map[string]interface{}{
+			"key":   key,
+			"value": value,
+			"type":  reflect.TypeOf(value).Name(),
+			"error": "The type is not supported.",
+		})
+	}
+}
+
+// formatParamBoolean formats a boolean value.
+func formatParamBoolean(key string, value interface{}, t, f string) (string, error) {
+	switch v := reflect.ValueOf(value); v.Kind() {
+	case reflect.Bool:
+		if v.Bool() {
+			return t, nil
+		}
+		return f, nil
 	case reflect.String:
 		switch v := v.String(); v {
-		case "yes", "no":
+		case t, f:
 			return v, nil
 		default:
 			return "", NewError(InvalidCommand, map[string]interface{}{
+				"key":   key,
 				"value": v,
-				"error": "The value must be yes or no.",
+				"error": fmt.Sprintf("The value must be %s or %s.", t, f),
 			})
 		}
 	default:
 		return "", NewError(InvalidCommand, map[string]interface{}{
+			"key":   key,
 			"value": value,
 			"type":  reflect.TypeOf(value).Name(),
 			"error": "The type is not supported.",
@@ -70,12 +66,21 @@ func formatParamValueYesNo(value interface{}) (string, error) {
 	}
 }
 
-// formatParamValueCSV formats comma-separated values.
-func formatParamValueCSV(value interface{}) (string, error) {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
+// formatParamYesNo formats an yes/no value.
+func formatParamYesNo(key string, value interface{}) (string, error) {
+	return formatParamBoolean(key, value, "yes", "no")
+}
+
+// formatParamBorder formats an include/exclude value.
+func formatParamBorder(key string, value interface{}) (string, error) {
+	return formatParamBoolean(key, value, "include", "exclude")
+}
+
+// formatParamDelim formats values separated by delim.
+func formatParamDelim(key string, value interface{}, delim string) (string, error) {
+	switch v := reflect.ValueOf(value); v.Kind() {
 	case reflect.String:
-		return formatString(v.String()), nil
+		return v.String(), nil
 	case reflect.Array, reflect.Slice:
 		if v.Type().Elem().Kind() != reflect.String {
 			break
@@ -84,113 +89,48 @@ func formatParamValueCSV(value interface{}) (string, error) {
 		n := v.Len()
 		for i := 0; i < n; i++ {
 			if i != 0 {
-				buf = append(buf, ',')
+				buf = append(buf, delim...)
 			}
-			buf = append(buf, formatString(v.Index(i).String())...)
+			buf = append(buf, v.Index(i).String()...)
 		}
 		return string(buf), nil
 	}
 	return "", NewError(InvalidCommand, map[string]interface{}{
+		"key":   key,
 		"value": value,
 		"type":  reflect.TypeOf(value).Name(),
 		"error": "The type is not supported.",
 	})
 }
 
-// formatParamValueFlags formats pipe-separated values.
-func formatParamValueFlags(value interface{}) (string, error) {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
-	case reflect.String:
-		return formatString(v.String()), nil
-	case reflect.Array, reflect.Slice:
-		if v.Type().Elem().Kind() != reflect.String {
-			break
-		}
-		var buf []byte
-		n := v.Len()
-		for i := 0; i < n; i++ {
-			if i != 0 {
-				buf = append(buf, '|')
-			}
-			buf = append(buf, formatString(v.Index(i).String())...)
-		}
-		return string(buf), nil
-	}
-	return "", NewError(InvalidCommand, map[string]interface{}{
-		"value": value,
-		"type":  reflect.TypeOf(value).Name(),
-		"error": "The type is not supported.",
-	})
+// formatParamCSV formats comma-separated values.
+func formatParamCSV(key string, value interface{}) (string, error) {
+	return formatParamDelim(key, value, ",")
 }
 
-// formatParamValueMatchColumns formats pipe-separated values.
-func formatParamValueMatchColumns(value interface{}) (string, error) {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
-	case reflect.String:
-		return formatString(v.String()), nil
-	case reflect.Array, reflect.Slice:
-		if v.Type().Elem().Kind() != reflect.String {
-			break
-		}
-		var buf []byte
-		n := v.Len()
-		for i := 0; i < n; i++ {
-			if i != 0 {
-				buf = append(buf, "||"...)
-			}
-			buf = append(buf, formatString(v.Index(i).String())...)
-		}
-		return string(buf), nil
-	}
-	return "", NewError(InvalidCommand, map[string]interface{}{
-		"value": value,
-		"type":  reflect.TypeOf(value).Name(),
-		"error": "The type is not supported.",
-	})
+// formatParamFlags formats pipe-separated values.
+func formatParamFlags(key string, value interface{}) (string, error) {
+	return formatParamDelim(key, value, "|")
 }
 
-// formatParamValueBorder formats an include/exclude value.
-func formatParamValueBorder(value interface{}) (string, error) {
-	switch v := value.(type) {
-	case bool:
-		if v {
-			return "include", nil
-		}
-		return "exclude", nil
-	case string:
-		switch v {
-		case "include", "exclude":
-			return v, nil
-		default:
-			return "", NewError(InvalidCommand, map[string]interface{}{
-				"value": v,
-				"error": "The value must be include or exclude.",
-			})
-		}
-	default:
-		return "", NewError(InvalidCommand, map[string]interface{}{
-			"value": value,
-			"type":  reflect.TypeOf(value).Name(),
-			"error": "The type is not supported.",
-		})
-	}
+// formatParamMatchColumns formats "||"-separated values (--match_columns).
+func formatParamMatchColumns(key string, value interface{}) (string, error) {
+	return formatParamDelim(key, value, "||")
 }
 
-// formatParamValueJSON returns the JSON-encoded value.
-func formatParamValueJSON(value interface{}) (string, error) {
-	return string(jsonAppendValue(nil, reflect.ValueOf(value))), nil
+// formatParamJSON returns the JSON-encoded value (delete --key).
+func formatParamJSON(key string, value interface{}) (string, error) {
+	return jsonEncodeValue(reflect.ValueOf(value)), nil
 }
 
 type paramFormat struct {
-	key      string           // Parameter key
-	format   formatParamValue // Custom function to format a parameter value.
-	required bool             // Whether or not the parameter is required
+	key      string      // Parameter key
+	format   formatParam // Custom function to format a parameter.
+	required bool        // Whether or not the parameter is required
 }
 
 // newParamFormat returns a new paramFormat.
-func newParamFormat(key string, format formatParamValue, required bool) *paramFormat {
+func newParamFormat(key string, format formatParam, required bool) *paramFormat {
 	return &paramFormat{
 		key:      key,
 		format:   format,
@@ -198,12 +138,12 @@ func newParamFormat(key string, format formatParamValue, required bool) *paramFo
 	}
 }
 
-// Format formats a parameter value.
+// Format formats a parameter.
 func (pf *paramFormat) Format(value interface{}) (string, error) {
 	if pf.format != nil {
-		return pf.format(value)
+		return pf.format(pf.key, value)
 	}
-	return formatParamValueDefault(value)
+	return formatParamDefault(pf.key, value)
 }
 
 // formatParam is a function to format a parameter.
@@ -228,13 +168,7 @@ func formatParamDefault(key string, value interface{}) (string, error) {
 			})
 		}
 	}
-	fv, err := formatParamValueDefault(value)
-	if err != nil {
-		return "", EnhanceError(err, map[string]interface{}{
-			"key": key,
-		})
-	}
-	return fv, nil
+	return formatParamValue(key, value)
 }
 
 // formatParamSelect formats a parameter of select.
@@ -261,15 +195,20 @@ func formatParamSelect(key string, value interface{}) (string, error) {
 			}
 		}
 	}
-	fv, err := formatParamValueDefault(value)
-	if err != nil {
-		return "", EnhanceError(err, map[string]interface{}{
-			"key": key,
-		})
+	// For parameters with variable keys, such as --columns[NAME] and --drilldowns[LABEL].
+	switch {
+	case strings.HasSuffix(key, "flags"):
+		return formatParamFlags(key, value)
+	case strings.HasSuffix(key, "keys"), // keys, sort_keys and group_keys
+		strings.HasSuffix(key, "output_columns"),
+		strings.HasSuffix(key, "calc_types"):
+		return formatParamCSV(key, value)
+	default:
+		return formatParamValue(key, value)
 	}
-	return fv, nil
 }
 
+// commandFormat is the format of a command.
 type commandFormat struct {
 	format         formatParam             // Custom function to format a parameter
 	params         []*paramFormat          // Fixed parameters
@@ -293,6 +232,11 @@ func newCommandFormat(format formatParam, params ...*paramFormat) *commandFormat
 		paramsByKey:    paramsByKey,
 		requiredParams: requiredParams,
 	}
+}
+
+// getCommandFormat returns the format of the specified command.
+func getCommandFormat(name string) *commandFormat {
+	return commandFormats[name]
 }
 
 // Format formats a parameter.
@@ -332,9 +276,9 @@ var commandFormats = map[string]*commandFormat{
 		nil,
 		newParamFormat("table", nil, true),
 		newParamFormat("name", nil, true),
-		newParamFormat("flags", formatParamValueFlags, true),
+		newParamFormat("flags", formatParamFlags, true),
 		newParamFormat("type", nil, true),
-		newParamFormat("source", formatParamValueCSV, false),
+		newParamFormat("source", formatParamCSV, false),
 	),
 	"column_list": newCommandFormat(
 		nil,
@@ -367,17 +311,17 @@ var commandFormats = map[string]*commandFormat{
 		nil,
 		newParamFormat("name", nil, true),
 		newParamFormat("table", nil, true),
-		newParamFormat("match_columns", formatParamValueMatchColumns, false),
+		newParamFormat("match_columns", formatParamMatchColumns, false),
 		newParamFormat("query", nil, false),
 		newParamFormat("filter", nil, false),
 		newParamFormat("scorer", nil, false),
-		newParamFormat("sortby", formatParamValueCSV, false),
-		newParamFormat("output_columns", formatParamValueCSV, false),
+		newParamFormat("sortby", formatParamCSV, false),
+		newParamFormat("output_columns", formatParamCSV, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
-		newParamFormat("drilldown", formatParamValueCSV, false),
-		newParamFormat("drilldown_sortby", formatParamValueCSV, false),
-		newParamFormat("drilldown_output_columns", formatParamValueCSV, false),
+		newParamFormat("drilldown", formatParamCSV, false),
+		newParamFormat("drilldown_sortby", formatParamCSV, false),
+		newParamFormat("drilldown_output_columns", formatParamCSV, false),
 		newParamFormat("drilldown_offset", nil, false),
 		newParamFormat("drilldown_limit", nil, false),
 	),
@@ -389,17 +333,17 @@ var commandFormats = map[string]*commandFormat{
 	"delete": newCommandFormat(
 		nil,
 		newParamFormat("table", nil, true),
-		newParamFormat("key", formatParamValueJSON, false),
+		newParamFormat("key", formatParamJSON, false),
 		newParamFormat("id", nil, false),
 		newParamFormat("filter", nil, false),
 	),
 	"dump": newCommandFormat(
 		nil,
-		newParamFormat("tables", formatParamValueCSV, false),
-		newParamFormat("dump_plugins", formatParamValueYesNo, false),
-		newParamFormat("dump_schema", formatParamValueYesNo, false),
-		newParamFormat("dump_records", formatParamValueYesNo, false),
-		newParamFormat("dump_indexes", formatParamValueYesNo, false),
+		newParamFormat("tables", formatParamCSV, false),
+		newParamFormat("dump_plugins", formatParamYesNo, false),
+		newParamFormat("dump_schema", formatParamYesNo, false),
+		newParamFormat("dump_records", formatParamYesNo, false),
+		newParamFormat("dump_indexes", formatParamYesNo, false),
 	),
 	"io_flush": newCommandFormat(
 		nil,
@@ -410,7 +354,7 @@ var commandFormats = map[string]*commandFormat{
 		nil,
 		newParamFormat("values", nil, false), // values may be passed as a body.
 		newParamFormat("table", nil, true),
-		newParamFormat("columns", formatParamValueCSV, false),
+		newParamFormat("columns", formatParamCSV, false),
 		newParamFormat("ifexists", nil, false),
 		newParamFormat("input_type", nil, false),
 	),
@@ -441,9 +385,9 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("logical_table", nil, true),
 		newParamFormat("shard_key", nil, true),
 		newParamFormat("min", nil, false),
-		newParamFormat("min_border", formatParamValueBorder, false),
+		newParamFormat("min_border", formatParamBorder, false),
 		newParamFormat("max", nil, false),
-		newParamFormat("max_border", formatParamValueBorder, false),
+		newParamFormat("max_border", formatParamBorder, false),
 		newParamFormat("filter", nil, false),
 	),
 	"logical_parameters": newCommandFormat(
@@ -455,39 +399,40 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("logical_table", nil, true),
 		newParamFormat("shard_key", nil, true),
 		newParamFormat("min", nil, false),
-		newParamFormat("min_border", formatParamValueBorder, false),
+		newParamFormat("min_border", formatParamBorder, false),
 		newParamFormat("max", nil, false),
-		newParamFormat("max_border", formatParamValueBorder, false),
+		newParamFormat("max_border", formatParamBorder, false),
 		newParamFormat("order", nil, false),
 		newParamFormat("filter", nil, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
-		newParamFormat("output_columns", formatParamValueCSV, false),
+		newParamFormat("output_columns", formatParamCSV, false),
 		newParamFormat("use_range_index", nil, false),
+		// TODO: --cache is not supported yet.
 	),
 	"logical_select": newCommandFormat(
-		nil,
+		formatParamSelect,
 		newParamFormat("logical_table", nil, true),
 		newParamFormat("shard_key", nil, true),
 		newParamFormat("min", nil, false),
-		newParamFormat("min_border", formatParamValueBorder, false),
+		newParamFormat("min_border", formatParamBorder, false),
 		newParamFormat("max", nil, false),
-		newParamFormat("max_border", formatParamValueBorder, false),
+		newParamFormat("max_border", formatParamBorder, false),
 		newParamFormat("filter", nil, false),
-		newParamFormat("sortby", formatParamValueCSV, false),
-		newParamFormat("output_columns", formatParamValueCSV, false),
+		newParamFormat("sortby", formatParamCSV, false),
+		newParamFormat("output_columns", formatParamCSV, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
 		newParamFormat("drilldown", nil, false),
-		newParamFormat("drilldown_sortby", formatParamValueCSV, false),
-		newParamFormat("drilldown_output_columns", formatParamValueCSV, false),
+		newParamFormat("drilldown_sortby", formatParamCSV, false),
+		newParamFormat("drilldown_output_columns", formatParamCSV, false),
 		newParamFormat("drilldown_offset", nil, false),
 		newParamFormat("drilldown_limit", nil, false),
-		newParamFormat("drilldown_calc_types", formatParamValueCSV, false),
+		newParamFormat("drilldown_calc_types", formatParamCSV, false),
 		newParamFormat("drilldown_calc_target", nil, false),
-		newParamFormat("sort_keys", formatParamValueCSV, false),
-		newParamFormat("drilldown_sort_keys", formatParamValueCSV, false),
-		newParamFormat("match_columns", formatParamValueMatchColumns, false),
+		newParamFormat("sort_keys", formatParamCSV, false),
+		newParamFormat("drilldown_sort_keys", formatParamCSV, false),
+		newParamFormat("match_columns", formatParamMatchColumns, false),
 		newParamFormat("query", nil, false),
 		newParamFormat("drilldown_filter", nil, false),
 	),
@@ -500,17 +445,17 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("logical_table", nil, true),
 		newParamFormat("shard_key", nil, true),
 		newParamFormat("min", nil, false),
-		newParamFormat("min_border", formatParamValueBorder, false),
+		newParamFormat("min_border", formatParamBorder, false),
 		newParamFormat("max", nil, false),
-		newParamFormat("max_border", formatParamValueBorder, false),
-		newParamFormat("dependent", formatParamValueYesNo, false),
-		newParamFormat("force", formatParamValueYesNo, false),
+		newParamFormat("max_border", formatParamBorder, false),
+		newParamFormat("dependent", formatParamYesNo, false),
+		newParamFormat("force", formatParamYesNo, false),
 	),
 	"normalize": newCommandFormat(
 		nil,
 		newParamFormat("normalizer", nil, true),
 		newParamFormat("string", nil, true),
-		newParamFormat("flags", formatParamValueFlags, false),
+		newParamFormat("flags", formatParamFlags, false),
 	),
 	"normalizer_list": newCommandFormat(nil),
 	"object_exist": newCommandFormat(
@@ -525,7 +470,7 @@ var commandFormats = map[string]*commandFormat{
 	"object_remove": newCommandFormat(
 		nil,
 		newParamFormat("name", nil, true),
-		newParamFormat("force", formatParamValueYesNo, false),
+		newParamFormat("force", formatParamYesNo, false),
 	),
 	"plugin_register": newCommandFormat(
 		nil,
@@ -562,30 +507,30 @@ var commandFormats = map[string]*commandFormat{
 	"select": newCommandFormat(
 		formatParamSelect,
 		newParamFormat("table", nil, true),
-		newParamFormat("match_columns", formatParamValueMatchColumns, false),
+		newParamFormat("match_columns", formatParamMatchColumns, false),
 		newParamFormat("query", nil, false),
 		newParamFormat("filter", nil, false),
 		newParamFormat("scorer", nil, false),
-		newParamFormat("sortby", formatParamValueCSV, false),
-		newParamFormat("output_columns", formatParamValueCSV, false),
+		newParamFormat("sortby", formatParamCSV, false),
+		newParamFormat("output_columns", formatParamCSV, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
 		newParamFormat("drilldown", nil, false),
-		newParamFormat("drilldown_sortby", formatParamValueCSV, false),
-		newParamFormat("drilldown_output_columns", formatParamValueCSV, false),
+		newParamFormat("drilldown_sortby", formatParamCSV, false),
+		newParamFormat("drilldown_output_columns", formatParamCSV, false),
 		newParamFormat("drilldown_offset", nil, false),
 		newParamFormat("drilldown_limit", nil, false),
-		newParamFormat("cache", formatParamValueYesNo, false),
+		newParamFormat("cache", formatParamYesNo, false),
 		newParamFormat("match_escalation_threshold", nil, false),
 		newParamFormat("query_expansion", nil, false),
-		newParamFormat("query_flags", formatParamValueFlags, false),
+		newParamFormat("query_flags", formatParamFlags, false),
 		newParamFormat("query_expander", nil, false),
 		newParamFormat("adjuster", nil, false),
-		newParamFormat("drilldown_calc_types", formatParamValueCSV, false),
+		newParamFormat("drilldown_calc_types", formatParamCSV, false),
 		newParamFormat("drilldown_calc_target", nil, false),
 		newParamFormat("drilldown_filter", nil, false),
-		newParamFormat("sort_keys", formatParamValueCSV, false),
-		newParamFormat("drilldown_sort_keys", formatParamValueCSV, false),
+		newParamFormat("sort_keys", formatParamCSV, false),
+		newParamFormat("drilldown_sort_keys", formatParamCSV, false),
 	),
 	"shutdown": newCommandFormat(
 		nil,
@@ -594,12 +539,12 @@ var commandFormats = map[string]*commandFormat{
 	"status": newCommandFormat(nil),
 	"suggest": newCommandFormat(
 		nil,
-		newParamFormat("types", formatParamValueFlags, true),
+		newParamFormat("types", formatParamFlags, true),
 		newParamFormat("table", nil, true),
 		newParamFormat("column", nil, true),
 		newParamFormat("query", nil, true),
-		newParamFormat("sortby", formatParamValueCSV, false),
-		newParamFormat("output_columns", formatParamValueCSV, false),
+		newParamFormat("sortby", formatParamCSV, false),
+		newParamFormat("output_columns", formatParamCSV, false),
 		newParamFormat("offset", nil, false),
 		newParamFormat("limit", nil, false),
 		newParamFormat("frequency_threshold", nil, false),
@@ -614,18 +559,18 @@ var commandFormats = map[string]*commandFormat{
 	"table_create": newCommandFormat(
 		nil,
 		newParamFormat("name", nil, true),
-		newParamFormat("flags", formatParamValueFlags, false),
+		newParamFormat("flags", formatParamFlags, false),
 		newParamFormat("key_type", nil, false),
 		newParamFormat("value_type", nil, false),
 		newParamFormat("default_tokenizer", nil, false),
 		newParamFormat("normalizer", nil, false),
-		newParamFormat("token_filters", formatParamValueCSV, false),
+		newParamFormat("token_filters", formatParamCSV, false),
 	),
 	"table_list": newCommandFormat(nil),
 	"table_remove": newCommandFormat(
 		nil,
 		newParamFormat("name", nil, true),
-		newParamFormat("dependent", formatParamValueYesNo, false),
+		newParamFormat("dependent", formatParamYesNo, false),
 	),
 	"table_rename": newCommandFormat(
 		nil,
@@ -636,7 +581,7 @@ var commandFormats = map[string]*commandFormat{
 		nil,
 		newParamFormat("table", nil, true),
 		newParamFormat("string", nil, true),
-		newParamFormat("flags", formatParamValueFlags, false),
+		newParamFormat("flags", formatParamFlags, false),
 		newParamFormat("mode", nil, false),
 		newParamFormat("index_column", nil, false),
 	),
@@ -649,9 +594,9 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("tokenizer", nil, true),
 		newParamFormat("string", nil, true),
 		newParamFormat("normalizer", nil, false),
-		newParamFormat("flags", formatParamValueFlags, false),
+		newParamFormat("flags", formatParamFlags, false),
 		newParamFormat("mode", nil, false),
-		newParamFormat("token_filters", formatParamValueCSV, false),
+		newParamFormat("token_filters", formatParamCSV, false),
 	),
 	"tokenizer_list": newCommandFormat(nil),
 	"truncate": newCommandFormat(
@@ -671,8 +616,8 @@ type Command struct {
 
 // newCommand returns a new Command.
 func newCommand(name string) (*Command, error) {
-	format, ok := commandFormats[name]
-	if !ok {
+	format := getCommandFormat(name)
+	if format == nil {
 		return nil, NewError(InvalidCommand, map[string]interface{}{
 			"name":  name,
 			"error": "The name is not defined.",
@@ -929,10 +874,21 @@ func (c *Command) String() string {
 		cmd = append(cmd, " '"...)
 		for i := 0; i < len(v); i++ {
 			switch v[i] {
-			case '\'', '\\', '\b', '\t', '\r', '\n':
-				cmd = append(cmd, '\\')
+			case '\'':
+				cmd = append(cmd, `\'`...)
+			case '\\':
+				cmd = append(cmd, `\\`...)
+			case '\b':
+				cmd = append(cmd, `\b`...)
+			case '\t':
+				cmd = append(cmd, `\t`...)
+			case '\r':
+				cmd = append(cmd, `\r`...)
+			case '\n':
+				cmd = append(cmd, `\n`...)
+			default:
+				cmd = append(cmd, v[i])
 			}
-			cmd = append(cmd, v[i])
 		}
 		cmd = append(cmd, '\'')
 	}
