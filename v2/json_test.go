@@ -230,161 +230,161 @@ func TestJSONAppendSlice(t *testing.T) {
 	}
 }
 
-func TestJSONFormatBool(t *testing.T) {
-	if want, actual := "true", jsonFormatBool(true); actual != want {
-		t.Fatalf("jsonFormatBool failed: actual = %s, want = %s", actual, want)
+func TestJSONEncodeBool(t *testing.T) {
+	if want, actual := "true", jsonEncodeBool(true); actual != want {
+		t.Fatalf("jsonEncodeBool failed: actual = %s, want = %s", actual, want)
 	}
-	if want, actual := "false", jsonFormatBool(false); actual != want {
-		t.Fatalf("jsonFormatBool failed: actual = %s, want = %s", actual, want)
-	}
-}
-
-func TestJSONFormatInt(t *testing.T) {
-	if want, actual := "0", jsonFormatInt(0); actual != want {
-		t.Fatalf("jsonFormatInt failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "9223372036854775807", jsonFormatInt(9223372036854775807); actual != want {
-		t.Fatalf("jsonFormatInt failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "-9223372036854775808", jsonFormatInt(-9223372036854775808); actual != want {
-		t.Fatalf("jsonFormatInt failed: actual = %s, want = %s", actual, want)
+	if want, actual := "false", jsonEncodeBool(false); actual != want {
+		t.Fatalf("jsonEncodeBool failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatUint(t *testing.T) {
-	if want, actual := "0", jsonFormatUint(0); actual != want {
-		t.Fatalf("jsonFormatUint failed: actual = %s, want = %s", actual, want)
+func TestJSONEncodeInt(t *testing.T) {
+	if want, actual := "0", jsonEncodeInt(0); actual != want {
+		t.Fatalf("jsonEncodeInt failed: actual = %s, want = %s", actual, want)
 	}
-	if want, actual := "18446744073709551615", jsonFormatUint(18446744073709551615); actual != want {
-		t.Fatalf("jsonFormatUint failed: actual = %s, want = %s", actual, want)
+	if want, actual := "9223372036854775807", jsonEncodeInt(9223372036854775807); actual != want {
+		t.Fatalf("jsonEncodeInt failed: actual = %s, want = %s", actual, want)
 	}
-}
-
-func TestJSONFormatFloat(t *testing.T) {
-	if want, actual := "0", jsonFormatFloat(0.0, 64); actual != want {
-		t.Fatalf("jsonFormatFloat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "1.25", jsonFormatFloat(1.25, 64); actual != want {
-		t.Fatalf("jsonFormatFloat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "-1.25", jsonFormatFloat(-1.25, 64); actual != want {
-		t.Fatalf("jsonFormatFloat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "1.52587890625e-05", jsonFormatFloat(math.Pow(2, -16), 64); actual != want {
-		t.Fatalf("jsonFormatFloat failed: actual = %s, want = %s", actual, want)
+	if want, actual := "-9223372036854775808", jsonEncodeInt(-9223372036854775808); actual != want {
+		t.Fatalf("jsonEncodeInt failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatFloat32(t *testing.T) {
-	if want, actual := "1.2345679", jsonFormatFloat(1.234567890123456789, 32); actual != want {
-		t.Fatalf("jsonFormatFloat failed: actual = %s, want = %s", actual, want)
+func TestJSONEncodeUint(t *testing.T) {
+	if want, actual := "0", jsonEncodeUint(0); actual != want {
+		t.Fatalf("jsonEncodeUint failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "18446744073709551615", jsonEncodeUint(18446744073709551615); actual != want {
+		t.Fatalf("jsonEncodeUint failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatFloat64(t *testing.T) {
-	if want, actual := "1.2345678901234567", jsonFormatFloat(1.234567890123456789, 64); actual != want {
-		t.Fatalf("jsonFormatFloat failed: actual = %s, want = %s", actual, want)
+func TestJSONEncodeFloat(t *testing.T) {
+	if want, actual := "0", jsonEncodeFloat(0.0, 64); actual != want {
+		t.Fatalf("jsonEncodeFloat failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "1.25", jsonEncodeFloat(1.25, 64); actual != want {
+		t.Fatalf("jsonEncodeFloat failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "-1.25", jsonEncodeFloat(-1.25, 64); actual != want {
+		t.Fatalf("jsonEncodeFloat failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "1.52587890625e-05", jsonEncodeFloat(math.Pow(2, -16), 64); actual != want {
+		t.Fatalf("jsonEncodeFloat failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatString(t *testing.T) {
-	if want, actual := "\"Hello\"", jsonFormatString("Hello"); actual != want {
-		t.Fatalf("jsonFormatString failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "\"World\"", jsonFormatString("World"); actual != want {
-		t.Fatalf("jsonFormatString failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "\" \\t\\n\\\"\"", jsonFormatString(" \t\n\""); actual != want {
-		t.Fatalf("jsonFormatString failed: actual = %s, want = %s", actual, want)
+func TestJSONEncodeFloat32(t *testing.T) {
+	if want, actual := "1.2345679", jsonEncodeFloat(1.234567890123456789, 32); actual != want {
+		t.Fatalf("jsonEncodeFloat failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatTime(t *testing.T) {
-	if want, actual := "1234567890", jsonFormatTime(time.Unix(1234567890, 0)); actual != want {
-		t.Fatalf("jsonFormatTime failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "1123456789.987123", jsonFormatTime(time.Unix(1123456789, 987123654)); actual != want {
-		t.Fatalf("jsonFormatTime failed: actual = %s, want = %s", actual, want)
+func TestJSONEncodeFloat64(t *testing.T) {
+	if want, actual := "1.2345678901234567", jsonEncodeFloat(1.234567890123456789, 64); actual != want {
+		t.Fatalf("jsonEncodeFloat failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatGeo(t *testing.T) {
-	if want, actual := "\"123456,234567\"", jsonFormatGeo(Geo{Lat: 123456, Long: 234567}); actual != want {
-		t.Fatalf("jsonFormatGeo failed: actual = %s, want = %s", actual, want)
+func TestJSONEncodeString(t *testing.T) {
+	if want, actual := "\"Hello\"", jsonEncodeString("Hello"); actual != want {
+		t.Fatalf("jsonEncodeString failed: actual = %s, want = %s", actual, want)
 	}
-	if want, actual := "\"-123456,-234567\"", jsonFormatGeo(Geo{Lat: -123456, Long: -234567}); actual != want {
-		t.Fatalf("jsonFormatGeo failed: actual = %s, want = %s", actual, want)
+	if want, actual := "\"World\"", jsonEncodeString("World"); actual != want {
+		t.Fatalf("jsonEncodeString failed: actual = %s, want = %s", actual, want)
 	}
-}
-
-func TestJSONFormatScalar(t *testing.T) {
-	if want, actual := "true", jsonFormat(true); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "-128", jsonFormat(int8(-128)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "-32768", jsonFormat(int16(-32768)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "-2147483648", jsonFormat(int32(-2147483648)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "-9223372036854775808", jsonFormat(int64(-9223372036854775808)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "-9223372036854775808", jsonFormat(int(-9223372036854775808)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "255", jsonFormat(uint8(255)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "65535", jsonFormat(uint16(65535)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "4294967295", jsonFormat(uint32(4294967295)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "18446744073709551615", jsonFormat(uint64(18446744073709551615)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "18446744073709551615", jsonFormat(uint(18446744073709551615)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "1.2345679", jsonFormat(float32(1.234567890123456789)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "1.2345678901234567", jsonFormat(1.234567890123456789); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "\"String\"", jsonFormat("String"); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "1234567890.123456", jsonFormatTime(time.Unix(1234567890, 123456789)); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
-	}
-	if want, actual := "\"123456,234567\"", jsonFormat(Geo{Lat: 123456, Long: 234567}); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
+	if want, actual := "\" \\t\\n\\\"\"", jsonEncodeString(" \t\n\""); actual != want {
+		t.Fatalf("jsonEncodeString failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatPtr(t *testing.T) {
+func TestJSONEncodeTime(t *testing.T) {
+	if want, actual := "1234567890", jsonEncodeTime(time.Unix(1234567890, 0)); actual != want {
+		t.Fatalf("jsonEncodeTime failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "1123456789.987123", jsonEncodeTime(time.Unix(1123456789, 987123654)); actual != want {
+		t.Fatalf("jsonEncodeTime failed: actual = %s, want = %s", actual, want)
+	}
+}
+
+func TestJSONEncodeGeo(t *testing.T) {
+	if want, actual := "\"123456,234567\"", jsonEncodeGeo(Geo{Lat: 123456, Long: 234567}); actual != want {
+		t.Fatalf("jsonEncodeGeo failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "\"-123456,-234567\"", jsonEncodeGeo(Geo{Lat: -123456, Long: -234567}); actual != want {
+		t.Fatalf("jsonEncodeGeo failed: actual = %s, want = %s", actual, want)
+	}
+}
+
+func TestJSONEncodeScalar(t *testing.T) {
+	if want, actual := "true", jsonEncode(true); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "-128", jsonEncode(int8(-128)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "-32768", jsonEncode(int16(-32768)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "-2147483648", jsonEncode(int32(-2147483648)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "-9223372036854775808", jsonEncode(int64(-9223372036854775808)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "-9223372036854775808", jsonEncode(int(-9223372036854775808)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "255", jsonEncode(uint8(255)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "65535", jsonEncode(uint16(65535)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "4294967295", jsonEncode(uint32(4294967295)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "18446744073709551615", jsonEncode(uint64(18446744073709551615)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "18446744073709551615", jsonEncode(uint(18446744073709551615)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "1.2345679", jsonEncode(float32(1.234567890123456789)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "1.2345678901234567", jsonEncode(1.234567890123456789); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "\"String\"", jsonEncode("String"); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "1234567890.123456", jsonEncodeTime(time.Unix(1234567890, 123456789)); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "\"123456,234567\"", jsonEncode(Geo{Lat: 123456, Long: 234567}); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
+	}
+}
+
+func TestJSONEncodePtr(t *testing.T) {
 	v := 123456
-	if want, actual := "123456", jsonFormat(&v); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
+	if want, actual := "123456", jsonEncode(&v); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatArray(t *testing.T) {
+func TestJSONEncodeArray(t *testing.T) {
 	v := [3]int{123, 456, 789}
-	if want, actual := "[123,456,789]", jsonFormat(v); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
+	if want, actual := "[123,456,789]", jsonEncode(v); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
 	}
 }
 
-func TestJSONFormatSlice(t *testing.T) {
+func TestJSONEncodeSlice(t *testing.T) {
 	v := []int{987, 654, 321}
-	if want, actual := "[987,654,321]", jsonFormat(v); actual != want {
-		t.Fatalf("jsonFormat failed: actual = %s, want = %s", actual, want)
+	if want, actual := "[987,654,321]", jsonEncode(v); actual != want {
+		t.Fatalf("jsonEncode failed: actual = %s, want = %s", actual, want)
 	}
 }

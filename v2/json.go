@@ -147,49 +147,49 @@ func jsonAppend(buf []byte, v interface{}) []byte {
 	return jsonAppendValue(buf, reflect.ValueOf(v))
 }
 
-// jsonFormatBool returns the JSON-encoded v.
-func jsonFormatBool(v bool) string {
+// jsonEncodeBool returns the JSON-encoded v.
+func jsonEncodeBool(v bool) string {
 	return strconv.FormatBool(v)
 }
 
-// jsonFormatInt returns the JSON-encoded v.
-func jsonFormatInt(v int64) string {
+// jsonEncodeInt returns the JSON-encoded v.
+func jsonEncodeInt(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-// jsonFormatUint returns the JSON-encoded v.
-func jsonFormatUint(v uint64) string {
+// jsonEncodeUint returns the JSON-encoded v.
+func jsonEncodeUint(v uint64) string {
 	return strconv.FormatUint(v, 10)
 }
 
-// jsonFormatFloat returns the JSON-encoded v.
-func jsonFormatFloat(v float64, bitSize int) string {
+// jsonEncodeFloat returns the JSON-encoded v.
+func jsonEncodeFloat(v float64, bitSize int) string {
 	return strconv.FormatFloat(v, 'g', -1, bitSize)
 }
 
-// jsonFormatString returns the JSON-encoded v.
-func jsonFormatString(v string) string {
+// jsonEncodeString returns the JSON-encoded v.
+func jsonEncodeString(v string) string {
 	return string(jsonAppendString(nil, v))
 }
 
-// jsonFormatTime returns the JSON-encoded v.
-func jsonFormatTime(v time.Time) string {
+// jsonEncodeTime returns the JSON-encoded v.
+func jsonEncodeTime(v time.Time) string {
 	return string(jsonAppendTime(nil, v))
 }
 
-// jsonFormatGeo returns the JSON-encoded v.
-func jsonFormatGeo(v Geo) string {
+// jsonEncodeGeo returns the JSON-encoded v.
+func jsonEncodeGeo(v Geo) string {
 	return string(jsonAppendGeo(nil, v))
 }
 
-// jsonFormatValue returns the JSON-encoded v.
+// jsonEncodeValue returns the JSON-encoded v.
 // If the type of v is unsupported, it returns "null".
-func jsonFormatValue(v reflect.Value) string {
+func jsonEncodeValue(v reflect.Value) string {
 	return string(jsonAppendValue(nil, v))
 }
 
-// jsonFormat returns the JSON-encoded v.
+// jsonEncode returns the JSON-encoded v.
 // If the type of v is unsupported, it returns "null".
-func jsonFormat(v interface{}) string {
-	return jsonFormatValue(reflect.ValueOf(v))
+func jsonEncode(v interface{}) string {
+	return jsonEncodeValue(reflect.ValueOf(v))
 }
