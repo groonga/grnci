@@ -487,7 +487,7 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, R
 }
 
 // appendRow appends the JSON-encoded row to buf nad returns the exetended buffer.
-func (db *DB) appendRow(body []byte, row reflect.Value, cfs []*columnField) []byte {
+func (db *DB) appendRow(body []byte, row reflect.Value, cfs []*ColumnField) []byte {
 	body = append(body, '[')
 	for i, fi := range cfs {
 		if i != 0 {
@@ -500,7 +500,7 @@ func (db *DB) appendRow(body []byte, row reflect.Value, cfs []*columnField) []by
 }
 
 // appendRows appends the JSON-encoded rows to buf nad returns the exetended buffer.
-func (db *DB) appendRows(body []byte, rows reflect.Value, cfs []*columnField) []byte {
+func (db *DB) appendRows(body []byte, rows reflect.Value, cfs []*ColumnField) []byte {
 	n := rows.Len()
 	for i := 0; i < n; i++ {
 		if i != 0 {
@@ -517,11 +517,11 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 	if options == nil {
 		options = NewDBLoadOptions()
 	}
-	rs, err := getRowStruct(rows)
+	rs, err := GetRowStruct(rows)
 	if err != nil {
 		return 0, nil, err
 	}
-	var cfs []*columnField
+	var cfs []*ColumnField
 	if options.Columns == nil {
 		for _, cf := range rs.Columns {
 			if cf.Loadable {
@@ -843,11 +843,11 @@ func (db *DB) LogicalSelectRows(logicalTable, shardKey string, rows interface{},
 	if options == nil {
 		options = NewDBLogicalSelectOptions()
 	}
-	rs, err := getRowStruct(rows)
+	rs, err := GetRowStruct(rows)
 	if err != nil {
 		return 0, nil, err
 	}
-	var cfs []*columnField
+	var cfs []*ColumnField
 	if options.OutputColumns == nil {
 		cfs = rs.Columns
 		for _, cf := range cfs {
@@ -1701,7 +1701,7 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (io.ReadCloser, Respo
 }
 
 // parseRows parses rows.
-func (db *DB) parseRows(rows interface{}, data []byte, cfs []*columnField) (int, error) {
+func (db *DB) parseRows(rows interface{}, data []byte, cfs []*ColumnField) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return 0, NewError(InvalidResponse, map[string]interface{}{
@@ -2003,11 +2003,11 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 	if options == nil {
 		options = NewDBSelectOptions()
 	}
-	rs, err := getRowStruct(rows)
+	rs, err := GetRowStruct(rows)
 	if err != nil {
 		return 0, nil, err
 	}
-	var cfs []*columnField
+	var cfs []*ColumnField
 	if options.OutputColumns == nil {
 		cfs = rs.Columns
 		for _, cf := range cfs {

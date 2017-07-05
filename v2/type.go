@@ -2,54 +2,16 @@ package grnci
 
 import (
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-// Geo represents a TokyoGeoPoint or WGS84GeoPoint.
+// Geo is a geographical (latitude-longitude) location and
+// associated with WGS84GeoPoint and TokyoGeoPoint in Groonga.
 type Geo struct {
 	Lat  int32 // Latitude in milliseconds.
 	Long int32 // Longitude in milliseconds.
-}
-
-// formatBool returns the parameterized v.
-func formatBool(v bool) string {
-	if v {
-		return "yes"
-	}
-	return "no"
-}
-
-// formatInt returns the parameterized v.
-func formatInt(v int64) string {
-	return strconv.FormatInt(v, 10)
-}
-
-// formatUint returns the parameterized v.
-func formatUint(v uint64) string {
-	return strconv.FormatUint(v, 10)
-}
-
-// formatFloat returns the parameterized v.
-func formatFloat(v float64, bitSize int) string {
-	return strconv.FormatFloat(v, 'g', -1, bitSize)
-}
-
-// formatString returns the parameterized v.
-func formatString(v string) string {
-	return v
-}
-
-// formatTime returns the parameterized v.
-func formatTime(v time.Time) string {
-	return string(jsonAppendTime(nil, v))
-}
-
-// formatGeo returns the parameterized v.
-func formatGeo(v Geo) string {
-	return string(jsonAppendGeo(nil, v))
 }
 
 const (
@@ -59,7 +21,7 @@ const (
 	columnFieldTagDelim = ";"
 )
 
-// columnField stores the details of a struct field associated with a column.
+// ColumnField stores the details of a struct field associated with a column.
 // The tag format is as follows:
 //
 //  grnci:"_key;key_type;flags;default_tokenizer;normalizer;token_filters"
@@ -67,9 +29,9 @@ const (
 //  grnci:"name;type;flags"
 //
 // TODO: support dynamic columns (--columns[NAME]).
-type columnField struct {
-	Index            int                  // Index of the struct field
+type ColumnField struct {
 	Field            *reflect.StructField // Struct field
+	Index            int                  // Index of the struct field
 	Name             string               // Column name
 	Type             string               // --key_type for _key, --value_type for _value or --type for columns
 	Flags            []string             // --flags for _key and columns
@@ -117,7 +79,7 @@ func checkTableName(s string) error {
 }
 
 // parseIDOptions parses options of _id.
-func (cf *columnField) parseIDOptions(options []string) error {
+func (cf *ColumnField) parseIDOptions(options []string) error {
 	if len(options) > 1 {
 		return NewError(InvalidType, map[string]interface{}{
 			"name":    cf.Name,
@@ -142,7 +104,7 @@ func (cf *columnField) parseIDOptions(options []string) error {
 }
 
 // checkKeyType checks if cf.Type is valid as _key.
-func (cf *columnField) checkKeyType() error {
+func (cf *ColumnField) checkKeyType() error {
 	switch cf.Type {
 	case "":
 		// _key must not be a pointer.
@@ -198,7 +160,7 @@ func (cf *columnField) checkKeyType() error {
 }
 
 // checkKey checks if cf is valid as _key.
-func (cf *columnField) checkKey() error {
+func (cf *ColumnField) checkKey() error {
 	if err := cf.checkKeyType(); err != nil {
 		return err
 	}
@@ -207,7 +169,7 @@ func (cf *columnField) checkKey() error {
 }
 
 // parseKeyOptions parses options of _key.
-func (cf *columnField) parseKeyOptions(options []string) error {
+func (cf *ColumnField) parseKeyOptions(options []string) error {
 	if len(options) > 5 {
 		return NewError(InvalidType, map[string]interface{}{
 			"name":    cf.Name,
@@ -238,7 +200,7 @@ func (cf *columnField) parseKeyOptions(options []string) error {
 }
 
 // checkValue checks if cf is valid as _value.
-func (cf *columnField) checkValue() error {
+func (cf *ColumnField) checkValue() error {
 	switch cf.Type {
 	case "":
 		typ := cf.Field.Type
@@ -292,7 +254,7 @@ func (cf *columnField) checkValue() error {
 }
 
 // parseValueOptions parses options of _value.
-func (cf *columnField) parseValueOptions(options []string) error {
+func (cf *ColumnField) parseValueOptions(options []string) error {
 	if len(options) > 1 {
 		return NewError(InvalidType, map[string]interface{}{
 			"name":    cf.Name,
@@ -311,7 +273,7 @@ func (cf *columnField) parseValueOptions(options []string) error {
 }
 
 // parseScoreOptions parses options of _score.
-func (cf *columnField) parseScoreOptions(options []string) error {
+func (cf *ColumnField) parseScoreOptions(options []string) error {
 	if len(options) > 1 {
 		return NewError(InvalidType, map[string]interface{}{
 			"name":    cf.Name,
@@ -338,7 +300,7 @@ func (cf *columnField) parseScoreOptions(options []string) error {
 }
 
 // detectColumnType detects cf.Type from cf.Field.Type.
-func (cf *columnField) detectColumnType() error {
+func (cf *ColumnField) detectColumnType() error {
 	typ := cf.Field.Type
 	dim := 0
 Loop:
@@ -395,7 +357,9 @@ Loop:
 }
 
 // checkColumnType checks if cf.Type is valid as a column.
-func (cf *columnField) checkColumnType() error {
+//
+// TODO: index columns should be supported.
+func (cf *ColumnField) checkColumnType() error {
 	if cf.Type == "" {
 		return cf.detectColumnType()
 	}
@@ -419,7 +383,7 @@ func (cf *columnField) checkColumnType() error {
 
 // checkColumnName checks if cf.Name is valid as a column name.
 // If cf.Name specifies a pseudo column, it returns an error.
-func (cf *columnField) checkColumnName() error {
+func (cf *ColumnField) checkColumnName() error {
 	s := cf.Name
 	if s == "" {
 		return NewError(InvalidType, map[string]interface{}{
@@ -455,7 +419,7 @@ func (cf *columnField) checkColumnName() error {
 }
 
 // checkColumn checks if cf is valid as a column.
-func (cf *columnField) checkColumn() error {
+func (cf *ColumnField) checkColumn() error {
 	if err := cf.checkColumnName(); err != nil {
 		return err
 	}
@@ -467,7 +431,7 @@ func (cf *columnField) checkColumn() error {
 }
 
 // parseColumnOptions parses options of a column.
-func (cf *columnField) parseColumnOptions(options []string) error {
+func (cf *ColumnField) parseColumnOptions(options []string) error {
 	if len(options) > 2 {
 		return NewError(InvalidType, map[string]interface{}{
 			"name":    cf.Name,
@@ -485,7 +449,7 @@ func (cf *columnField) parseColumnOptions(options []string) error {
 }
 
 // parseOptions parses options of a column.
-func (cf *columnField) parseOptions(options []string) error {
+func (cf *ColumnField) parseOptions(options []string) error {
 	switch cf.Name {
 	case "_id":
 		return cf.parseIDOptions(options)
@@ -500,13 +464,20 @@ func (cf *columnField) parseOptions(options []string) error {
 	}
 }
 
-// newColumnField returns a new columnField.
-func newColumnField(index int, field *reflect.StructField) (*columnField, error) {
+// newColumnField returns a new ColumnField.
+func newColumnField(field *reflect.StructField, index int) (*ColumnField, error) {
 	tag := field.Tag.Get(columnFieldTagKey)
+	if tag == "" {
+		return nil, NewError(InvalidType, map[string]interface{}{
+			"name":  field.Name,
+			"tag":   field.Tag,
+			"error": "The struct field must have a non-empty " + columnFieldTagKey + " tag.",
+		})
+	}
 	values := strings.Split(tag, columnFieldTagDelim)
-	cf := &columnField{
-		Index: index,
+	cf := &ColumnField{
 		Field: field,
+		Index: index,
 		Name:  values[0],
 	}
 	if err := cf.parseOptions(values[1:]); err != nil {
@@ -515,19 +486,19 @@ func newColumnField(index int, field *reflect.StructField) (*columnField, error)
 	return cf, nil
 }
 
+// RowStruct stores the details of a struct associated with a row.
+type RowStruct struct {
+	Columns       []*ColumnField
+	ColumnsByName map[string]*ColumnField
+}
+
 var (
-	rowStructs      = make(map[reflect.Type]*rowStruct)
+	rowStructs      = make(map[reflect.Type]*RowStruct)
 	rowStructsMutex sync.Mutex
 )
 
-// rowStruct stores the details of a struct associated with a row.
-type rowStruct struct {
-	Columns       []*columnField
-	ColumnsByName map[string]*columnField
-}
-
-// getRowStruct returns a rowStruct for the terminal type of v.
-func getRowStruct(v interface{}) (*rowStruct, error) {
+// GetRowStruct returns a RowStruct for the terminal type of v.
+func GetRowStruct(v interface{}) (*RowStruct, error) {
 	typ := reflect.TypeOf(v)
 Loop:
 	for {
@@ -539,7 +510,7 @@ Loop:
 		default:
 			return nil, NewError(InvalidType, map[string]interface{}{
 				"type":  reflect.TypeOf(v).Name(),
-				"error": "The type is not supported as rows.",
+				"error": "The type is not supported as a row struct.",
 			})
 		}
 	}
@@ -548,8 +519,8 @@ Loop:
 	if rs, ok := rowStructs[typ]; ok {
 		return rs, nil
 	}
-	var cfs []*columnField
-	cfsByName := make(map[string]*columnField)
+	var cfs []*ColumnField
+	cfsByName := make(map[string]*ColumnField)
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		if len(field.PkgPath) != 0 { // Skip unexported fields.
@@ -558,12 +529,12 @@ Loop:
 		if field.Tag.Get(columnFieldTagKey) == "" { // Skip untagged fields.
 			continue
 		}
-		cf, err := newColumnField(i, &field)
+		cf, err := newColumnField(&field, i)
 		if err != nil {
 			return nil, err
 		}
 		if cf.Name == "_key" {
-			cfs = append([]*columnField{cf}, cfs...)
+			cfs = append([]*ColumnField{cf}, cfs...)
 		} else {
 			cfs = append(cfs, cf)
 		}
@@ -575,7 +546,7 @@ Loop:
 		}
 		cfsByName[cf.Name] = cf
 	}
-	rs := &rowStruct{
+	rs := &RowStruct{
 		Columns:       cfs,
 		ColumnsByName: cfsByName,
 	}
