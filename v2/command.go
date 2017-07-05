@@ -1,6 +1,7 @@
 package grnci
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -480,9 +481,9 @@ var commandFormats = map[string]*commandFormat{
 		nil,
 		newParamFormat("name", nil, true),
 	),
-	"query_expand": newCommandFormat(nil), // TODO
+	"query_expand": newCommandFormat(nil), // TODO: not documented.
 	"quit":         newCommandFormat(nil),
-	"range_filter": newCommandFormat(nil), // TODO
+	"range_filter": newCommandFormat(nil), // TODO: not documented.
 	"register": newCommandFormat(
 		nil,
 		newParamFormat("path", nil, true),
@@ -710,7 +711,15 @@ func tokenizeCommand(cmd string) ([]string, error) {
 							"error":   "The command ends with an escape character.",
 						})
 					}
-					token = append(token, unescapeCommandByte(s[i]))
+					switch s[i] {
+					case '\n':
+					case '\r':
+						if i+1 < len(s) && s[i+1] == '\n' {
+							i++
+						}
+					default:
+						token = append(token, unescapeCommandByte(s[i]))
+					}
 				default:
 					token = append(token, s[i])
 				}
@@ -893,4 +902,205 @@ func (c *Command) String() string {
 		cmd = append(cmd, '\'')
 	}
 	return string(cmd)
+}
+
+// commandBodyReader is a reader for command bodies.
+type commandBodyReader struct {
+	reader *CommandReader // Underlying reader
+	stack  []byte         // Stack for special symbols
+	line   []byte         // Current line
+	left   []byte         // Remaining bytes of the current line
+	err    error          // Last error
+}
+
+// newCommandBodyReader returns a new commandBodyReader.
+func newCommandBodyReader(cr *CommandReader) *commandBodyReader {
+	return &commandBodyReader{
+		reader: cr,
+		stack:  make([]byte, 0, 8),
+	}
+}
+
+// checkLine checks the current line.
+func (br *commandBodyReader) checkLine() error {
+	var top byte
+	if len(br.stack) != 0 {
+		top = br.stack[len(br.stack)-1]
+	}
+	for i := 0; i < len(br.line); i++ {
+		switch top {
+		case 0: // The first non-space byte must be '[' or '{'.
+			switch br.line[i] {
+			case '[', '{':
+				top = br.line[i] + 2 // Convert a bracket from left to right.
+				br.stack = append(br.stack, top)
+			case ' ', '\t', '\r', '\n':
+			default:
+				return io.EOF
+			}
+		case '"', '\'':
+			switch br.line[i] {
+			case '\\':
+				if i+1 < len(br.line) { // Skip the next byte if possible.
+					i++
+				}
+			case top: // Close the quoted string.
+				br.stack = br.stack[len(br.stack)-1:]
+				top = br.stack[len(br.stack)-1]
+			}
+		default:
+			switch br.line[i] {
+			case '"', '\'':
+				top = br.line[i]
+				br.stack = append(br.stack, top)
+			case '[', '{':
+				top = br.line[i] + 2 // Convert a bracket from left to right.
+				br.stack = append(br.stack, top)
+			case ']', '}':
+				if br.line[i] != top {
+					return io.EOF
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// Read reads up to len(p) bytes into p.
+func (br *commandBodyReader) Read(p []byte) (n int, err error) {
+	if len(br.left) == 0 && br.err != nil {
+		return 0, br.err
+	}
+	cr := br.reader
+	for n < len(p) {
+		if len(br.left) == 0 {
+			if err = br.checkLine(); err != nil {
+				cr.err = err
+				return
+			}
+			br.line, err = cr.readLine()
+			if err != nil {
+				return
+			}
+			br.left = br.line
+		}
+		m := copy(p[n:], br.left)
+		br.left = br.left[m:]
+		n += m
+	}
+	return
+}
+
+// CommandReader is a reader for commands.
+type CommandReader struct {
+	reader io.Reader // Underlying reader
+	buf    []byte    // Buffer
+	left   []byte    // Unprocessed bytes in buf
+	err    error     // Last error
+}
+
+// NewCommandReader returns a new CommandReader.
+func NewCommandReader(r io.Reader) *CommandReader {
+	return &CommandReader{
+		reader: r,
+		buf:    make([]byte, 1024),
+	}
+}
+
+// fill reads data from the underlying reader and fills the buffer.
+func (cr *CommandReader) fill() error {
+	if cr.err != nil {
+		return cr.err
+	}
+	if len(cr.left) == len(cr.buf) {
+		cr.buf = make([]byte, len(cr.buf)*2)
+	}
+	copy(cr.buf, cr.left)
+	n, err := cr.reader.Read(cr.buf[len(cr.left):])
+	if err != nil {
+		cr.err = err
+		if err != io.EOF {
+			cr.err = NewError(InvalidCommand, map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+	}
+	if n == 0 {
+		return cr.err
+	}
+	cr.left = cr.buf[:len(cr.left)+n]
+	return nil
+}
+
+// readLine reads the next line.
+func (cr *CommandReader) readLine() ([]byte, error) {
+	if len(cr.left) == 0 && cr.err != nil {
+		return nil, cr.err
+	}
+	i := 0
+	for {
+		if i == len(cr.left) {
+			cr.fill()
+			if i == len(cr.left) {
+				if i == 0 {
+					return nil, cr.err
+				}
+				line := cr.left
+				cr.left = cr.left[len(cr.left):]
+				return line, nil
+			}
+		}
+		switch cr.left[i] {
+		case '\\':
+			i++
+			if i == len(cr.left) {
+				cr.fill()
+			}
+			if i == len(cr.left) {
+				line := cr.left
+				cr.left = cr.left[len(cr.left):]
+				return line, nil
+			}
+		case '\r':
+			if i+1 == len(cr.left) {
+				cr.fill()
+			}
+			if i+1 < len(cr.left) && cr.left[i+1] == '\n' {
+				i++
+			}
+			line := cr.left[:i+1]
+			cr.left = cr.left[i+1:]
+			return line, nil
+		case '\n':
+			line := cr.left[:i+1]
+			cr.left = cr.left[i+1:]
+			return line, nil
+		}
+		i++
+	}
+}
+
+// Read reads the next command.
+// If the command has a body, its whole content must be read before the next Read.
+func (cr *CommandReader) Read() (*Command, error) {
+	if len(cr.left) == 0 && cr.err != nil {
+		return nil, cr.err
+	}
+	for {
+		line, err := cr.readLine()
+		if err != nil {
+			return nil, err
+		}
+		cmd := bytes.TrimLeft(line, " \t\r\n")
+		if len(cmd) != 0 {
+			cmd, err := ParseCommand(string(cmd))
+			if err != nil {
+				return nil, err
+			}
+			if cmd.NeedsBody() {
+				cmd.SetBody(newCommandBodyReader(cr))
+			}
+			return cmd, nil
+		}
+	}
 }

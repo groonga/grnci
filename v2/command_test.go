@@ -1,6 +1,9 @@
 package grnci
 
 import (
+	"io"
+	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -209,28 +212,61 @@ func TestFormatParamSelect(t *testing.T) {
 
 func TestNewCommand(t *testing.T) {
 	params := map[string]interface{}{
-		"table":     "Tbl",
-		"filter":    "value < 100",
-		"sort_keys": "value",
-		"cache":     false,
-		"offset":    0,
-		"limit":     -1,
+		"table":                 "Tbl",
+		"match_columns":         []string{"title", "body"},
+		"query":                 "Japan",
+		"filter":                "value < 100",
+		"sort_keys":             []string{"value", "_key"},
+		"output_columns":        []string{"_id", "_key", "value", "percent"},
+		"cache":                 false,
+		"offset":                0,
+		"limit":                 -1,
+		"column[percent].stage": "output",
+		"column[percent].type":  "Float",
+		"column[percent].value": "value / 100",
 	}
 	cmd, err := NewCommand("select", params)
 	if err != nil {
 		t.Fatalf("NewCommand failed: %v", err)
 	}
-	if cmd.Name() != "select" {
-		t.Fatalf("NewCommand failed: name = %s, want = %s", cmd.Name(), "select")
+	if actual, want := cmd.Name(), "select"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
-	if key, want := "table", "Tbl"; cmd.Params()[key] != want {
-		t.Fatalf("NewCommand failed: params[\"%s\"] = %s, want = %v", key, cmd.Params()[key], want)
+	if actual, want := cmd.params["table"], "Tbl"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
-	if key, want := "cache", "no"; cmd.Params()[key] != want {
-		t.Fatalf("NewCommand failed: params[\"%s\"] = %s, want = %v", key, cmd.Params()[key], want)
+	if actual, want := cmd.params["match_columns"], "title||body"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
-	if key, want := "limit", "-1"; cmd.Params()[key] != want {
-		t.Fatalf("NewCommand failed: params[\"%s\"] = %s, want = %v", key, cmd.Params()[key], want)
+	if actual, want := cmd.params["query"], "Japan"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["filter"], "value < 100"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["sort_keys"], "value,_key"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["output_columns"], "_id,_key,value,percent"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["cache"], "no"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["offset"], "0"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["limit"], "-1"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["column[percent].stage"], "output"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["column[percent].type"], "Float"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.params["column[percent].value"], "value / 100"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
 }
 
@@ -239,17 +275,20 @@ func TestParseCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseCommand failed: %v", err)
 	}
-	if want := "select"; cmd.Name() != want {
-		t.Fatalf("ParseCommand failed: name = %s, want = %s", cmd.Name(), want)
+	if actual, want := cmd.Name(), "select"; actual != want {
+		t.Fatalf("ParseCommand failed: actual = %s, want = %s", actual, want)
 	}
-	if key, want := "table", "Tbl"; cmd.Params()[key] != want {
-		t.Fatalf("NewCommand failed: params[\"%s\"] = %s, want = %v", key, cmd.Params()[key], want)
+	if actual, want := cmd.Params()["table"], "Tbl"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
-	if key, want := "query", `"apple juice"`; cmd.Params()[key] != want {
-		t.Fatalf("NewCommand failed: params[\"%s\"] = %s, want = %v", key, cmd.Params()[key], want)
+	if actual, want := cmd.Params()["query"], "\"apple juice\""; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
-	if key, want := "cache", "no"; cmd.Params()[key] != want {
-		t.Fatalf("NewCommand failed: params[\"%s\"] = %s, want = %v", key, cmd.Params()[key], want)
+	if actual, want := cmd.Params()["filter"], "price < 100"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
+	if actual, want := cmd.Params()["cache"], "no"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
 }
 
@@ -261,29 +300,43 @@ func TestCommandSetParam(t *testing.T) {
 	if err := cmd.SetParam("", "Tbl"); err != nil {
 		t.Fatalf("cmd.SetParam failed: %v", err)
 	}
+	if actual, want := cmd.Params()["table"], "Tbl"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
 	if err := cmd.SetParam("cache", false); err != nil {
 		t.Fatalf("cmd.SetParam failed: %v", err)
+	}
+	if actual, want := cmd.Params()["cache"], "no"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
 	if err := cmd.SetParam("cache", true); err != nil {
 		t.Fatalf("cmd.SetParam failed: %v", err)
 	}
+	if actual, want := cmd.Params()["cache"], "yes"; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
+	}
 	if err := cmd.SetParam("cache", nil); err != nil {
 		t.Fatalf("cmd.SetParam failed: %v", err)
+	}
+	if actual, want := cmd.Params()["cache"], ""; actual != want {
+		t.Fatalf("NewCommand failed: actual = %s, want = %s", actual, want)
 	}
 }
 
 func TestCommandString(t *testing.T) {
 	params := map[string]interface{}{
-		"table": "Tbl",
-		"cache": "no",
-		"limit": -1,
+		"table":         "Tbl",
+		"cache":         "no",
+		"limit":         -1,
+		"match_columns": []string{"title", "body"},
+		"query":         `"de facto"`,
 	}
 	cmd, err := NewCommand("select", params)
 	if err != nil {
 		t.Fatalf("NewCommand failed: %v", err)
 	}
 	actual := cmd.String()
-	want := "select --cache 'no' --limit '-1' --table 'Tbl'"
+	want := `select --cache 'no' --limit '-1' --match_columns 'title||body' --query '"de facto"' --table 'Tbl'`
 	if actual != want {
 		t.Fatalf("cmd.String failed: actual = %s, want = %s", actual, want)
 	}
@@ -305,5 +358,60 @@ func TestCommandNeedsBody(t *testing.T) {
 		if actual != want {
 			t.Fatalf("cmd.NeedsBody failed: cmd = %s, needsBody = %v, want = %v", cmd, actual, want)
 		}
+	}
+}
+
+func TestCommandReader(t *testing.T) {
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR Text
+
+table_create Idx TABLE_PAT_KEY ShortText \
+  --default_tokenizer TokenBigram --normalizer NormalizerAuto
+column_create Idx col COLUMN_INDEX|WITH_POSITION Tbl col
+
+load --table Tbl
+[
+["col"],
+["Hello, world!"],
+["'{' is called a left brace."]
+]
+`
+	cr := NewCommandReader(strings.NewReader(dump))
+	if cmd, err := cr.Read(); err != nil {
+		t.Fatalf("cr.Read failed: %v", err)
+	} else if actual, want := cmd.Name(), "table_create"; actual != want {
+		t.Fatalf("cr.Read failed: actual = %s, want = %s", actual, want)
+	}
+	if cmd, err := cr.Read(); err != nil {
+		t.Fatalf("cr.Read failed: %v", err)
+	} else if actual, want := cmd.Name(), "column_create"; actual != want {
+		t.Fatalf("cr.Read failed: actual = %s, want = %s", actual, want)
+	}
+	if cmd, err := cr.Read(); err != nil {
+		t.Fatalf("cr.Read failed: %v", err)
+	} else if actual, want := cmd.Name(), "table_create"; actual != want {
+		t.Fatalf("cr.Read failed: actual = %s, want = %s", actual, want)
+	}
+	if cmd, err := cr.Read(); err != nil {
+		t.Fatalf("cr.Read failed: %v", err)
+	} else if actual, want := cmd.Name(), "column_create"; actual != want {
+		t.Fatalf("cr.Read failed: actual = %s, want = %s", actual, want)
+	}
+	if cmd, err := cr.Read(); err != nil {
+		t.Fatalf("cr.Read failed: %v", err)
+	} else if actual, want := cmd.Name(), "load"; actual != want {
+		t.Fatalf("cr.Read failed: actual = %s, want = %s", actual, want)
+	} else if body, err := ioutil.ReadAll(cmd.Body()); err != nil {
+		t.Fatalf("io.ReadAll failed: %v", err)
+	} else if actual, want := string(body), `[
+["col"],
+["Hello, world!"],
+["'{' is called a left brace."]
+]
+`; actual != want {
+		t.Fatalf("io.ReadAll failed: actual = %s, want = %s", actual, want)
+	}
+	if _, err := cr.Read(); err != io.EOF {
+		t.Fatalf("cr.Read wongly succeeded")
 	}
 }
