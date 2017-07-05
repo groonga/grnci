@@ -22,14 +22,19 @@ type Address struct {
 
 // Address default settings.
 const (
-	DefaultScheme   = "gqtp"
-	DefaultHost     = "localhost"
-	GQTPDefaultPort = 10043
-	HTTPDefaultPort = 10041
-	HTTPDefaultPath = "/d/"
+	// DefaultScheme is used to fill Address.Scheme if the scheme part is empty.
+	DefaultScheme = "gqtp"
+	// DefaultHost is used to fill Address.Host if the host part is empty.
+	DefaultHost = "localhost"
+	// DefaultGQTPPort is used to fill Address.Port if the scheme is GQTP and the port part is empty.
+	DefaultGQTPPort = 10043
+	// HTTPDefaultPort is used to fill Address.Port if the scheme is HTTP and the port part is empty.
+	DefaultHTTPPort = 10041
+	// HTTPDefaultPath is used to fill Address.Path if the scheme is HTTP and the path part is empty.
+	DefaultHTTPPath = "/d/"
 )
 
-// fillGQTP checks fields and fills missing fields in a GQTP address.
+// fillGQTP fills missing fields in a GQTP address.
 func (a *Address) fillGQTP() error {
 	if a.Scheme == "" {
 		a.Scheme = "gqtp"
@@ -50,7 +55,7 @@ func (a *Address) fillGQTP() error {
 		a.Host = DefaultHost
 	}
 	if a.Port == 0 {
-		a.Port = GQTPDefaultPort
+		a.Port = DefaultGQTPPort
 	}
 	if a.Path != "" {
 		return NewError(InvalidAddress, map[string]interface{}{
@@ -73,7 +78,7 @@ func (a *Address) fillGQTP() error {
 	return nil
 }
 
-// fillHTTP checks fields and fills missing fields in an HTTP address.
+// fillHTTP fills missing fields in an HTTP address.
 func (a *Address) fillHTTP() error {
 	if a.Scheme == "" {
 		a.Scheme = "http"
@@ -82,15 +87,15 @@ func (a *Address) fillHTTP() error {
 		a.Host = DefaultHost
 	}
 	if a.Port == 0 {
-		a.Port = HTTPDefaultPort
+		a.Port = DefaultHTTPPort
 	}
 	if a.Path == "" {
-		a.Path = HTTPDefaultPath
+		a.Path = DefaultHTTPPath
 	}
 	return nil
 }
 
-// fill checks fields and fills missing fields.
+// fill fills missing fields.
 func (a *Address) fill() error {
 	if a.Scheme == "" {
 		a.Scheme = DefaultScheme
@@ -113,7 +118,7 @@ func (a *Address) fill() error {
 	return nil
 }
 
-// parseHostPort parses a host and a port in an address.
+// parseHostPort parses the host and port.
 func (a *Address) parseHostPort(s string) error {
 	if s == "" {
 		return nil
@@ -163,7 +168,7 @@ func (a *Address) parseHostPort(s string) error {
 
 // parseAddress parses an address.
 // The expected address format is
-// [scheme://][username[:password]@]host[:port][path].
+// [scheme://][username[:password]@][host][:port][path][?query][#fragment].
 func parseAddress(s string) (*Address, error) {
 	a := new(Address)
 	if i := strings.IndexByte(s, '#'); i != -1 {
@@ -202,6 +207,13 @@ func parseAddress(s string) (*Address, error) {
 // ParseAddress parses an address.
 // The expected address format is
 // [scheme://][username[:password]@][host][:port][path][?query][#fragment].
+//
+// If the scheme part is empty, it is filled with DefaultScheme.
+// If the host part is empty, it is filled with DefaultHost.
+// If the port part is empty, it is filled with DefaultGQTPPort or
+// DefaultHTTPPort according to the scheme.
+// If the scheme is HTTP or HTTPS and the path part is empty,
+// it is filled with DefaultHTTPPath.
 func ParseAddress(s string) (*Address, error) {
 	a, err := parseAddress(s)
 	if err != nil {
@@ -215,6 +227,10 @@ func ParseAddress(s string) (*Address, error) {
 
 // ParseGQTPAddress parses a GQTP address.
 // The expected address format is [scheme://][host][:port].
+//
+// If the scheme part is empty, it is filled with "gqtp".
+// If the host part is empty, it is filled with DefaultHost.
+// If the port part is empty, it is filled with DefaultGQTPPort.
 func ParseGQTPAddress(s string) (*Address, error) {
 	a, err := parseAddress(s)
 	if err != nil {
@@ -234,9 +250,14 @@ func ParseGQTPAddress(s string) (*Address, error) {
 	return a, nil
 }
 
-// ParseHTTPAddress parses an HTTP address.
+// ParseHTTPAddress parses an HTTP or HTTPS address.
 // The expected address format is
 // [scheme://][username[:password]@][host][:port][path][?query][#fragment].
+//
+// If the scheme part is empty, it is filled with "http".
+// If the host part is empty, it is filled with DefaultHost.
+// If the port part is empty, it is filled with DefaultHTTPPort.
+// If the path part is empty, it is filled with DefaultHTTPPath.
 func ParseHTTPAddress(s string) (*Address, error) {
 	a, err := parseAddress(s)
 	if err != nil {
@@ -256,7 +277,7 @@ func ParseHTTPAddress(s string) (*Address, error) {
 	return a, nil
 }
 
-// String assembles the fields into an address.
+// String assembles the fields into an address string.
 func (a *Address) String() string {
 	var url string
 	if a.Scheme != "" {
