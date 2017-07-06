@@ -273,24 +273,25 @@ func TestDBStatus(t *testing.T) {
 // 	}
 // }
 
-// func TestDBNormalizerList(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
-
-// 	result, resp, err := db.NormalizerList()
-// 	if err != nil {
-// 		t.Fatalf("db.NormalizerList failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+func TestDBNormalizerList(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+	result, resp, err := db.NormalizerList()
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.NormalizerList failed: %v", err)
+	}
+	if len(result) == 0 {
+		t.Fatalf("Normalizers not found")
+	}
+	for i, normalizer := range result {
+		if normalizer.Name == "" {
+			t.Fatalf("Name is wrong: i = %d, normalizer = %#v", i, normalizer)
+		}
+	}
+}
 
 // func TestDBObjectList(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
@@ -510,21 +511,22 @@ func TestDBStatus(t *testing.T) {
 // 	}
 // }
 
-// func TestDBTokenizerList(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
-
-// 	result, resp, err := db.TokenizerList()
-// 	if err != nil {
-// 		t.Fatalf("db.TokenizerList failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+func TestDBTokenizerList(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+	result, resp, err := db.TokenizerList()
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.TokenizerList failed: %v", err)
+	}
+	if len(result) == 0 {
+		t.Fatalf("Tokenizers not found")
+	}
+	for i, tokenizer := range result {
+		if tokenizer.Name == "" {
+			t.Fatalf("Name is wrong: i = %d, tokenizer = %#v", i, tokenizer)
+		}
+	}
+}
