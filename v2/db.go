@@ -1295,6 +1295,50 @@ func (db *DB) Reindex(target string) (bool, Response, error) {
 	return db.recvBool(resp)
 }
 
+// Restore reads commands from r and executes the commands.
+// If w is not nil, responses are written into w.
+// Restore returns the number of commands executed and the first error.
+func (db *DB) Restore(r io.Reader, w io.Writer, stopOnError bool) (n int, err error) {
+	cr := NewCommandReader(r)
+	for {
+		cmd, e := cr.Read()
+		if e != nil {
+			if e != io.EOF && err == nil {
+				err = e
+			}
+			return
+		}
+		n++
+		resp, e := db.Query(cmd)
+		if e == nil {
+			if w != nil {
+				if _, e = io.Copy(w, resp); e != nil && err == nil {
+					if _, ok := e.(*Error); !ok {
+						e = NewError(UnknownError, map[string]interface{}{
+							"error": e.Error(),
+						})
+					}
+					err = e
+				}
+				if _, e := w.Write([]byte("\n")); e != nil && err == nil {
+					err = NewError(UnknownError, map[string]interface{}{
+						"error": e.Error(),
+					})
+				}
+			}
+			if e = resp.Close(); e == nil {
+				e = resp.Err()
+			}
+		}
+		if e != nil && err == nil {
+			err = e
+		}
+		if err != nil && stopOnError {
+			return
+		}
+	}
+}
+
 // RequestCancel executes request_cancel.
 func (db *DB) RequestCancel(id int) (bool, Response, error) {
 	resp, err := db.Invoke("request_cancel", map[string]interface{}{
