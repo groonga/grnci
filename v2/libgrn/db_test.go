@@ -361,24 +361,44 @@ true
 	}
 }
 
-// func TestDBSchema(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBSchema(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.Schema()
-// 	if err != nil {
-// 		t.Fatalf("db.Schema failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	db.PluginRegister("token_filters/stem")
+	db.TableCreate("Tbl", nil)
+	result, resp, err := db.Schema()
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Schema failed: %v", err)
+	}
+	if len(result.Plugins) != 1 {
+		t.Fatalf("Plugins is wrong: result = %#v", result)
+	}
+	if _, ok := result.Plugins["token_filters/stem"]; !ok {
+		t.Fatalf("Plugins is wrong: result = %#v", result)
+	}
+	if len(result.Types) == 0 {
+		t.Fatalf("Types is wrong: result = %#v", result)
+	}
+	if len(result.Tokenizers) == 0 {
+		t.Fatalf("Tokenizers is wrong: result = %#v", result)
+	}
+	if len(result.Normalizers) == 0 {
+		t.Fatalf("Normalizers is wrong: result = %#v", result)
+	}
+	if len(result.TokenFilters) == 0 {
+		t.Fatalf("TokenFilters is wrong: result = %#v", result)
+	}
+	if len(result.Tables) != 1 {
+		t.Fatalf("Tables is wrong: result = %#v", result)
+	}
+	if _, ok := result.Tables["Tbl"]; !ok {
+		t.Fatalf("Tables is wrong: result = %#v", result)
+	}
+}
 
 // func TestDBSelect(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
