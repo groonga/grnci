@@ -237,6 +237,7 @@ func removeDB(db *grnci.DB, dir string) {
 func TestDBNormalizerList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
+
 	result, resp, err := db.NormalizerList()
 	if err == nil {
 		err = resp.Err()
@@ -378,6 +379,7 @@ func TestDBNormalizerList(t *testing.T) {
 func TestDBStatus(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
+
 	result, resp, err := db.Status()
 	if err == nil {
 		err = resp.Err()
@@ -551,6 +553,7 @@ func TestDBTokenizeWithOptions(t *testing.T) {
 func TestDBTokenizerList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
+
 	result, resp, err := db.TokenizerList()
 	if err == nil {
 		err = resp.Err()
