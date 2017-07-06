@@ -1,4 +1,73 @@
-package grnci
+package libgrn
+
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/groonga/grnci/v2"
+)
+
+// makeDB creates a temporary DB.
+func makeDB(t *testing.T) (db *grnci.DB, dir string) {
+	dir, err := ioutil.TempDir("", "libgrn")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir failed: %v", err)
+	}
+	conn, err := Create(filepath.Join(dir, "db"))
+	if err != nil {
+		os.RemoveAll(dir)
+		t.Fatalf("Open failed: %v", err)
+	}
+	return grnci.NewDB(conn), dir
+}
+
+// removeDB removes a temporary DB.
+func removeDB(db *grnci.DB, dir string) {
+	db.Close()
+	os.RemoveAll(dir)
+}
+
+func TestDBStatus(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+	result, resp, err := db.Status()
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Status failed: %v", err)
+	}
+	if result.AllocCount == 0 {
+		t.Fatalf("AllocCount is wrong: result = %#v", result)
+	}
+	if result.CacheHitRate != 0.0 {
+		t.Fatalf("CacheHitRate is wrong: result = %#v", result)
+	}
+	if result.CommandVersion != 1 {
+		t.Fatalf("CommandVersion is wrong: result = %#v", result)
+	}
+	if result.DefaultCommandVersion != 1 {
+		t.Fatalf("DefaultCommandVersion is wrong: result = %#v", result)
+	}
+	if result.MaxCommandVersion != 3 {
+		t.Fatalf("MaxCommandVersion is wrong: result = %#v", result)
+	}
+	if result.NQueries != 0 {
+		t.Fatalf("NQueries is wrong: result = %#v", result)
+	}
+	if result.StartTime.IsZero() {
+		t.Fatalf("StartTime is wrong: result = %#v", result)
+	}
+	if result.Uptime < 0 || result.Uptime > time.Minute {
+		t.Fatalf("Uptime is wrong: result = %#v", result)
+	}
+	if result.Version == "" {
+		t.Fatalf("Version is wrong: result = %#v", result)
+	}
+}
 
 // func TestDBColumnList(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
@@ -338,25 +407,6 @@ package grnci
 // 	if len(rows) != 0 {
 // 		log.Printf("time = %s", rows[0].Time)
 // 	}
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
-
-// func TestDBStatus(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
-
-// 	result, resp, err := db.Status()
-// 	if err != nil {
-// 		t.Fatalf("db.Status failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
 // 	log.Printf("resp = %#v", resp)
 // 	if err := resp.Err(); err != nil {
 // 		log.Printf("error = %#v", err)
