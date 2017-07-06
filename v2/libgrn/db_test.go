@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"reflect"
+
 	"github.com/groonga/grnci/v2"
 )
 
@@ -213,26 +215,59 @@ func removeDB(db *grnci.DB, dir string) {
 // 	}
 // }
 
-// func TestDBNormalize(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBNormalize(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.Normalize("NormalizerAuto", "LaTeX", []string{
-// 		"WITH_TYPES", "WITH_CHECKS",
-// 	})
-// 	if err != nil {
-// 		t.Fatalf("db.Normalize failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	result, resp, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", nil)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Tokenize failed: %v", err)
+	}
+	if result.Normalized != "ウォーター two リットル" {
+		t.Fatalf("Normalized is wrong: result = %#v", result)
+	}
+	if len(result.Types) != 0 {
+		t.Fatalf("Types is wrong: result = %#v", result)
+	}
+	if len(result.Checks) != 0 {
+		t.Fatalf("Checks is wrong: result = %#v", result)
+	}
+}
+
+func TestDBNormalizeWithFlags(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	flags := []string{"WITH_TYPES", "WITH_CHECKS"}
+	result, resp, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", flags)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Tokenize failed: %v", err)
+	}
+	if result.Normalized != "ウォーター two リットル" {
+		t.Fatalf("Normalized is wrong: result = %#v", result)
+	}
+	types := []string{
+		"katakana", "katakana", "katakana", "katakana", "katakana", "others",
+		"alpha", "alpha", "alpha", "others|blank", "katakana", "katakana",
+		"katakana", "katakana",
+	}
+	if !reflect.DeepEqual(result.Types, types) {
+		t.Fatalf("Types is wrong: result = %#v", result)
+	}
+	checks := []int{
+		3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0, 1, 1, 1, 1, 1, 6, 0, 0,
+		-1, 0, 0, -1, 0, 0, -1, 0, 0,
+	}
+	if !reflect.DeepEqual(result.Checks, checks) {
+		t.Fatalf("Checks is wrong: result = %#v", result)
+	}
+}
 
 func TestDBNormalizerList(t *testing.T) {
 	db, dir := makeDB(t)
