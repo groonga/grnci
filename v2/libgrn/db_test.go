@@ -311,24 +311,21 @@ func TestDBNormalizerList(t *testing.T) {
 // 	}
 // }
 
-// func TestDBQuit(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBQuit(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.Quit()
-// 	if err != nil {
-// 		t.Fatalf("db.Quit failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	result, resp, err := db.Quit()
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Quit failed: %v", err)
+	}
+	if !result {
+		t.Fatalf("db.Quit failed: result = %v", result)
+	}
+}
 
 func TestRestore(t *testing.T) {
 	db, dir := makeDB(t)
