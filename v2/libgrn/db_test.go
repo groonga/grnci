@@ -454,24 +454,61 @@ func TestDBNormalizerList(t *testing.T) {
 // 	}
 // }
 
-// func TestDBTokenize(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBTokenize(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.Tokenize("TokenBigram", "あいうえお", nil)
-// 	if err != nil {
-// 		t.Fatalf("db.Tokenize failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	result, resp, err := db.Tokenize("TokenBigram", "あいうえお", nil)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Tokenize failed: %v", err)
+	}
+	values := []string{"あい", "いう", "うえ", "えお", "お"}
+	for i, token := range result {
+		if token.Position != i {
+			t.Fatalf("Position is wrong: i = %d, token = %#v", i, token)
+		}
+		if token.ForcePrefix {
+			t.Fatalf("ForcePrefix is wrong: i = %d, token = %#v", i, token)
+		}
+		if i >= len(values) || token.Value != values[i] {
+			t.Fatalf("Value is wrong: i = %d, token = %#v", i, token)
+		}
+	}
+}
+
+func TestDBTokenizeWithOptions(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	db.PluginRegister("token_filters/stem")
+	options := grnci.NewDBTokenizeOptions()
+	options.Normalizer = "NormalizerAuto"
+	options.Flags = []string{"NONE"}
+	options.Mode = "ADD"
+	options.TokenFilters = []string{"TokenFilterStem"}
+	result, resp, err := db.Tokenize("TokenBigram", "It works well.", options)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Tokenize failed: %v", err)
+	}
+	values := []string{"it", "work", "well", "."}
+	for i, token := range result {
+		if token.Position != i {
+			t.Fatalf("Position is wrong: i = %d, token = %#v", i, token)
+		}
+		if token.ForcePrefix {
+			t.Fatalf("ForcePrefix is wrong: i = %d, token = %#v", i, token)
+		}
+		if token.Value != values[i] {
+			t.Fatalf("Value is wrong: i = %d, token = %#v", i, token)
+		}
+	}
+}
 
 // func TestDBTruncate(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
