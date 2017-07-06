@@ -493,7 +493,7 @@ func (db *DB) appendRow(body []byte, row reflect.Value, cfs []*ColumnField) []by
 		if i != 0 {
 			body = append(body, ',')
 		}
-		body = jsonAppendValue(body, row.Field(fi.Index))
+		body = AppendJSONValue(body, row.Field(fi.Index))
 	}
 	body = append(body, ']')
 	return body

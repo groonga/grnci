@@ -6,28 +6,28 @@ import (
 	"time"
 )
 
-// jsonAppendBool appends the JSON-encoded v to buf and returns the extended buffer.
-func jsonAppendBool(buf []byte, v bool) []byte {
+// AppendJSONBool appends the JSON-encoded v to buf and returns the extended buffer.
+func AppendJSONBool(buf []byte, v bool) []byte {
 	return strconv.AppendBool(buf, v)
 }
 
-// jsonAppendInt appends the JSON-encoded v to buf and returns the extended buffer.
-func jsonAppendInt(buf []byte, v int64) []byte {
+// AppendJSONInt appends the JSON-encoded v to buf and returns the extended buffer.
+func AppendJSONInt(buf []byte, v int64) []byte {
 	return strconv.AppendInt(buf, v, 10)
 }
 
-// jsonAppendUint appends the JSON-encoded v to buf and returns the extended buffer.
-func jsonAppendUint(buf []byte, v uint64) []byte {
+// AppendJSONUint appends the JSON-encoded v to buf and returns the extended buffer.
+func AppendJSONUint(buf []byte, v uint64) []byte {
 	return strconv.AppendUint(buf, v, 10)
 }
 
-// jsonAppendFloat appands the JSON-encoded v to buf and returns the extended buffer.
-func jsonAppendFloat(buf []byte, v float64, bitSize int) []byte {
+// AppendJSONFloat appands the JSON-encoded v to buf and returns the extended buffer.
+func AppendJSONFloat(buf []byte, v float64, bitSize int) []byte {
 	return strconv.AppendFloat(buf, v, 'g', -1, bitSize)
 }
 
-// jsonAppendString appends the JSON-encoded v to buf and returns the extended buffer.
-func jsonAppendString(buf []byte, v string) []byte {
+// AppendJSONString appends the JSON-encoded v to buf and returns the extended buffer.
+func AppendJSONString(buf []byte, v string) []byte {
 	buf = append(buf, '"')
 	for i := 0; i < len(v); i++ {
 		switch v[i] {
@@ -52,8 +52,8 @@ func jsonAppendString(buf []byte, v string) []byte {
 	return append(buf, '"')
 }
 
-// jsonAppendTime appends the JSON-encoded v to buf and returns the extended buffer.
-func jsonAppendTime(buf []byte, v time.Time) []byte {
+// AppendJSONTime appends the JSON-encoded v to buf and returns the extended buffer.
+func AppendJSONTime(buf []byte, v time.Time) []byte {
 	buf = strconv.AppendInt(buf, v.Unix(), 10)
 	usec := v.Nanosecond() / 1000
 	if usec != 0 {
@@ -74,8 +74,8 @@ func jsonAppendTime(buf []byte, v time.Time) []byte {
 	return buf
 }
 
-// jsonAppendGeo appends the JSON-encoded v to buf and returns the extended buffer.
-func jsonAppendGeo(buf []byte, v Geo) []byte {
+// AppendJSONGeo appends the JSON-encoded v to buf and returns the extended buffer.
+func AppendJSONGeo(buf []byte, v Geo) []byte {
 	buf = append(buf, '"')
 	buf = strconv.AppendInt(buf, int64(v.Lat), 10)
 	buf = append(buf, ',')
@@ -83,28 +83,28 @@ func jsonAppendGeo(buf []byte, v Geo) []byte {
 	return append(buf, '"')
 }
 
-// jsonAppendValue appends the JSON-encoded v to buf and returns the extended buffer.
-// If the type of v is unsupported, it appends "null".
-func jsonAppendValue(buf []byte, v reflect.Value) []byte {
+// AppendJSONValue appends the JSON-encoded v to buf and returns the extended buffer.
+// If the type of v is unsupported, AppendJSONValue appends "null".
+func AppendJSONValue(buf []byte, v reflect.Value) []byte {
 	switch v.Kind() {
 	case reflect.Bool:
-		return jsonAppendBool(buf, v.Bool())
+		return AppendJSONBool(buf, v.Bool())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return jsonAppendInt(buf, v.Int())
+		return AppendJSONInt(buf, v.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return jsonAppendUint(buf, v.Uint())
+		return AppendJSONUint(buf, v.Uint())
 	case reflect.Float32:
-		return jsonAppendFloat(buf, v.Float(), 32)
+		return AppendJSONFloat(buf, v.Float(), 32)
 	case reflect.Float64:
-		return jsonAppendFloat(buf, v.Float(), 64)
+		return AppendJSONFloat(buf, v.Float(), 64)
 	case reflect.String:
-		return jsonAppendString(buf, v.String())
+		return AppendJSONString(buf, v.String())
 	case reflect.Struct:
 		switch v := v.Interface().(type) {
 		case time.Time:
-			return jsonAppendTime(buf, v)
+			return AppendJSONTime(buf, v)
 		case Geo:
-			return jsonAppendGeo(buf, v)
+			return AppendJSONGeo(buf, v)
 		default:
 			return append(buf, "null"...)
 		}
@@ -112,7 +112,7 @@ func jsonAppendValue(buf []byte, v reflect.Value) []byte {
 		if v.IsNil() {
 			return append(buf, "null"...)
 		}
-		return jsonAppendValue(buf, v.Elem())
+		return AppendJSONValue(buf, v.Elem())
 	case reflect.Array:
 		buf = append(buf, '[')
 		n := v.Len()
@@ -120,7 +120,7 @@ func jsonAppendValue(buf []byte, v reflect.Value) []byte {
 			if i != 0 {
 				buf = append(buf, ',')
 			}
-			buf = jsonAppendValue(buf, v.Index(i))
+			buf = AppendJSONValue(buf, v.Index(i))
 		}
 		return append(buf, ']')
 	case reflect.Slice:
@@ -133,7 +133,7 @@ func jsonAppendValue(buf []byte, v reflect.Value) []byte {
 			if i != 0 {
 				buf = append(buf, ',')
 			}
-			buf = jsonAppendValue(buf, v.Index(i))
+			buf = AppendJSONValue(buf, v.Index(i))
 		}
 		return append(buf, ']')
 	default:
@@ -141,55 +141,58 @@ func jsonAppendValue(buf []byte, v reflect.Value) []byte {
 	}
 }
 
-// jsonAppend appends the JSON-encoded v to buf and returns the extended buffer.
-// If the type of v is unsupported, it appends "null".
-func jsonAppend(buf []byte, v interface{}) []byte {
-	return jsonAppendValue(buf, reflect.ValueOf(v))
+// AppendJSON appends the JSON-encoded v to buf and returns the extended buffer.
+// If the type of v is unsupported, AppendJSON appends "null".
+func AppendJSON(buf []byte, v interface{}) []byte {
+	if v == nil {
+		return append(buf, "null"...)
+	}
+	return AppendJSONValue(buf, reflect.ValueOf(v))
 }
 
-// jsonEncodeBool returns the JSON-encoded v.
-func jsonEncodeBool(v bool) string {
+// EncodeJSONBool returns the JSON-encoded v.
+func EncodeJSONBool(v bool) string {
 	return strconv.FormatBool(v)
 }
 
-// jsonEncodeInt returns the JSON-encoded v.
-func jsonEncodeInt(v int64) string {
+// EncodeJSONInt returns the JSON-encoded v.
+func EncodeJSONInt(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-// jsonEncodeUint returns the JSON-encoded v.
-func jsonEncodeUint(v uint64) string {
+// EncodeJSONUint returns the JSON-encoded v.
+func EncodeJSONUint(v uint64) string {
 	return strconv.FormatUint(v, 10)
 }
 
-// jsonEncodeFloat returns the JSON-encoded v.
-func jsonEncodeFloat(v float64, bitSize int) string {
+// EncodeJSONFloat returns the JSON-encoded v.
+func EncodeJSONFloat(v float64, bitSize int) string {
 	return strconv.FormatFloat(v, 'g', -1, bitSize)
 }
 
-// jsonEncodeString returns the JSON-encoded v.
-func jsonEncodeString(v string) string {
-	return string(jsonAppendString(nil, v))
+// EncodeJSONString returns the JSON-encoded v.
+func EncodeJSONString(v string) string {
+	return string(AppendJSONString(nil, v))
 }
 
-// jsonEncodeTime returns the JSON-encoded v.
-func jsonEncodeTime(v time.Time) string {
-	return string(jsonAppendTime(nil, v))
+// EncodeJSONTime returns the JSON-encoded v.
+func EncodeJSONTime(v time.Time) string {
+	return string(AppendJSONTime(nil, v))
 }
 
-// jsonEncodeGeo returns the JSON-encoded v.
-func jsonEncodeGeo(v Geo) string {
-	return string(jsonAppendGeo(nil, v))
+// EncodeJSONGeo returns the JSON-encoded v.
+func EncodeJSONGeo(v Geo) string {
+	return string(AppendJSONGeo(nil, v))
 }
 
-// jsonEncodeValue returns the JSON-encoded v.
-// If the type of v is unsupported, it returns "null".
-func jsonEncodeValue(v reflect.Value) string {
-	return string(jsonAppendValue(nil, v))
+// EncodeJSONValue returns the JSON-encoded v.
+// If the type of v is unsupported, EncodeJSONValue returns "null".
+func EncodeJSONValue(v reflect.Value) string {
+	return string(AppendJSONValue(nil, v))
 }
 
-// jsonEncode returns the JSON-encoded v.
-// If the type of v is unsupported, it returns "null".
-func jsonEncode(v interface{}) string {
-	return jsonEncodeValue(reflect.ValueOf(v))
+// EncodeJSON returns the JSON-encoded v.
+// If the type of v is unsupported, EncodeJSON returns "null".
+func EncodeJSON(v interface{}) string {
+	return string(AppendJSON(nil, v))
 }

@@ -411,7 +411,9 @@ load --table Tbl
 `; actual != want {
 		t.Fatalf("io.ReadAll failed: actual = %s, want = %s", actual, want)
 	}
-	if _, err := cr.Read(); err != io.EOF {
+	if _, err := cr.Read(); err == nil {
 		t.Fatalf("cr.Read wongly succeeded")
+	} else if err != io.EOF {
+		t.Fatalf("cr.Read  failed: %v", err)
 	}
 }

@@ -7,7 +7,7 @@ func TestNewError(t *testing.T) {
 		"string": "value",
 		"int":    100,
 	}
-	err := NewError(InvalidAddress, data).(*Error)
+	err := NewError(InvalidAddress, data)
 	if err.Code != InvalidAddress {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
 			err.Code, InvalidAddress)
@@ -33,8 +33,8 @@ func TestEnhanceError(t *testing.T) {
 		"int":    1000,
 		"float":  1.0,
 	}
-	err := NewError(InvalidAddress, data).(*Error)
-	err = EnhanceError(err, newData).(*Error)
+	err := NewError(InvalidAddress, data)
+	err = EnhanceError(err, newData)
 	if err.Code != InvalidAddress {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
 			err.Code, InvalidAddress)

@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// commandSpaces is a set of characters handled as spaces in commands.
+const commandSpaces = "\t\n\r "
+
 // formatParamValue is the default function to format a parameter value.
 func formatParamValue(key string, value interface{}) (string, error) {
 	switch v := reflect.ValueOf(value); v.Kind() {
@@ -121,7 +124,7 @@ func formatParamMatchColumns(key string, value interface{}) (string, error) {
 
 // formatParamJSON returns the JSON-encoded value (delete --key).
 func formatParamJSON(key string, value interface{}) (string, error) {
-	return jsonEncodeValue(reflect.ValueOf(value)), nil
+	return EncodeJSON(value), nil
 }
 
 type paramFormat struct {
@@ -651,14 +654,12 @@ func NewCommand(name string, params map[string]interface{}) (*Command, error) {
 // unescapeCommandByte returns an unescaped space character.
 func unescapeCommandByte(b byte) byte {
 	switch b {
-	case 'b':
-		return '\b'
 	case 't':
 		return '\t'
-	case 'r':
-		return '\r'
 	case 'n':
 		return '\n'
+	case 'r':
+		return '\r'
 	default:
 		return b
 	}
@@ -670,7 +671,7 @@ func tokenizeCommand(cmd string) ([]string, error) {
 	var token []byte
 	s := cmd
 	for {
-		s = strings.TrimLeft(s, " \t\r\n")
+		s = strings.TrimLeft(s, commandSpaces)
 		if s == "" {
 			break
 		}
@@ -701,7 +702,7 @@ func tokenizeCommand(cmd string) ([]string, error) {
 		Loop:
 			for ; i < len(s); i++ {
 				switch s[i] {
-				case ' ', '\t', '\r', '\n', '"', '\'':
+				case ' ', '\t', '\n', '\r', '"', '\'':
 					break Loop
 				case '\\':
 					i++
@@ -846,7 +847,6 @@ func (c *Command) SetParam(key string, value interface{}) error {
 		if err != nil {
 			return EnhanceError(err, map[string]interface{}{
 				"name": c.name,
-				"key":  key,
 			})
 		}
 		c.params[pf.key] = fv
@@ -883,18 +883,16 @@ func (c *Command) String() string {
 		cmd = append(cmd, " '"...)
 		for i := 0; i < len(v); i++ {
 			switch v[i] {
+			case '\t':
+				cmd = append(cmd, `\t`...)
+			case '\n':
+				cmd = append(cmd, `\n`...)
+			case '\r':
+				cmd = append(cmd, `\r`...)
 			case '\'':
 				cmd = append(cmd, `\'`...)
 			case '\\':
 				cmd = append(cmd, `\\`...)
-			case '\b':
-				cmd = append(cmd, `\b`...)
-			case '\t':
-				cmd = append(cmd, `\t`...)
-			case '\r':
-				cmd = append(cmd, `\r`...)
-			case '\n':
-				cmd = append(cmd, `\n`...)
 			default:
 				cmd = append(cmd, v[i])
 			}
@@ -991,12 +989,31 @@ func (br *commandBodyReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-// CommandReader is a reader for commands.
+// CommandReader is designed to read commands from the underlying io.Reader.
+//
+// The following is an example of reading commands from a dump file.
+//
+//   f, err := os.Open("db.dump")
+//   if err != nil {
+//     // Failed to open the dump file.
+//   }
+//   defer f.Close()
+//   cr := grnci.NewCommandReader(f)
+//   for {
+//     cmd, err := cr.Read()
+//     if err != nil {
+//       if err != io.EOF {
+//         // Failed to read or parse a command.
+//       }
+//       break
+//     }
+//     // Do something using cmd.
+//   }
 type CommandReader struct {
 	reader io.Reader // Underlying reader
 	buf    []byte    // Buffer
 	left   []byte    // Unprocessed bytes in buf
-	err    error     // Last error
+	err    error     // Last reader error
 }
 
 // NewCommandReader returns a new CommandReader.
@@ -1013,6 +1030,7 @@ func (cr *CommandReader) fill() error {
 		return cr.err
 	}
 	if len(cr.left) == len(cr.buf) {
+		// Extend the buffer because it is full.
 		cr.buf = make([]byte, len(cr.buf)*2)
 	}
 	copy(cr.buf, cr.left)
@@ -1080,8 +1098,15 @@ func (cr *CommandReader) readLine() ([]byte, error) {
 	}
 }
 
-// Read reads the next command.
-// If the command has a body, its whole content must be read before the next Read.
+// Read reads the next command and returns the result of ParseCommand.
+// If the command has a body, the whole content must be read before the next Read.
+//
+// The possible errors are as follows:
+//   - the next command is not available or
+//   - ParseCommand returns an error.
+// If the underlying io.Reader returns io.EOF and the read bytes are exhausted,
+// Read returns io.EOF.
+// Otherwise, Read returns *Error.
 func (cr *CommandReader) Read() (*Command, error) {
 	if len(cr.left) == 0 && cr.err != nil {
 		return nil, cr.err
@@ -1091,7 +1116,7 @@ func (cr *CommandReader) Read() (*Command, error) {
 		if err != nil {
 			return nil, err
 		}
-		cmd := bytes.TrimLeft(line, " \t\r\n")
+		cmd := bytes.TrimLeft(line, commandSpaces)
 		if len(cmd) != 0 {
 			cmd, err := ParseCommand(string(cmd))
 			if err != nil {

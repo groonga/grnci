@@ -215,7 +215,7 @@ type Error struct {
 }
 
 // NewError returns a new Error.
-func NewError(code int, data map[string]interface{}) error {
+func NewError(code int, data map[string]interface{}) *Error {
 	err := &Error{
 		Code: code,
 		Text: getCodeText(code),
@@ -228,14 +228,14 @@ func NewError(code int, data map[string]interface{}) error {
 }
 
 // EnhanceError adds data to err and returns the modified Error.
-func EnhanceError(err error, data map[string]interface{}) error {
+func EnhanceError(err error, data map[string]interface{}) *Error {
 	if e, ok := err.(*Error); ok {
 		for k, v := range data {
 			e.Data[k] = v
 		}
 		return e
 	}
-	e := NewError(UnknownError, data).(*Error)
+	e := NewError(UnknownError, data)
 	if _, ok := e.Data["error"]; !ok {
 		data["error"] = err.Error()
 	}
