@@ -1,9 +1,11 @@
 package libgrn
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -327,6 +329,37 @@ func TestDBNormalizerList(t *testing.T) {
 // 		log.Printf("error = %#v", err)
 // 	}
 // }
+
+func TestRestore(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText
+
+load --table Tbl
+[
+["col"],
+["Hello, world!"]
+]
+`
+	buf := new(bytes.Buffer)
+	n, err := db.Restore(strings.NewReader(dump), buf, true)
+	if err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if n != 3 {
+		t.Fatalf("N is wrong: n = %d", n)
+	}
+	actual := buf.String()
+	want := `true
+true
+1
+`
+	if actual != want {
+		t.Fatalf("db.Restore failed: actual = %s, want = %s", actual, want)
+	}
+}
 
 // func TestDBSchema(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
