@@ -34,24 +34,34 @@ func removeDB(db *grnci.DB, dir string) {
 	os.RemoveAll(dir)
 }
 
-// func TestDBColumnList(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBColumnList(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.ColumnList("Tbl")
-// 	if err != nil {
-// 		t.Fatalf("db.ColumnList failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	_, resp, err := db.ColumnList("no_such_table")
+	if err != nil {
+		t.Fatalf("db.ColumnList failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.ColumnList wrongly succeeded")
+	}
+
+	dump := `table_create Users TABLE_PAT_KEY ShortText
+column_create Users name COLUMN_SCALAR ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, resp, err := db.ColumnList("Users")
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.ColumnList failed: %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("db.ColumnList failed: result = %#v", result)
+	}
+}
 
 // func TestDBColumnCopy(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
