@@ -30,6 +30,9 @@ func (db *DB) recvBool(resp Response) (bool, Response, error) {
 	}
 	var result bool
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return false, resp, nil
+		}
 		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -47,6 +50,9 @@ func (db *DB) recvInt(resp Response) (int, Response, error) {
 	}
 	var result int
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return 0, resp, nil
+		}
 		return 0, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -64,6 +70,9 @@ func (db *DB) recvString(resp Response) (string, Response, error) {
 	}
 	var result string
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return "", resp, nil
+		}
 		return "", resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -183,11 +192,11 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
 	if err != nil {
 		return nil, resp, err
 	}
-	if len(jsonData) == 0 {
-		return nil, resp, nil
-	}
 	var result [][]interface{}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -722,6 +731,9 @@ func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, Respon
 	}
 	var result DBLogicalParameters
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -904,6 +916,9 @@ func (db *DB) LogicalShardList(logicalTable string) ([]DBLogicalShard, Response,
 	}
 	var result []DBLogicalShard
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -983,6 +998,9 @@ func (db *DB) Normalize(normalizer, str string, flags []string) (*DBNormalizedTe
 	}
 	var result DBNormalizedText
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -1009,6 +1027,9 @@ func (db *DB) NormalizerList() ([]DBNormalizer, Response, error) {
 	}
 	var result []DBNormalizer
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -1141,6 +1162,9 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 	case name == "": // Database
 		var result DBObjectDatabase
 		if err := json.Unmarshal(jsonData, &result); err != nil {
+			if resp.Err() != nil {
+				return nil, resp, nil
+			}
 			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 				"method": "json.Unmarshal",
 				"error":  err.Error(),
@@ -1150,6 +1174,9 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 	case strings.Contains(name, "."): // Column
 		var result DBObjectColumn
 		if err := json.Unmarshal(jsonData, &result); err != nil {
+			if resp.Err() != nil {
+				return nil, resp, nil
+			}
 			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 				"method": "json.Unmarshal",
 				"error":  err.Error(),
@@ -1163,6 +1190,9 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 		}
 		var sizeNRecords SizeNRecords
 		if err := json.Unmarshal(jsonData, &sizeNRecords); err != nil {
+			if resp.Err() != nil {
+				return nil, resp, nil
+			}
 			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 				"method": "json.Unmarshal",
 				"error":  err.Error(),
@@ -1172,6 +1202,9 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 		case sizeNRecords.Size != nil:
 			var result DBObjectType
 			if err := json.Unmarshal(jsonData, &result); err != nil {
+				if resp.Err() != nil {
+					return nil, resp, nil
+				}
 				return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 					"method": "json.Unmarshal",
 					"error":  err.Error(),
@@ -1181,6 +1214,9 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 		case sizeNRecords.NRecords != nil:
 			var result DBObjectTable
 			if err := json.Unmarshal(jsonData, &result); err != nil {
+				if resp.Err() != nil {
+					return nil, resp, nil
+				}
 				return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 					"method": "json.Unmarshal",
 					"error":  err.Error(),
@@ -1188,6 +1224,9 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 			}
 			return &result, resp, nil
 		default:
+			if resp.Err() != nil {
+				return nil, resp, nil
+			}
 			return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 				"command": "object_inspect",
 				"error":   "The response format is not invalid.",
@@ -1232,6 +1271,9 @@ func (db *DB) ObjectList() (map[string]*DBObject, Response, error) {
 	}
 	var result map[string]*DBObject
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -1361,6 +1403,9 @@ func (db *DB) RequestCancel(id int) (bool, Response, error) {
 	}
 	var result Result
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return false, resp, nil
+		}
 		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -1387,6 +1432,9 @@ func (db *DB) RubyEval(script string) (interface{}, Response, error) {
 	}
 	var result Result
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -1413,6 +1461,9 @@ func (db *DB) RubyLoad(path string) (interface{}, Response, error) {
 	}
 	var result Result
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return false, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -1536,6 +1587,9 @@ func (db *DB) Schema() (*DBSchema, Response, error) {
 	}
 	var result DBSchema
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -2085,7 +2139,13 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 		return 0, resp, err
 	}
 	n, err := db.parseRows(rows, data, cfs)
-	return n, resp, err
+	if err != nil {
+		if resp.Err() != nil {
+			return n, resp, nil
+		}
+		return n, resp, err
+	}
+	return n, resp, nil
 }
 
 // Shutdown executes shutdown.
@@ -2123,6 +2183,9 @@ func (db *DB) Status() (*DBStatus, Response, error) {
 	}
 	var data map[string]interface{}
 	if err := json.Unmarshal(jsonData, &data); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -2309,6 +2372,9 @@ func (db *DB) TableList() ([]DBTable, Response, error) {
 	}
 	var result [][]interface{}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -2443,6 +2509,9 @@ func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([
 	}
 	var result []DBToken
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -2512,6 +2581,9 @@ func (db *DB) Tokenize(tokenizer, str string, options *DBTokenizeOptions) ([]DBT
 	}
 	var result []DBToken
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
@@ -2538,6 +2610,9 @@ func (db *DB) TokenizerList() ([]DBTokenizer, Response, error) {
 	}
 	var result []DBTokenizer
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return nil, resp, nil
+		}
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
