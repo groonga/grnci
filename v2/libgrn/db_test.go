@@ -254,6 +254,19 @@ func TestDBNormalize(t *testing.T) {
 	}
 }
 
+func TestDBNormalizeInvalidNormalizer(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.Normalize("", "ｳｫｰﾀｰ Two \t\r\n㍑", nil)
+	if err != nil {
+		t.Fatalf("db.Normalize failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.Normalize wrongly succeeded")
+	}
+}
+
 func TestDBNormalizeWithFlags(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
