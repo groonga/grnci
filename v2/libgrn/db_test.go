@@ -106,24 +106,53 @@ func TestDBColumnListInvalidTable(t *testing.T) {
 // 	}
 // }
 
-// func TestDBColumnRemove(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBColumnRemove(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.ColumnRemove("no_such_table.no_such_column")
-// 	if err != nil {
-// 		t.Fatalf("db.ColumnRemove failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	_, resp, err := db.ColumnRemove("Tbl.col")
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.ColumnRemove failed: %v", err)
+	}
+}
+
+func TestDBColumnRemoveInvalidTable(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.ColumnRemove("no_such_table.no_such_column")
+	if err != nil {
+		t.Fatalf("db.ColumnRemove failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.ColumnRemove wrongly succeeded")
+	}
+}
+
+func TestDBColumnRemoveInvalidColumn(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	_, resp, err := db.ColumnRemove("Tbl.no_such_column")
+	if err != nil {
+		t.Fatalf("db.ColumnRemove failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.ColumnRemove wrongly succeeded")
+	}
+}
 
 // func TestDBDump(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
