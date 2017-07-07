@@ -686,24 +686,50 @@ func TestDBTokenizeWithOptions(t *testing.T) {
 // 	}
 // }
 
-// func TestDBTableRemove(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBTruncate(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.TableRemove("no_such_table", false)
-// 	if err != nil {
-// 		t.Fatalf("db.TableRemove failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	dump := `table_create Tbl TABLE_HASH_KEY ShortText
+load --table Tbl --columns _key --values '[["Key"]]'`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	_, resp, err := db.Truncate("Tbl")
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.Truncate failed: %v", err)
+	}
+	obj, resp, err := db.ObjectInspect("Tbl")
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.ObjectInspect failed: %v", err)
+	}
+	tbl, ok := obj.(*grnci.DBObjectTable)
+	if !ok {
+		t.Fatalf("db.ObjectInspect failed: obj = %#v", obj)
+	}
+	if tbl.NRecords != 0 {
+		t.Fatalf("db.Truncate failed: nRecords = %d", tbl.NRecords)
+	}
+}
+
+func TestDBTruncateInvalidTarget(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.Truncate("no_such_target")
+	if err != nil {
+		t.Fatalf("db.Truncate failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.Truncate wrongly succeeded")
+	}
+}
 
 func TestDBTableRemove(t *testing.T) {
 	db, dir := makeDB(t)
