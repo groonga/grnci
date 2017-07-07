@@ -577,26 +577,79 @@ func TestDBStatus(t *testing.T) {
 // 	}
 // }
 
-// func TestDBTableTokenize(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBTableTokenize(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	options := NewDBTableTokenizeOptions()
-// 	options.Mode = "ADD"
-// 	result, resp, err := db.TableTokenize("Tbl", "あいうえお", options)
-// 	if err != nil {
-// 		t.Fatalf("db.TableTokenize failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	dump := `table_create Tbl TABLE_HASH_KEY ShortText --default_tokenizer TokenBigram`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, resp, err := db.TableTokenize("Tbl", "あいうえお", nil)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.TableTokenize failed: %v", err)
+	}
+	values := []string{"あい", "いう", "うえ", "えお", "お"}
+	for i, token := range result {
+		if token.Position != i {
+			t.Fatalf("Position is wrong: i = %d, token = %#v", i, token)
+		}
+		if token.ForcePrefix {
+			t.Fatalf("ForcePrefix is wrong: i = %d, token = %#v", i, token)
+		}
+		if i >= len(values) || token.Value != values[i] {
+			t.Fatalf("Value is wrong: i = %d, token = %#v", i, token)
+		}
+	}
+}
+
+func TestDBTableTokenizeInvalidTable(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.TableTokenize("no_such_table", "あいうえお", nil)
+	if err != nil {
+		t.Fatalf("db.TableTokenize failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.TableTokenize wrongly succeeded")
+	}
+}
+
+func TestDBTableTokenizeWithOptions(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_HASH_KEY ShortText --default_tokenizer TokenBigram`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	options := grnci.NewDBTableTokenizeOptions()
+	options.Flags = []string{"NONE"}
+	options.Mode = "ADD"
+	result, resp, err := db.TableTokenize("Tbl", "あいうえお", options)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.TableTokenize failed: %v", err)
+	}
+	values := []string{"あい", "いう", "うえ", "えお", "お"}
+	for i, token := range result {
+		if token.Position != i {
+			t.Fatalf("Position is wrong: i = %d, token = %#v", i, token)
+		}
+		if token.ForcePrefix {
+			t.Fatalf("ForcePrefix is wrong: i = %d, token = %#v", i, token)
+		}
+		if i >= len(values) || token.Value != values[i] {
+			t.Fatalf("Value is wrong: i = %d, token = %#v", i, token)
+		}
+	}
+}
 
 func TestDBTokenize(t *testing.T) {
 	db, dir := makeDB(t)
@@ -666,25 +719,6 @@ func TestDBTokenizeWithOptions(t *testing.T) {
 		}
 	}
 }
-
-// func TestDBTruncate(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
-
-// 	result, resp, err := db.Truncate("no_such_target")
-// 	if err != nil {
-// 		t.Fatalf("db.Truncate failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
 
 func TestDBTruncate(t *testing.T) {
 	db, dir := makeDB(t)
