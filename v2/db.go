@@ -183,6 +183,9 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
 	if err != nil {
 		return nil, resp, err
 	}
+	if len(jsonData) == 0 {
+		return nil, resp, nil
+	}
 	var result [][]interface{}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
 		return nil, resp, NewError(InvalidResponse, map[string]interface{}{
