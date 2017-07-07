@@ -594,6 +594,19 @@ func TestDBTokenize(t *testing.T) {
 	}
 }
 
+func TestDBTokenizeInvalidTokenizer(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.Tokenize("", "あいうえお", nil)
+	if err != nil {
+		t.Fatalf("db.Tokenize failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.Tokenize wrongly succeeded")
+	}
+}
+
 func TestDBTokenizeWithOptions(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
