@@ -1115,9 +1115,9 @@ type DBObjectColumn struct {
 
 // DBObjectKey is a part of DBObjectTable.
 type DBObjectKey struct {
-	Type         string `json:"type"`
-	TotalSize    int    `json:"total_size"`
-	MaxTotalSize int    `json:"max_total_size"`
+	Type         DBObjectType `json:"type"`
+	TotalSize    int          `json:"total_size"`
+	MaxTotalSize int          `json:"max_total_size"`
 }
 
 // DBObjectValue is a part of DBObjectTable.
