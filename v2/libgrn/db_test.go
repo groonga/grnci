@@ -38,14 +38,6 @@ func TestDBColumnList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.ColumnList("no_such_table")
-	if err != nil {
-		t.Fatalf("db.ColumnList failed: %v", err)
-	}
-	if resp.Err() == nil {
-		t.Fatalf("db.ColumnList wrongly succeeded")
-	}
-
 	dump := `table_create Users TABLE_PAT_KEY ShortText
 column_create Users name COLUMN_SCALAR ShortText`
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
@@ -60,6 +52,19 @@ column_create Users name COLUMN_SCALAR ShortText`
 	}
 	if len(result) != 2 {
 		t.Fatalf("db.ColumnList failed: result = %#v", result)
+	}
+}
+
+func TestDBColumnListInvalidTable(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.ColumnList("no_such_table")
+	if err != nil {
+		t.Fatalf("db.ColumnList failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.ColumnList wrongly succeeded")
 	}
 }
 
