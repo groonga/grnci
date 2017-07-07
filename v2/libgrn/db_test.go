@@ -705,6 +705,54 @@ func TestDBTokenizeWithOptions(t *testing.T) {
 // 	}
 // }
 
+func TestDBTableRemove(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	_, resp, err := db.TableRemove("Tbl", false)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+}
+
+func TestDBTableRemoveInvalidName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.TableRemove("no_such_table", false)
+	if err != nil {
+		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.TableRemove wrongly succeeded")
+	}
+}
+
+func TestDBTableRemoveDependent(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Referred TABLE_HASH_KEY ShortText
+table_create Referrer TABLE_HASH_KEY Referred`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	_, resp, err := db.TableRemove("Referred", true)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+}
+
 func TestDBTokenizerList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
