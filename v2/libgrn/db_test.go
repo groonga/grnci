@@ -87,24 +87,45 @@ func TestDBColumnListInvalidTable(t *testing.T) {
 // 	}
 // }
 
-// func TestDBColumnCreate(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBColumnCreate(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.ColumnCreate("Tbl.col", "ShortText", nil)
-// 	if err != nil {
-// 		t.Fatalf("db.ColumnCreate failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	_, resp, err := db.ColumnCreate("Tbl.col", "Text", nil)
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.ColumnCreate failed: %v", err)
+	}
+	result, resp, err := db.ObjectExist("Tbl.col")
+	if err == nil {
+		err = resp.Err()
+	}
+	if err != nil {
+		t.Fatalf("db.ObjectExist failed: %v", err)
+	}
+	if !result {
+		t.Fatalf("Column not found")
+	}
+}
+
+func TestDBColumnCreateInvalidTable(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	_, resp, err := db.ColumnCreate("no_such_table.col", "Text", nil)
+	if err != nil {
+		t.Fatalf("db.ColumnCreate failed: %v", err)
+	}
+	if resp.Err() == nil {
+		t.Fatalf("db.ColumnCreate wrongly succeeded")
+	}
+}
 
 func TestDBColumnRemove(t *testing.T) {
 	db, dir := makeDB(t)
