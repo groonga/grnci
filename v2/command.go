@@ -1043,10 +1043,10 @@ func (cr *CommandReader) fill() error {
 			})
 		}
 	}
+	cr.left = cr.buf[:len(cr.left)+n]
 	if n == 0 {
 		return cr.err
 	}
-	cr.left = cr.buf[:len(cr.left)+n]
 	return nil
 }
 
