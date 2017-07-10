@@ -116,6 +116,10 @@ func TestAppendJSONTime(t *testing.T) {
 	if want += "1123456789.987123"; string(buf) != want {
 		t.Fatalf("AppendJSONTime failed: actual = %s, want = %s", buf, want)
 	}
+	buf = AppendJSONTime(buf, time.Time{})
+	if want += "-62135596800"; string(buf) != want {
+		t.Fatalf("AppendJSONTime failed: actual = %s, want = %s", buf, want)
+	}
 }
 
 func TestAppendJSONGeo(t *testing.T) {
@@ -304,6 +308,9 @@ func TestEncodeJSONTime(t *testing.T) {
 		t.Fatalf("EncodeJSONTime failed: actual = %s, want = %s", actual, want)
 	}
 	if want, actual := "1123456789.987123", EncodeJSONTime(time.Unix(1123456789, 987123654)); actual != want {
+		t.Fatalf("EncodeJSONTime failed: actual = %s, want = %s", actual, want)
+	}
+	if want, actual := "-62135596800", EncodeJSONTime(time.Time{}); actual != want {
 		t.Fatalf("EncodeJSONTime failed: actual = %s, want = %s", actual, want)
 	}
 }
