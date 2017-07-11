@@ -146,8 +146,8 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	f, ok := elems[0].(float64)
 	if !ok {
 		return nil, NewError(ResponseError, map[string]interface{}{
-			"code":  elems[0],
-			"error": "code must be a number.",
+			"rc":    elems[0],
+			"error": "The rc must be a number.",
 		})
 	}
 	code := int(f)
@@ -155,7 +155,7 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	if !ok {
 		return nil, NewError(ResponseError, map[string]interface{}{
 			"start": elems[1],
-			"error": "start must be a number.",
+			"error": "The start must be a number.",
 		})
 	}
 	i, f := math.Modf(f)
@@ -164,7 +164,7 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	if !ok {
 		return nil, NewError(ResponseError, map[string]interface{}{
 			"elapsed": elems[2],
-			"error":   "elapsed must be a number.",
+			"error":   "The elapsed must be a number.",
 		})
 	}
 	elapsed := time.Duration(f * float64(time.Second))
@@ -185,25 +185,22 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 // newHTTPResponse returns a new httpResponse.
 func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
 	buf := make([]byte, httpBufferSize)
-	n := 0
-	for n < len(buf) {
-		m, err := resp.Body.Read(buf[n:])
-		n += m
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, NewError(NetworkError, map[string]interface{}{
-				"method": "http.Response.Body.Read",
-				"error":  err.Error(),
-			})
-		}
+	n, err := io.ReadFull(resp.Body, buf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		resp.Body.Close()
+		return nil, NewError(NetworkError, map[string]interface{}{
+			"method": "http.Response.Body.Read",
+			"error":  err.Error(),
+		})
 	}
 	data := bytes.TrimLeft(buf[:n], " \t\r\n")
 	if bytes.HasPrefix(data, []byte("[")) {
-		return parseHTTPResponseHeader(resp, data)
+		r, err := parseHTTPResponseHeader(resp, data)
+		if err != nil {
+			resp.Body.Close()
+		}
+		return r, err
 	}
-	var err error
 	code := resp.StatusCode
 	if code != http.StatusOK {
 		err = NewError(HTTPError, map[string]interface{}{
@@ -219,14 +216,20 @@ func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
 	}, nil
 }
 
+// Start returns the server-side start time if available.
+// Otherwise, Start returns the zero time.
 func (r *httpResponse) Start() time.Time {
 	return r.start
 }
 
+// Elapsed returns the server-side elapsed time if available.
+// Otherwise, Elapsed returns the zero duration.
 func (r *httpResponse) Elapsed() time.Duration {
 	return r.elapsed
 }
 
+// Read read up to len(p) bytes from the response body.
+// The return value n is the number of bytes read.
 func (r *httpResponse) Read(p []byte) (n int, err error) {
 	if len(r.left) != 0 {
 		n = copy(p, r.left)
@@ -272,6 +275,7 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 	return
 }
 
+// Close closes the response body.
 func (r *httpResponse) Close() error {
 	io.Copy(ioutil.Discard, r.resp.Body)
 	if err := r.resp.Body.Close(); err != nil {
