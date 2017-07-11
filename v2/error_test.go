@@ -12,10 +12,6 @@ func TestNewError(t *testing.T) {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
 			err.Code, AddressError)
 	}
-	if err.Text != getCodeText(AddressError) {
-		t.Fatalf("NewError failed: Text: actual = %s, want = %s",
-			err.Text, getCodeText(AddressError))
-	}
 	for k, v := range data {
 		if err.Data[k] != v {
 			t.Fatalf("NewError failed: Data[\"key\"]: actual = %s, want = %s", err.Data[k], v)
@@ -38,10 +34,6 @@ func TestEnhanceError(t *testing.T) {
 	if err.Code != AddressError {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
 			err.Code, AddressError)
-	}
-	if err.Text != getCodeText(AddressError) {
-		t.Fatalf("NewError failed: Text: actual = %s, want = %s",
-			err.Text, getCodeText(AddressError))
 	}
 	for k, v := range newData {
 		if err.Data[k] != v {

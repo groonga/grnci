@@ -69,8 +69,10 @@ func newGQTPResponse(conn *GQTPConn, head gqtpHeader, start time.Time, name stri
 		left:    int(head.Size),
 	}
 	if head.Status > 32767 {
-		code := int(head.Status) - 65536
-		resp.err = NewError(code, nil)
+		rc := int(head.Status) - 65536
+		resp.err = NewError(GroongaError, map[string]interface{}{
+			"rc": ResultCode(rc),
+		})
 	}
 	return resp
 }

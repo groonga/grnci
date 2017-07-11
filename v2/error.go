@@ -2,25 +2,71 @@ package grnci
 
 import (
 	"encoding/json"
+	"strconv"
 )
 
-// Error codes.
+// ErrorCode is an error code.
+type ErrorCode int
+
+// List of error codes.
 const (
-	AddressError = 1000 + iota
+	AddressError = ErrorCode(1 + iota)
 	CommandError
 	OperationError
 	ResponseError
 	TypeError
 	NetworkError
 	HTTPError
+	GroongaError
 	UnknownError
 )
 
-// getCodeText returns a string that briefly describes the specified code.
-// getCodeText supports Groonga result codes (C.grn_rc) [,0] and
-// Grnci error codes [1000,].
-func getCodeText(code int) string {
-	switch code {
+// Name returns the name of the error code.
+func (ec ErrorCode) Name() string {
+	switch ec {
+	case AddressError:
+		return "AddressError"
+	case CommandError:
+		return "CommandError"
+	case OperationError:
+		return "OperationError"
+	case ResponseError:
+		return "ResponseError"
+	case TypeError:
+		return "TypeError"
+	case NetworkError:
+		return "NetworkError"
+	case HTTPError:
+		return "HTTPError"
+	case GroongaError:
+		return "GroongaError"
+	case UnknownError:
+		return "UnknownError"
+	default:
+		return "N/A"
+	}
+}
+
+// String returns a string that consists of the error code and its name.
+func (ec ErrorCode) String() string {
+	return strconv.Itoa(int(ec)) + " " + ec.Name()
+}
+
+// MarshalJSON returns the JSON-encoded error code.
+func (ec ErrorCode) MarshalJSON() ([]byte, error) {
+	buf := make([]byte, 0, 24)
+	buf = strconv.AppendInt(buf, int64(ec), 10)
+	buf = append(buf, ' ')
+	buf = append(buf, ec.Name()...)
+	return buf, nil
+}
+
+// ResultCode is a Groons result code.
+type ResultCode int
+
+// Name returns the name of the result code.
+func (rc ResultCode) Name() string {
+	switch rc {
 	case 0:
 		return "GRN_SUCCESS"
 	case 1:
@@ -183,41 +229,35 @@ func getCodeText(code int) string {
 		return "GRN_WINDOW_FUNCTION_ERROR"
 	case -79:
 		return "GRN_ZSTD_ERROR"
-
-	case AddressError:
-		return "AddressError"
-	case CommandError:
-		return "CommandError"
-	case OperationError:
-		return "OperationError"
-	case ResponseError:
-		return "ResponseError"
-	case TypeError:
-		return "TypeError"
-	case NetworkError:
-		return "NetworkError"
-	case HTTPError:
-		return "HTTPError"
-	case UnknownError:
-		return "UnknownError"
-
 	default:
 		return "N/A"
 	}
 }
 
+// String returns a string that consists of the result code and its name.
+func (rc ResultCode) String() string {
+	return strconv.Itoa(int(rc)) + " " + rc.Name()
+}
+
+// MarshalJSON returns the JSON-encoded error code.
+func (rc ResultCode) MarshalJSON() ([]byte, error) {
+	buf := make([]byte, 0, 24)
+	buf = strconv.AppendInt(buf, int64(rc), 10)
+	buf = append(buf, ' ')
+	buf = append(buf, rc.Name()...)
+	return buf, nil
+}
+
 // Error stores an error.
 type Error struct {
-	Code int                    `json:"code"`
-	Text string                 `json:"text"`
+	Code ErrorCode              `json:"code"`
 	Data map[string]interface{} `json:"data,omitempty"`
 }
 
 // NewError returns a new Error.
-func NewError(code int, data map[string]interface{}) *Error {
+func NewError(code ErrorCode, data map[string]interface{}) *Error {
 	err := &Error{
 		Code: code,
-		Text: getCodeText(code),
 		Data: make(map[string]interface{}),
 	}
 	for k, v := range data {
