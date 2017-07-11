@@ -42,8 +42,7 @@ func Init() error {
 	defer libMutex.Unlock()
 	if !initFinDisabled && libCount == 0 {
 		if rc := C.grn_init(); rc != C.GRN_SUCCESS {
-			return grnci.NewError(grnci.GroongaError, map[string]interface{}{
-				"rc":     grnci.ResultCode(rc),
+			return grnci.NewGroongaError(grnci.ResultCode(rc), map[string]interface{}{
 				"method": "C.grn_init",
 				"error":  "Failed to initialize libgroonga.",
 			})
@@ -72,8 +71,7 @@ func Fin() error {
 	libCount--
 	if !initFinDisabled && libCount == 0 {
 		if rc := C.grn_fin(); rc != C.GRN_SUCCESS {
-			return grnci.NewError(grnci.GroongaError, map[string]interface{}{
-				"rc":     grnci.ResultCode(rc),
+			return grnci.NewGroongaError(grnci.ResultCode(rc), map[string]interface{}{
 				"method": "C.grn_fin",
 				"error":  "Failed to finalize libgroonga.",
 			})
@@ -112,8 +110,7 @@ func newGrnCtx() (*grnCtx, error) {
 // Close closes the grnCtx.
 func (c *grnCtx) Close() error {
 	if rc := C.grn_ctx_close(c.ctx); rc != C.GRN_SUCCESS {
-		return grnci.NewError(grnci.GroongaError, map[string]interface{}{
-			"rc":     grnci.ResultCode(rc),
+		return grnci.NewGroongaError(grnci.ResultCode(rc), map[string]interface{}{
 			"method": "C.grn_ctx_close",
 		})
 	}
@@ -129,7 +126,6 @@ func (c *grnCtx) Err(method string) error {
 		return nil
 	}
 	data := map[string]interface{}{
-		"rc":     grnci.ResultCode(c.ctx.rc),
 		"method": method,
 	}
 	if c.ctx.errline != 0 {
@@ -144,7 +140,7 @@ func (c *grnCtx) Err(method string) error {
 	if c.ctx.errbuf[0] != 0 {
 		data["error"] = C.GoString(&c.ctx.errbuf[0])
 	}
-	return grnci.NewError(grnci.GroongaError, data)
+	return grnci.NewGroongaError(grnci.ResultCode(c.ctx.rc), data)
 }
 
 // Send sends data with flags.
@@ -244,8 +240,7 @@ func (db *grnDB) Close(ctx *grnCtx) error {
 					"rc": int(rc),
 				})
 			}
-			return grnci.NewError(grnci.GroongaError, map[string]interface{}{
-				"rc":     grnci.ResultCode(rc),
+			return grnci.NewGroongaError(grnci.ResultCode(rc), map[string]interface{}{
 				"method": "C.grn_obj_close",
 			})
 		}

@@ -266,6 +266,20 @@ func NewError(code ErrorCode, data map[string]interface{}) *Error {
 	return err
 }
 
+// NewGroongaError returns a new Error.
+func NewGroongaError(rc ResultCode, data map[string]interface{}) *Error {
+	err := &Error{
+		Code: GroongaError,
+		Data: map[string]interface{}{
+			"rc": rc,
+		},
+	}
+	for k, v := range data {
+		err.Data[k] = v
+	}
+	return err
+}
+
 // EnhanceError adds data to err and returns the modified Error.
 func EnhanceError(err error, data map[string]interface{}) *Error {
 	if e, ok := err.(*Error); ok {
