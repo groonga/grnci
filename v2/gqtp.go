@@ -71,14 +71,18 @@ func newGQTPResponse(conn *GQTPConn, head gqtpHeader, name string) *gqtpResponse
 	return resp
 }
 
+// Start returns zero.
 func (r *gqtpResponse) Start() time.Time {
 	return time.Time{}
 }
 
+// Elapsed returns zero.
 func (r *gqtpResponse) Elapsed() time.Duration {
 	return 0
 }
 
+// Read read up to len(p) bytes from the response body.
+// The return value n is the number of bytes read.
 func (r *gqtpResponse) Read(p []byte) (int, error) {
 	if r.closed {
 		return 0, io.EOF
@@ -114,6 +118,7 @@ func (r *gqtpResponse) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+// Close closes the response body.
 func (r *gqtpResponse) Close() error {
 	if r.closed {
 		return nil
@@ -123,7 +128,7 @@ func (r *gqtpResponse) Close() error {
 		r.broken = true
 		err = NewError(NetworkError, map[string]interface{}{
 			"method": "io.CopyBuffer",
-			"error":  err.Error(),
+			"error":  e.Error(),
 		})
 	}
 	r.closed = true
@@ -148,6 +153,7 @@ func (r *gqtpResponse) Close() error {
 	return err
 }
 
+// Err returns the error details.
 func (r *gqtpResponse) Err() error {
 	return r.err
 }
@@ -333,7 +339,7 @@ func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
 	}
 }
 
-// exec sends a command without body and receives a response.
+// exec sends a command and receives a response.
 func (c *GQTPConn) exec(cmd string, body io.Reader) (Response, error) {
 	if !c.ready {
 		return nil, NewError(OperationError, map[string]interface{}{
@@ -353,7 +359,7 @@ func (c *GQTPConn) exec(cmd string, body io.Reader) (Response, error) {
 	return c.execBody(cmd, body)
 }
 
-// Exec parses cmd, reassembles it and calls Query.
+// Exec assembles cmd and body into a Command and calls Query.
 // The GQTPConn must not be used until the response is closed.
 func (c *GQTPConn) Exec(cmd string, body io.Reader) (Response, error) {
 	command, err := ParseCommand(cmd)
@@ -446,7 +452,7 @@ func (c *GQTPClient) exec(cmd string, body io.Reader) (Response, error) {
 	return resp, nil
 }
 
-// Exec parses cmd, reassembles it and calls Query.
+// Exec assembles cmd and body into a Command and calls Query.
 func (c *GQTPClient) Exec(cmd string, body io.Reader) (Response, error) {
 	command, err := ParseCommand(cmd)
 	if err != nil {
@@ -456,7 +462,7 @@ func (c *GQTPClient) Exec(cmd string, body io.Reader) (Response, error) {
 	return c.Query(command)
 }
 
-// Invoke assembles name, params and body into a command and calls Query.
+// Invoke assembles name, params and body into a Command and calls Query.
 func (c *GQTPClient) Invoke(name string, params map[string]interface{}, body io.Reader) (Response, error) {
 	cmd, err := NewCommand(name, params)
 	if err != nil {
