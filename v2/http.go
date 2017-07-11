@@ -237,7 +237,7 @@ func (r *httpResponse) Elapsed() time.Duration {
 	return r.elapsed
 }
 
-// Read read up to len(p) bytes from the response body.
+// Read reads up to len(p) bytes from the response body.
 // The return value n is the number of bytes read.
 func (r *httpResponse) Read(p []byte) (n int, err error) {
 	if len(r.left) != 0 {

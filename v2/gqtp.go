@@ -81,7 +81,7 @@ func (r *gqtpResponse) Elapsed() time.Duration {
 	return 0
 }
 
-// Read read up to len(p) bytes from the response body.
+// Read reads up to len(p) bytes from the response body.
 // The return value n is the number of bytes read.
 func (r *gqtpResponse) Read(p []byte) (int, error) {
 	if r.closed {
