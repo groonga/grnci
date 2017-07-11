@@ -32,7 +32,7 @@ type httpResponse struct {
 func extractHTTPResponseHeader(data []byte) (head, left []byte, err error) {
 	left = bytes.TrimLeft(data[1:], " \t\r\n")
 	if !bytes.HasPrefix(left, []byte("[")) {
-		err = NewError(InvalidResponse, map[string]interface{}{
+		err = NewError(ResponseError, map[string]interface{}{
 			"error": "The response does not contain a header.",
 		})
 		return
@@ -48,7 +48,7 @@ Loop:
 			stack = append(stack, '}')
 		case ']', '}':
 			if left[i] != stack[len(stack)-1] {
-				err = NewError(InvalidResponse, map[string]interface{}{
+				err = NewError(ResponseError, map[string]interface{}{
 					"error": "The response header is broken.",
 				})
 				return
@@ -70,7 +70,7 @@ Loop:
 		}
 	}
 	if len(stack) != 0 {
-		err = NewError(InvalidResponse, map[string]interface{}{
+		err = NewError(ResponseError, map[string]interface{}{
 			"error": "The response header is too long or broken.",
 		})
 		return
@@ -132,20 +132,20 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 
 	var elems []interface{}
 	if err := json.Unmarshal(head, &elems); err != nil {
-		return nil, NewError(InvalidResponse, map[string]interface{}{
+		return nil, NewError(ResponseError, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
 	}
 	if len(elems) < 3 {
-		return nil, NewError(InvalidResponse, map[string]interface{}{
+		return nil, NewError(ResponseError, map[string]interface{}{
 			"method": "json.Unmarshal",
 			"error":  "Too few elements in the response header.",
 		})
 	}
 	f, ok := elems[0].(float64)
 	if !ok {
-		return nil, NewError(InvalidResponse, map[string]interface{}{
+		return nil, NewError(ResponseError, map[string]interface{}{
 			"code":  elems[0],
 			"error": "code must be a number.",
 		})
@@ -153,7 +153,7 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	code := int(f)
 	f, ok = elems[1].(float64)
 	if !ok {
-		return nil, NewError(InvalidResponse, map[string]interface{}{
+		return nil, NewError(ResponseError, map[string]interface{}{
 			"start": elems[1],
 			"error": "start must be a number.",
 		})
@@ -162,7 +162,7 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	start := time.Unix(int64(i), int64(math.Floor(f*1000000+0.5))*1000).Local()
 	f, ok = elems[2].(float64)
 	if !ok {
-		return nil, NewError(InvalidResponse, map[string]interface{}{
+		return nil, NewError(ResponseError, map[string]interface{}{
 			"elapsed": elems[2],
 			"error":   "elapsed must be a number.",
 		})
@@ -306,7 +306,7 @@ func NewHTTPClient(addr string, client *http.Client) (*HTTPClient, error) {
 	}
 	url, err := url.Parse(a.String())
 	if err != nil {
-		return nil, NewError(InvalidAddress, map[string]interface{}{
+		return nil, NewError(AddressError, map[string]interface{}{
 			"url":    a.String(),
 			"method": "url.Parse",
 			"error":  err.Error(),

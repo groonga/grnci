@@ -7,14 +7,14 @@ func TestNewError(t *testing.T) {
 		"string": "value",
 		"int":    100,
 	}
-	err := NewError(InvalidAddress, data)
-	if err.Code != InvalidAddress {
+	err := NewError(AddressError, data)
+	if err.Code != AddressError {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
-			err.Code, InvalidAddress)
+			err.Code, AddressError)
 	}
-	if err.Text != getCodeText(InvalidAddress) {
+	if err.Text != getCodeText(AddressError) {
 		t.Fatalf("NewError failed: Text: actual = %s, want = %s",
-			err.Text, getCodeText(InvalidAddress))
+			err.Text, getCodeText(AddressError))
 	}
 	for k, v := range data {
 		if err.Data[k] != v {
@@ -33,15 +33,15 @@ func TestEnhanceError(t *testing.T) {
 		"int":    1000,
 		"float":  1.0,
 	}
-	err := NewError(InvalidAddress, data)
+	err := NewError(AddressError, data)
 	err = EnhanceError(err, newData)
-	if err.Code != InvalidAddress {
+	if err.Code != AddressError {
 		t.Fatalf("NewError failed: Code: actual = %d, want = %d",
-			err.Code, InvalidAddress)
+			err.Code, AddressError)
 	}
-	if err.Text != getCodeText(InvalidAddress) {
+	if err.Text != getCodeText(AddressError) {
 		t.Fatalf("NewError failed: Text: actual = %s, want = %s",
-			err.Text, getCodeText(InvalidAddress))
+			err.Text, getCodeText(AddressError))
 	}
 	for k, v := range newData {
 		if err.Data[k] != v {

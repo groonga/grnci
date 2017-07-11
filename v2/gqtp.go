@@ -342,12 +342,12 @@ func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
 // exec sends a command without body and receives a response.
 func (c *GQTPConn) exec(cmd string, body io.Reader) (Response, error) {
 	if !c.ready {
-		return nil, NewError(InvalidOperation, map[string]interface{}{
+		return nil, NewError(OperationError, map[string]interface{}{
 			"error": "The connection is not ready to send a command.",
 		})
 	}
 	if len(cmd) > gqtpMaxChunkSize {
-		return nil, NewError(InvalidCommand, map[string]interface{}{
+		return nil, NewError(CommandError, map[string]interface{}{
 			"length": len(cmd),
 			"error":  "The command is too long.",
 		})

@@ -63,7 +63,7 @@ func Fin() error {
 	libMutex.Lock()
 	defer libMutex.Unlock()
 	if libCount <= 0 {
-		return grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
+		return grnci.NewError(grnci.OperationError, map[string]interface{}{
 			"libCount": libCount,
 			"error":    "libCount must be greater than 0.",
 		})
@@ -227,7 +227,7 @@ func (db *grnDB) Close(ctx *grnCtx) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	if db.count <= 0 {
-		return grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
+		return grnci.NewError(grnci.OperationError, map[string]interface{}{
 			"count": db.count,
 			"error": "count must be greater than 0.",
 		})

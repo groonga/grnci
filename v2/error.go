@@ -6,11 +6,11 @@ import (
 
 // Error codes.
 const (
-	InvalidAddress = 1000 + iota
-	InvalidCommand
-	InvalidOperation
-	InvalidResponse
-	InvalidType
+	AddressError = 1000 + iota
+	CommandError
+	OperationError
+	ResponseError
+	TypeError
 	NetworkError
 	HTTPError
 	UnknownError
@@ -184,25 +184,25 @@ func getCodeText(code int) string {
 	case -79:
 		return "GRN_ZSTD_ERROR"
 
-	case InvalidAddress:
-		return "invalid address"
-	case InvalidCommand:
-		return "invalid command"
-	case InvalidOperation:
-		return "invalid operation"
-	case InvalidResponse:
-		return "invalid response"
-	case InvalidType:
-		return "invalid type"
+	case AddressError:
+		return "AddressError"
+	case CommandError:
+		return "CommandError"
+	case OperationError:
+		return "OperationError"
+	case ResponseError:
+		return "ResponseError"
+	case TypeError:
+		return "TypeError"
 	case NetworkError:
-		return "network error"
+		return "NetworkError"
 	case HTTPError:
-		return "HTTP error"
+		return "HTTPError"
 	case UnknownError:
-		return "unknown error"
+		return "UnknownError"
 
 	default:
-		return "undefined error"
+		return "N/A"
 	}
 }
 

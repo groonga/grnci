@@ -89,7 +89,7 @@ func Create(path string) (*Conn, error) {
 // Dup duplicates the Conn if it is a DB handle.
 func (c *Conn) Dup() (*Conn, error) {
 	if c.db == nil {
-		return nil, grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
+		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
 			"error": "GQTP clients do not support Dup.",
 		})
 	}
@@ -265,12 +265,12 @@ func (c *Conn) execBody(cmd string, body io.Reader) (grnci.Response, error) {
 // exec sends a command and receives a response.
 func (c *Conn) exec(cmd string, body io.Reader) (grnci.Response, error) {
 	if !c.ready {
-		return nil, grnci.NewError(grnci.InvalidOperation, map[string]interface{}{
+		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
 			"error": "The connection is not ready to send a command.",
 		})
 	}
 	if len(cmd) > maxChunkSize {
-		return nil, grnci.NewError(grnci.InvalidCommand, map[string]interface{}{
+		return nil, grnci.NewError(grnci.CommandError, map[string]interface{}{
 			"length": len(cmd),
 			"error":  "The command is too long.",
 		})
