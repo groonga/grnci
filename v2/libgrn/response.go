@@ -10,49 +10,43 @@ import (
 
 // response is a response.
 type response struct {
-	client  *Client
-	conn    *Conn
-	start   time.Time
-	elapsed time.Duration
-	left    []byte
-	flags   byte
-	err     error
-	broken  bool
-	closed  bool
+	client *Client
+	conn   *Conn
+	left   []byte
+	flags  byte
+	err    error
+	broken bool
+	closed bool
 }
 
 // newGQTPResponse returns a new GQTP response.
-func newGQTPResponse(conn *Conn, start time.Time, name string, data []byte, flags byte, err error) *response {
+func newGQTPResponse(conn *Conn, name string, data []byte, flags byte, err error) *response {
 	return &response{
-		conn:    conn,
-		start:   start,
-		elapsed: time.Now().Sub(start),
-		left:    data,
-		flags:   flags,
-		err:     err,
+		conn:  conn,
+		left:  data,
+		flags: flags,
+		err:   err,
 	}
 }
 
 // newDBResponse returns a new DB response.
-func newDBResponse(conn *Conn, start time.Time, data []byte, flags byte, err error) *response {
+func newDBResponse(conn *Conn, data []byte, flags byte, err error) *response {
 	return &response{
-		conn:    conn,
-		start:   start,
-		elapsed: time.Now().Sub(start),
-		left:    data,
-		flags:   flags,
-		err:     err,
+		conn:  conn,
+		left:  data,
+		flags: flags,
+		err:   err,
 	}
 }
 
 // Start returns the start time.
 func (r *response) Start() time.Time {
-	return r.start
+	return time.Time{}
 }
 
 // Elapsed returns the elapsed time.
 func (r *response) Elapsed() time.Duration {
-	return r.elapsed
+	return 0
 }
 
 // Read reads the response body at most len(p) bytes into p.

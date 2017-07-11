@@ -7,7 +7,6 @@ import "C"
 import (
 	"io"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/groonga/grnci/v2"
@@ -134,7 +133,6 @@ func (c *Conn) getBuffer() []byte {
 
 // execNoBodyGQTP sends a command and receives a response.
 func (c *Conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
-	start := time.Now()
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
 		name = name[:idx]
@@ -146,18 +144,17 @@ func (c *Conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
 	if err != nil && len(data) == 0 {
 		return nil, err
 	}
-	return newGQTPResponse(c, start, name, data, flags, err), nil
+	return newGQTPResponse(c, name, data, flags, err), nil
 }
 
 // execNoBodyDB executes a command and receives a response.
 func (c *Conn) execNoBodyDB(cmd string) (grnci.Response, error) {
-	start := time.Now()
 	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
 		data, flags, _ := c.ctx.Recv()
-		return newDBResponse(c, start, data, flags, err), nil
+		return newDBResponse(c, data, flags, err), nil
 	}
 	data, flags, err := c.ctx.Recv()
-	return newDBResponse(c, start, data, flags, err), nil
+	return newDBResponse(c, data, flags, err), nil
 }
 
 // execNoBody sends a command without body and receives a response.
@@ -170,7 +167,6 @@ func (c *Conn) execNoBody(cmd string) (grnci.Response, error) {
 
 // execBodyGQTP sends a command and receives a response.
 func (c *Conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) {
-	start := time.Now()
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
 		name = name[:idx]
@@ -180,7 +176,7 @@ func (c *Conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 	}
 	data, flags, err := c.ctx.Recv()
 	if len(data) != 0 {
-		return newGQTPResponse(c, start, name, data, flags, err), nil
+		return newGQTPResponse(c, name, data, flags, err), nil
 	}
 	if err != nil {
 		return nil, err
@@ -196,7 +192,7 @@ func (c *Conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 			}
 			data, flags, err := c.ctx.Recv()
 			if len(data) != 0 || err == nil {
-				return newGQTPResponse(c, start, name, data, flags, err), nil
+				return newGQTPResponse(c, name, data, flags, err), nil
 			}
 			return nil, err
 		}
@@ -207,7 +203,7 @@ func (c *Conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 			n = 0
 			data, flags, err = c.ctx.Recv()
 			if len(data) != 0 {
-				return newGQTPResponse(c, start, name, data, flags, err), nil
+				return newGQTPResponse(c, name, data, flags, err), nil
 			}
 			if err != nil {
 				return nil, err
@@ -218,14 +214,13 @@ func (c *Conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 
 // execBodyDB sends a command and receives a response.
 func (c *Conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
-	start := time.Now()
 	if err := c.ctx.Send([]byte(cmd), 0); err != nil {
 		data, flags, _ := c.ctx.Recv()
-		return newDBResponse(c, start, data, flags, err), nil
+		return newDBResponse(c, data, flags, err), nil
 	}
 	data, flags, err := c.ctx.Recv()
 	if len(data) != 0 || err != nil {
-		return newDBResponse(c, start, data, flags, err), nil
+		return newDBResponse(c, data, flags, err), nil
 	}
 	n := 0
 	buf := c.getBuffer()
@@ -235,20 +230,20 @@ func (c *Conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
 		if err != nil {
 			if err := c.ctx.Send(buf[:n], flagTail); err != nil {
 				data, flags, _ := c.ctx.Recv()
-				return newDBResponse(c, start, data, flags, err), nil
+				return newDBResponse(c, data, flags, err), nil
 			}
 			data, flags, err := c.ctx.Recv()
-			return newDBResponse(c, start, data, flags, err), nil
+			return newDBResponse(c, data, flags, err), nil
 		}
 		if n == len(buf) {
 			if err := c.ctx.Send(buf, 0); err != nil {
 				data, flags, _ := c.ctx.Recv()
-				return newDBResponse(c, start, data, flags, err), nil
+				return newDBResponse(c, data, flags, err), nil
 			}
 			n = 0
 			data, flags, err = c.ctx.Recv()
 			if len(data) != 0 || err != nil {
-				return newDBResponse(c, start, data, flags, err), nil
+				return newDBResponse(c, data, flags, err), nil
 			}
 		}
 	}

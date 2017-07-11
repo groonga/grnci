@@ -183,7 +183,7 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 }
 
 // newHTTPResponse returns a new httpResponse.
-func newHTTPResponse(resp *http.Response, start time.Time) (*httpResponse, error) {
+func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
 	buf := make([]byte, httpBufferSize)
 	n := 0
 	for n < len(buf) {
@@ -212,12 +212,10 @@ func newHTTPResponse(resp *http.Response, start time.Time) (*httpResponse, error
 		})
 	}
 	return &httpResponse{
-		resp:    resp,
-		plain:   true,
-		start:   start,
-		elapsed: time.Now().Sub(start),
-		err:     err,
-		left:    data,
+		resp:  resp,
+		plain: true,
+		err:   err,
+		left:  data,
 	}, nil
 }
 
@@ -328,7 +326,6 @@ func (c *HTTPClient) Close() error {
 
 // exec sends a command and receives a response.
 func (c *HTTPClient) exec(name string, params map[string]string, body io.Reader) (Response, error) {
-	start := time.Now()
 	url := *c.url
 	url.Path = path.Join(url.Path, name)
 	if len(params) != 0 {
@@ -347,7 +344,7 @@ func (c *HTTPClient) exec(name string, params map[string]string, body io.Reader)
 				"error":  err.Error(),
 			})
 		}
-		return newHTTPResponse(resp, start)
+		return newHTTPResponse(resp)
 	}
 	resp, err := c.client.Post(url.String(), "application/json", body)
 	if err != nil {
@@ -357,7 +354,7 @@ func (c *HTTPClient) exec(name string, params map[string]string, body io.Reader)
 			"error":  err.Error(),
 		})
 	}
-	return newHTTPResponse(resp, start)
+	return newHTTPResponse(resp)
 }
 
 // Exec assembles cmd and body into a Command and calls Query.

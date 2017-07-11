@@ -48,25 +48,21 @@ type gqtpHeader struct {
 
 // gqtpResponse is a GQTP response.
 type gqtpResponse struct {
-	client  *GQTPClient   // Client
-	conn    *GQTPConn     // Connection
-	head    gqtpHeader    // Current header
-	start   time.Time     // Start time
-	elapsed time.Duration // Elapsed time
-	err     error         // Error response
-	left    int           // Number of bytes left in the current chunk
-	broken  bool          // Whether or not the connection is broken
-	closed  bool          // Whether or not the response is closed
+	client *GQTPClient // Client
+	conn   *GQTPConn   // Connection
+	head   gqtpHeader  // Current header
+	err    error       // Error response
+	left   int         // Number of bytes left in the current chunk
+	broken bool        // Whether or not the connection is broken
+	closed bool        // Whether or not the response is closed
 }
 
 // newGQTPResponse returns a new GQTP response.
-func newGQTPResponse(conn *GQTPConn, head gqtpHeader, start time.Time, name string) *gqtpResponse {
+func newGQTPResponse(conn *GQTPConn, head gqtpHeader, name string) *gqtpResponse {
 	resp := &gqtpResponse{
-		conn:    conn,
-		head:    head,
-		start:   start,
-		elapsed: time.Now().Sub(start),
-		left:    int(head.Size),
+		conn: conn,
+		head: head,
+		left: int(head.Size),
 	}
 	if head.Status > 32767 {
 		rc := int(head.Status) - 65536
@@ -76,11 +72,11 @@ func newGQTPResponse(conn *GQTPConn, head gqtpHeader, start time.Time, name stri
 }
 
 func (r *gqtpResponse) Start() time.Time {
-	return r.start
+	return time.Time{}
 }
 
 func (r *gqtpResponse) Elapsed() time.Duration {
-	return r.elapsed
+	return 0
 }
 
 func (r *gqtpResponse) Read(p []byte) (int, error) {
@@ -276,7 +272,6 @@ func (c *GQTPConn) recvHeader() (gqtpHeader, error) {
 
 // execNoBody sends a command without body and receives a response.
 func (c *GQTPConn) execNoBody(cmd string) (Response, error) {
-	start := time.Now()
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
 		name = name[:idx]
@@ -288,12 +283,11 @@ func (c *GQTPConn) execNoBody(cmd string) (Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newGQTPResponse(c, head, start, name), nil
+	return newGQTPResponse(c, head, name), nil
 }
 
 // execBody sends a command with body and receives a response.
 func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
-	start := time.Now()
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
 		name = name[:idx]
@@ -306,7 +300,7 @@ func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
 		return nil, err
 	}
 	if head.Status != 0 || head.Size != 0 {
-		return newGQTPResponse(c, head, start, name), nil
+		return newGQTPResponse(c, head, name), nil
 	}
 	n := 0
 	buf := c.getBuffer()
@@ -321,7 +315,7 @@ func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
 			if err != nil {
 				return nil, err
 			}
-			return newGQTPResponse(c, head, start, name), nil
+			return newGQTPResponse(c, head, name), nil
 		}
 		if n == len(buf) {
 			if err := c.sendChunkBytes(buf, 0); err != nil {
@@ -332,7 +326,7 @@ func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
 				return nil, err
 			}
 			if head.Status != 0 || head.Size != 0 {
-				return newGQTPResponse(c, head, start, name), nil
+				return newGQTPResponse(c, head, name), nil
 			}
 			n = 0
 		}
