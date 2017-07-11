@@ -3,6 +3,7 @@ package grnci
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -203,9 +204,11 @@ func newHTTPResponse(resp *http.Response, start time.Time) (*httpResponse, error
 		return parseHTTPResponseHeader(resp, data)
 	}
 	var err error
-	if resp.StatusCode != http.StatusOK {
-		err = NewError(resp.StatusCode, map[string]interface{}{
-			"note": "The response format is not JSON.",
+	code := resp.StatusCode
+	if code != http.StatusOK {
+		err = NewError(HTTPError, map[string]interface{}{
+			"status": fmt.Sprintf("%d %s", code, http.StatusText(code)),
+			"note":   "The response format is not JSON.",
 		})
 	}
 	return &httpResponse{

@@ -2,7 +2,6 @@ package grnci
 
 import (
 	"encoding/json"
-	"net/http"
 )
 
 // Error codes.
@@ -13,12 +12,13 @@ const (
 	InvalidResponse
 	InvalidType
 	NetworkError
+	HTTPError
 	UnknownError
 )
 
 // getCodeText returns a string that briefly describes the specified code.
-// getCodeText supports Groonga result codes (C.grn_rc) [,0],
-// Grnci error codes [1000,] and HTTP status codes [100,999].
+// getCodeText supports Groonga result codes (C.grn_rc) [,0] and
+// Grnci error codes [1000,].
 func getCodeText(code int) string {
 	switch code {
 	case 0:
@@ -196,13 +196,12 @@ func getCodeText(code int) string {
 		return "invalid type"
 	case NetworkError:
 		return "network error"
+	case HTTPError:
+		return "HTTP error"
 	case UnknownError:
 		return "unknown error"
 
 	default:
-		if text := http.StatusText(code); text != "" {
-			return text
-		}
 		return "undefined error"
 	}
 }
