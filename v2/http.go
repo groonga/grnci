@@ -33,6 +33,7 @@ func extractHTTPResponseHeader(data []byte) (head, left []byte, err error) {
 	left = bytes.TrimLeft(data[1:], " \t\r\n")
 	if !bytes.HasPrefix(left, []byte("[")) {
 		err = NewError(ResponseError, map[string]interface{}{
+			"data":  string(data),
 			"error": "The response does not contain a header.",
 		})
 		return
@@ -49,6 +50,7 @@ Loop:
 		case ']', '}':
 			if left[i] != stack[len(stack)-1] {
 				err = NewError(ResponseError, map[string]interface{}{
+					"data":  string(data),
 					"error": "The response header is broken.",
 				})
 				return
@@ -71,6 +73,7 @@ Loop:
 	}
 	if len(stack) != 0 {
 		err = NewError(ResponseError, map[string]interface{}{
+			"data":  string(data),
 			"error": "The response header is too long or broken.",
 		})
 		return
@@ -84,8 +87,8 @@ Loop:
 }
 
 // parseHTTPResponseHeaderError parses the error information in the HTTP resonse header.
-func parseHTTPResponseHeaderError(code int, elems []interface{}) error {
-	err := NewGroongaError(ResultCode(code), nil)
+func parseHTTPResponseHeaderError(rc int, elems []interface{}) error {
+	err := NewGroongaError(ResultCode(rc), nil)
 	if len(elems) >= 1 {
 		err = EnhanceError(err, map[string]interface{}{
 			"message": elems[0],
@@ -130,15 +133,18 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 		return nil, err
 	}
 
+	// TODO: use another JSON decoder.
 	var elems []interface{}
 	if err := json.Unmarshal(head, &elems); err != nil {
 		return nil, NewError(ResponseError, map[string]interface{}{
+			"head":   string(head),
 			"method": "json.Unmarshal",
 			"error":  err.Error(),
 		})
 	}
 	if len(elems) < 3 {
 		return nil, NewError(ResponseError, map[string]interface{}{
+			"elems":  elems,
 			"method": "json.Unmarshal",
 			"error":  "Too few elements in the response header.",
 		})
@@ -146,16 +152,16 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	f, ok := elems[0].(float64)
 	if !ok {
 		return nil, NewError(ResponseError, map[string]interface{}{
-			"rc":    elems[0],
-			"error": "The rc must be a number.",
+			"elems": elems,
+			"error": "The 1st element must be the result code (number).",
 		})
 	}
-	code := int(f)
+	rc := int(f)
 	f, ok = elems[1].(float64)
 	if !ok {
 		return nil, NewError(ResponseError, map[string]interface{}{
-			"start": elems[1],
-			"error": "The start must be a number.",
+			"elems": elems,
+			"error": "The 2nd element must be the start time (number).",
 		})
 	}
 	i, f := math.Modf(f)
@@ -163,14 +169,14 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	f, ok = elems[2].(float64)
 	if !ok {
 		return nil, NewError(ResponseError, map[string]interface{}{
-			"elapsed": elems[2],
-			"error":   "The elapsed must be a number.",
+			"elems": elems,
+			"error": "The 3rd element must be the elapsed time (number).",
 		})
 	}
 	elapsed := time.Duration(f * float64(time.Second))
 
-	if code != 0 {
-		err = parseHTTPResponseHeaderError(code, elems[3:])
+	if rc != 0 {
+		err = parseHTTPResponseHeaderError(rc, elems[3:])
 	}
 
 	return &httpResponse{
@@ -184,6 +190,16 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 
 // newHTTPResponse returns a new httpResponse.
 func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
+	switch code := resp.StatusCode; code {
+	case http.StatusOK, http.StatusAccepted, http.StatusNoContent:
+	case http.StatusBadRequest:
+	default:
+		resp.Body.Close()
+		return nil, NewError(HTTPError, map[string]interface{}{
+			"status": fmt.Sprintf("%d %s", code, http.StatusText(code)),
+			"note":   "The response format is not JSON.",
+		})
+	}
 	buf := make([]byte, httpBufferSize)
 	n, err := io.ReadFull(resp.Body, buf)
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
@@ -198,20 +214,13 @@ func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
 		r, err := parseHTTPResponseHeader(resp, data)
 		if err != nil {
 			resp.Body.Close()
+			return nil, err
 		}
-		return r, err
-	}
-	code := resp.StatusCode
-	if code != http.StatusOK {
-		err = NewError(HTTPError, map[string]interface{}{
-			"status": fmt.Sprintf("%d %s", code, http.StatusText(code)),
-			"note":   "The response format is not JSON.",
-		})
+		return r, nil
 	}
 	return &httpResponse{
 		resp:  resp,
 		plain: true,
-		err:   err,
 		left:  data,
 	}, nil
 }
@@ -277,7 +286,13 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 
 // Close closes the response body.
 func (r *httpResponse) Close() error {
-	io.Copy(ioutil.Discard, r.resp.Body)
+	if _, err := io.Copy(ioutil.Discard, r.resp.Body); err != nil {
+		r.resp.Body.Close()
+		return NewError(NetworkError, map[string]interface{}{
+			"method": "io.Copy",
+			"error":  err.Error(),
+		})
+	}
 	if err := r.resp.Body.Close(); err != nil {
 		return NewError(NetworkError, map[string]interface{}{
 			"method": "http.Response.Body.Close",
@@ -287,6 +302,7 @@ func (r *httpResponse) Close() error {
 	return nil
 }
 
+// Err returns the error details.
 func (r *httpResponse) Err() error {
 	return r.err
 }
