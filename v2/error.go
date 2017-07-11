@@ -55,9 +55,11 @@ func (ec ErrorCode) String() string {
 // MarshalJSON returns the JSON-encoded error code.
 func (ec ErrorCode) MarshalJSON() ([]byte, error) {
 	buf := make([]byte, 0, 24)
+	buf = append(buf, '"')
 	buf = strconv.AppendInt(buf, int64(ec), 10)
 	buf = append(buf, ' ')
 	buf = append(buf, ec.Name()...)
+	buf = append(buf, '"')
 	return buf, nil
 }
 
@@ -241,10 +243,12 @@ func (rc ResultCode) String() string {
 
 // MarshalJSON returns the JSON-encoded error code.
 func (rc ResultCode) MarshalJSON() ([]byte, error) {
-	buf := make([]byte, 0, 24)
+	buf := make([]byte, 0, 48)
+	buf = append(buf, '"')
 	buf = strconv.AppendInt(buf, int64(rc), 10)
 	buf = append(buf, ' ')
 	buf = append(buf, rc.Name()...)
+	buf = append(buf, '"')
 	return buf, nil
 }
 
