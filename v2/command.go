@@ -158,6 +158,7 @@ func formatParamDefault(key string, value interface{}) (string, error) {
 	if key == "" {
 		return "", NewError(CommandError, map[string]interface{}{
 			"key":   key,
+			"value": value,
 			"error": "The key must not be empty.",
 		})
 	}
@@ -168,6 +169,7 @@ func formatParamDefault(key string, value interface{}) (string, error) {
 		default:
 			return "", NewError(CommandError, map[string]interface{}{
 				"key":   key,
+				"value": value,
 				"error": "The key must consist of [a-z_].",
 			})
 		}
@@ -180,6 +182,7 @@ func formatParamSelect(key string, value interface{}) (string, error) {
 	if key == "" {
 		return "", NewError(CommandError, map[string]interface{}{
 			"key":   key,
+			"value": value,
 			"error": "The key must not be empty.",
 		})
 	}
@@ -194,6 +197,7 @@ func formatParamSelect(key string, value interface{}) (string, error) {
 			default:
 				return "", NewError(CommandError, map[string]interface{}{
 					"key":   key,
+					"value": value,
 					"error": "The key must consist of [0-9A-Za-z#@-_.[]].",
 				})
 			}
@@ -609,7 +613,7 @@ var commandFormats = map[string]*commandFormat{
 	),
 }
 
-// Command is a command.
+// Command is a Groonga command.
 type Command struct {
 	name   string            // Command name
 	format *commandFormat    // Command format
@@ -634,7 +638,7 @@ func newCommand(name string) (*Command, error) {
 	}, nil
 }
 
-// NewCommand formats params and returns a new Command.
+// NewCommand assembles name and params into a new Command.
 func NewCommand(name string, params map[string]interface{}) (*Command, error) {
 	c, err := newCommand(name)
 	if err != nil {
@@ -766,7 +770,9 @@ func ParseCommand(cmd string) (*Command, error) {
 		}
 		v = tokens[i]
 		if err := c.SetParam(k, v); err != nil {
-			return nil, err
+			return nil, EnhanceError(err, map[string]interface{}{
+				"command": cmd,
+			})
 		}
 	}
 	return c, nil
@@ -797,30 +803,37 @@ func (c *Command) NeedsBody() bool {
 	return false
 }
 
-// Check checks whether or not the command has required parameters.
+// Check checks whether or not the command has required components.
 func (c *Command) Check() error {
 	for _, pf := range c.format.requiredParams {
 		if _, ok := c.params[pf.key]; !ok {
 			return NewError(CommandError, map[string]interface{}{
-				"name":  c.name,
-				"key":   pf.key,
-				"error": "The command requires the key.",
+				"name":   c.name,
+				"params": c.params,
+				"key":    pf.key,
+				"error":  "The command requires the key.",
 			})
 		}
 	}
-	if c.NeedsBody() {
-		if c.body == nil {
-			return NewError(CommandError, map[string]interface{}{
-				"name":  c.name,
-				"error": "The command requires a body",
-			})
-		}
+	if !c.NeedsBody() && c.body != nil {
+		return NewError(CommandError, map[string]interface{}{
+			"name":   c.name,
+			"params": c.params,
+			"error":  "The command does not require a body",
+		})
+	}
+	if c.NeedsBody() && c.body == nil {
+		return NewError(CommandError, map[string]interface{}{
+			"name":   c.name,
+			"params": c.params,
+			"error":  "The command requires a body",
+		})
 	}
 	return nil
 }
 
 // SetParam adds or removes a parameter.
-// If value == nil, it adds a parameter.
+// If value != nil, it adds a parameter.
 // Otherwise, it removes a parameter.
 func (c *Command) SetParam(key string, value interface{}) error {
 	if value == nil {
@@ -1003,7 +1016,7 @@ func (br *commandBodyReader) Read(p []byte) (n int, err error) {
 //     cmd, err := cr.Read()
 //     if err != nil {
 //       if err != io.EOF {
-//         // Failed to read or parse a command.
+//         // Failed to read or parse a command unexpectedly.
 //       }
 //       break
 //     }
