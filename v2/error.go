@@ -21,7 +21,7 @@ const (
 	UnknownError
 )
 
-// Name returns the name of the error code.
+// Name returns the name of the error code such as "AddressError".
 func (ec ErrorCode) Name() string {
 	switch ec {
 	case AddressError:
@@ -63,10 +63,10 @@ func (ec ErrorCode) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
-// ResultCode is a Groons result code.
+// ResultCode is a Groonga result code.
 type ResultCode int
 
-// Name returns the name of the result code.
+// Name returns the name of the result code such as "GRN_SUCCESS".
 func (rc ResultCode) Name() string {
 	switch rc {
 	case 0:
