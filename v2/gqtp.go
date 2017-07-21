@@ -391,17 +391,13 @@ func (c *GQTPConn) Query(cmd *Command) (Response, error) {
 
 // GQTPClient is a thread-safe GQTP client.
 type GQTPClient struct {
-	addr      *Address
+	addr      string
 	idleConns chan *GQTPConn
 }
 
 // NewGQTPClient returns a new GQTPClient connected to a GQTP server.
 // The expected address format is [scheme://][host][:port].
 func NewGQTPClient(addr string) (*GQTPClient, error) {
-	a, err := ParseGQTPAddress(addr)
-	if err != nil {
-		return nil, err
-	}
 	conn, err := DialGQTP(addr)
 	if err != nil {
 		return nil, err
@@ -409,7 +405,7 @@ func NewGQTPClient(addr string) (*GQTPClient, error) {
 	conns := make(chan *GQTPConn, gqtpMaxIdleConns)
 	conns <- conn
 	return &GQTPClient{
-		addr:      a,
+		addr:      addr,
 		idleConns: conns,
 	}, nil
 }
@@ -438,7 +434,7 @@ func (c *GQTPClient) exec(cmd string, body io.Reader) (Response, error) {
 	select {
 	case conn = <-c.idleConns:
 	default:
-		conn, err = DialGQTP(c.addr.String())
+		conn, err = DialGQTP(c.addr)
 		if err != nil {
 			return nil, err
 		}
