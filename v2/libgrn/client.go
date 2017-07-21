@@ -12,7 +12,7 @@ const (
 
 // Client is a thread-safe GQTP client or DB handle.
 type Client struct {
-	addr      *grnci.Address
+	addr      string
 	baseConn  *Conn
 	idleConns chan *Conn
 }
@@ -20,10 +20,6 @@ type Client struct {
 // DialClient returns a new Client connected to a GQTP server.
 // The expected address format is [scheme://][host][:port].
 func DialClient(addr string) (*Client, error) {
-	a, err := grnci.ParseGQTPAddress(addr)
-	if err != nil {
-		return nil, err
-	}
 	conn, err := Dial(addr)
 	if err != nil {
 		return nil, err
@@ -31,7 +27,7 @@ func DialClient(addr string) (*Client, error) {
 	conns := make(chan *Conn, maxIdleConns)
 	conns <- conn
 	return &Client{
-		addr:      a,
+		addr:      addr,
 		idleConns: conns,
 	}, nil
 }
@@ -89,8 +85,8 @@ func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 	select {
 	case conn = <-c.idleConns:
 	default:
-		if c.addr != nil {
-			conn, err = Dial(c.addr.String())
+		if c.baseConn == nil {
+			conn, err = Dial(c.addr)
 			if err != nil {
 				return nil, err
 			}
