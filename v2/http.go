@@ -197,20 +197,22 @@ func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
 		resp.Body.Close()
 		return nil, NewError(HTTPError, map[string]interface{}{
 			"status": fmt.Sprintf("%d %s", code, http.StatusText(code)),
-			"note":   "The response format is not JSON.",
+			"error":  "The status is unexpected.",
 		})
 	}
+	// Read the leading bytes to get the response header.
 	buf := make([]byte, httpBufferSize)
 	n, err := io.ReadFull(resp.Body, buf)
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		resp.Body.Close()
 		return nil, NewError(NetworkError, map[string]interface{}{
-			"method": "http.Response.Body.Read",
+			"method": "io.ReadFull",
 			"error":  err.Error(),
 		})
 	}
 	data := bytes.TrimLeft(buf[:n], " \t\r\n")
 	if bytes.HasPrefix(data, []byte("[")) {
+		// The response must be JSON-encoded.
 		r, err := parseHTTPResponseHeader(resp, data)
 		if err != nil {
 			resp.Body.Close()
