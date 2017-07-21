@@ -101,7 +101,7 @@ func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 			}
 		}
 	}
-	resp, err := conn.Exec(cmd, body)
+	resp, err := conn.exec(cmd, body)
 	if err != nil {
 		conn.Close()
 		return nil, err
