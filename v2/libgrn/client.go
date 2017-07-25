@@ -39,7 +39,8 @@ func OpenClient(path string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		baseConn: conn,
+		baseConn:  conn,
+		idleConns: make(chan *Conn, maxIdleConns),
 	}, nil
 }
 
@@ -50,7 +51,8 @@ func CreateClient(path string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		baseConn: conn,
+		baseConn:  conn,
+		idleConns: make(chan *Conn, maxIdleConns),
 	}, nil
 }
 
