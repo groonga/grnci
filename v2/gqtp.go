@@ -53,7 +53,6 @@ type gqtpResponse struct {
 	head   gqtpHeader  // Current header
 	err    error       // Error response
 	left   int         // Number of bytes left in the current chunk
-	broken bool        // Whether or not the connection is broken
 	closed bool        // Whether or not the response is closed
 }
 
@@ -93,7 +92,7 @@ func (r *gqtpResponse) Read(p []byte) (int, error) {
 		}
 		head, err := r.conn.recvHeader()
 		if err != nil {
-			r.broken = true
+			r.conn.broken = true
 			return 0, err
 		}
 		r.head = head
@@ -108,7 +107,7 @@ func (r *gqtpResponse) Read(p []byte) (int, error) {
 		return n, io.EOF
 	}
 	if err != nil {
-		r.broken = true
+		r.conn.broken = true
 		return n, NewError(NetworkError, map[string]interface{}{
 			"method": "net.Conn.Read",
 			"n":      n,
@@ -125,7 +124,7 @@ func (r *gqtpResponse) Close() error {
 	}
 	var err error
 	if _, e := io.CopyBuffer(ioutil.Discard, r, r.conn.getBuffer()); e != nil {
-		r.broken = true
+		r.conn.broken = true
 		err = NewError(NetworkError, map[string]interface{}{
 			"method": "io.CopyBuffer",
 			"error":  e.Error(),
@@ -137,7 +136,7 @@ func (r *gqtpResponse) Close() error {
 	}
 	if r.client != nil {
 		// Broken connections are closed.
-		if r.broken {
+		if r.conn.broken {
 			if e := r.conn.Close(); e != nil && err != nil {
 				err = e
 			}
@@ -163,7 +162,8 @@ type GQTPConn struct {
 	conn    net.Conn // Connection to a GQTP server
 	buf     []byte   // Copy buffer
 	bufSize int      // Copy buffer size
-	ready   bool     // Whether or not Exec and Query are ready
+	ready   bool     // Whether or not the connection is ready to send a command
+	broken  bool     // Whether or not the connection is broken
 }
 
 // DialGQTP returns a new GQTPConn connected to a GQTP server.
@@ -341,6 +341,11 @@ func (c *GQTPConn) execBody(cmd string, body io.Reader) (Response, error) {
 
 // exec sends a command and receives a response.
 func (c *GQTPConn) exec(cmd string, body io.Reader) (Response, error) {
+	if c.broken {
+		return nil, NewError(OperationError, map[string]interface{}{
+			"error": "The connection is broken.",
+		})
+	}
 	if !c.ready {
 		return nil, NewError(OperationError, map[string]interface{}{
 			"error": "The connection is not ready to send a command.",
