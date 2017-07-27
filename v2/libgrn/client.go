@@ -12,21 +12,31 @@ const (
 
 // ClientOptions is options of Client.
 type ClientOptions struct {
+	BufferSize   int // Buffer size
 	MaxIdleConns int // Maximum number of idle connections
 }
 
 // NewClientOptions returns the default ClientOptions.
 func NewClientOptions() *ClientOptions {
 	return &ClientOptions{
+		BufferSize:   defaultBufferSize,
 		MaxIdleConns: defaultMaxIdleConns,
 	}
 }
 
+// connOptions returns options for conn.
+func (o *ClientOptions) connOptions() *connOptions {
+	options := newConnOptions()
+	options.BufferSize = o.BufferSize
+	return options
+}
+
 // Client is a thread-safe GQTP client or DB handle.
 type Client struct {
-	addr      string
-	baseConn  *conn
-	idleConns chan *conn
+	addr        string
+	connOptions *connOptions
+	baseConn    *conn
+	idleConns   chan *conn
 }
 
 // Dial returns a new Client connected to a GQTP server.
@@ -35,13 +45,15 @@ func Dial(addr string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
-	cn, err := dial(addr)
+	connOptions := options.connOptions()
+	cn, err := dial(addr, connOptions)
 	if err != nil {
 		return nil, err
 	}
 	c := &Client{
-		addr:      addr,
-		idleConns: make(chan *conn, options.MaxIdleConns),
+		addr:        addr,
+		connOptions: connOptions,
+		idleConns:   make(chan *conn, options.MaxIdleConns),
 	}
 	c.idleConns <- cn
 	cn.client = c
@@ -53,13 +65,15 @@ func Open(path string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
-	cn, err := open(path)
+	connOptions := options.connOptions()
+	cn, err := open(path, connOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{
-		baseConn:  cn,
-		idleConns: make(chan *conn, options.MaxIdleConns),
+		connOptions: connOptions,
+		baseConn:    cn,
+		idleConns:   make(chan *conn, options.MaxIdleConns),
 	}, nil
 }
 
@@ -68,13 +82,15 @@ func Create(path string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
-	cn, err := create(path)
+	connOptions := options.connOptions()
+	cn, err := create(path, connOptions)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{
-		baseConn:  cn,
-		idleConns: make(chan *conn, options.MaxIdleConns),
+		connOptions: connOptions,
+		baseConn:    cn,
+		idleConns:   make(chan *conn, options.MaxIdleConns),
 	}, nil
 }
 
@@ -110,7 +126,7 @@ func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 	case conn = <-c.idleConns:
 	default:
 		if c.baseConn == nil {
-			conn, err = dial(c.addr)
+			conn, err = dial(c.addr, c.connOptions)
 			if err != nil {
 				return nil, err
 			}
