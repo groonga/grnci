@@ -370,6 +370,7 @@ type GQTPClientOptions struct {
 // NewGQTPClientOptions returns the default GQTPClientOptions.
 func NewGQTPClientOptions() *GQTPClientOptions {
 	return &GQTPClientOptions{
+		BufferSize: gqtpDefaultBufferSize,
 		MaxIdleConns: gqtpDefaultMaxIdleConns,
 	}
 }
