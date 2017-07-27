@@ -10,7 +10,7 @@ import (
 
 // response is a response.
 type response struct {
-	conn   *Conn
+	conn   *conn
 	left   []byte
 	flags  byte
 	err    error
@@ -18,7 +18,7 @@ type response struct {
 }
 
 // newGQTPResponse returns a new GQTP response.
-func newGQTPResponse(conn *Conn, name string, data []byte, flags byte, err error) *response {
+func newGQTPResponse(conn *conn, name string, data []byte, flags byte, err error) *response {
 	return &response{
 		conn:  conn,
 		left:  data,
@@ -28,7 +28,7 @@ func newGQTPResponse(conn *Conn, name string, data []byte, flags byte, err error
 }
 
 // newDBResponse returns a new DB response.
-func newDBResponse(conn *Conn, data []byte, flags byte, err error) *response {
+func newDBResponse(conn *conn, data []byte, flags byte, err error) *response {
 	return &response{
 		conn:  conn,
 		left:  data,

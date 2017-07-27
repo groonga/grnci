@@ -25,8 +25,8 @@ func NewClientOptions() *ClientOptions {
 // Client is a thread-safe GQTP client or DB handle.
 type Client struct {
 	addr      string
-	baseConn  *Conn
-	idleConns chan *Conn
+	baseConn  *conn
+	idleConns chan *conn
 }
 
 // DialClient returns a new Client connected to a GQTP server.
@@ -35,16 +35,16 @@ func DialClient(addr string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
-	conn, err := Dial(addr)
+	cn, err := dial(addr)
 	if err != nil {
 		return nil, err
 	}
 	c := &Client{
 		addr:      addr,
-		idleConns: make(chan *Conn, options.MaxIdleConns),
+		idleConns: make(chan *conn, options.MaxIdleConns),
 	}
-	c.idleConns <- conn
-	conn.client = c
+	c.idleConns <- cn
+	cn.client = c
 	return c, nil
 }
 
@@ -53,13 +53,13 @@ func OpenClient(path string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
-	conn, err := Open(path)
+	cn, err := open(path)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{
-		baseConn:  conn,
-		idleConns: make(chan *Conn, options.MaxIdleConns),
+		baseConn:  cn,
+		idleConns: make(chan *conn, options.MaxIdleConns),
 	}, nil
 }
 
@@ -68,13 +68,13 @@ func CreateClient(path string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
-	conn, err := Create(path)
+	cn, err := create(path)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{
-		baseConn:  conn,
-		idleConns: make(chan *Conn, options.MaxIdleConns),
+		baseConn:  cn,
+		idleConns: make(chan *conn, options.MaxIdleConns),
 	}, nil
 }
 
@@ -104,13 +104,13 @@ Loop:
 
 // exec sends a command and receives a response.
 func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
-	var conn *Conn
+	var conn *conn
 	var err error
 	select {
 	case conn = <-c.idleConns:
 	default:
 		if c.baseConn == nil {
-			conn, err = Dial(c.addr)
+			conn, err = dial(c.addr)
 			if err != nil {
 				return nil, err
 			}
@@ -123,7 +123,7 @@ func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 			conn.client = c
 		}
 	}
-	resp, err := conn.exec(cmd, body)
+	resp, err := conn.Exec(cmd, body)
 	if err != nil {
 		conn.Close()
 		return nil, err

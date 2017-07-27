@@ -20,7 +20,7 @@ func makeDB(t *testing.T) (db *grnci.DB, dir string) {
 	if err != nil {
 		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
-	conn, err := Create(filepath.Join(dir, "db"))
+	conn, err := CreateClient(filepath.Join(dir, "db"), nil)
 	if err != nil {
 		os.RemoveAll(dir)
 		t.Fatalf("Open failed: %v", err)

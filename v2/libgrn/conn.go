@@ -17,8 +17,8 @@ const (
 	defaultBufferSize = 1 << 16 // Default buffer size
 )
 
-// Conn is a thread-unsafe GQTP client or DB handle.
-type Conn struct {
+// conn is a thread-unsafe GQTP client or DB handle.
+type conn struct {
 	client  *Client // Owner client if available
 	ctx     *grnCtx // C.grn_ctx
 	db      *grnDB  // C.grn_obj
@@ -28,9 +28,9 @@ type Conn struct {
 	broken  bool    // Whether or not the connection is broken
 }
 
-// newConn returns a new Conn.
-func newConn(ctx *grnCtx, db *grnDB) *Conn {
-	return &Conn{
+// newConn returns a new conn.
+func newConn(ctx *grnCtx, db *grnDB) *conn {
+	return &conn{
 		ctx:     ctx,
 		db:      db,
 		bufSize: defaultBufferSize,
@@ -38,8 +38,8 @@ func newConn(ctx *grnCtx, db *grnDB) *Conn {
 	}
 }
 
-// Dial returns a new Conn connected to a GQTP server.
-func Dial(addr string) (*Conn, error) {
+// dial returns a new conn connected to a GQTP server.
+func dial(addr string) (*conn, error) {
 	a, err := grnci.ParseGQTPAddress(addr)
 	if err != nil {
 		return nil, err
@@ -59,8 +59,8 @@ func Dial(addr string) (*Conn, error) {
 	return newConn(ctx, nil), nil
 }
 
-// Open opens an existing DB and returns a new Conn as its handle.
-func Open(path string) (*Conn, error) {
+// open opens an existing DB and returns a new conn as its handle.
+func open(path string) (*conn, error) {
 	ctx, err := newGrnCtx()
 	if err != nil {
 		return nil, err
@@ -73,8 +73,8 @@ func Open(path string) (*Conn, error) {
 	return newConn(ctx, db), nil
 }
 
-// Create creates a new DB and returns a new Conn as its handle.
-func Create(path string) (*Conn, error) {
+// create creates a new DB and returns a new conn as its handle.
+func create(path string) (*conn, error) {
 	ctx, err := newGrnCtx()
 	if err != nil {
 		return nil, err
@@ -87,8 +87,8 @@ func Create(path string) (*Conn, error) {
 	return newConn(ctx, db), nil
 }
 
-// Dup duplicates the Conn if it is a DB handle.
-func (c *Conn) Dup() (*Conn, error) {
+// Dup duplicates the conn if it is a DB handle.
+func (c *conn) Dup() (*conn, error) {
 	if c.db == nil {
 		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
 			"error": "GQTP clients do not support Dup.",
@@ -101,8 +101,8 @@ func (c *Conn) Dup() (*Conn, error) {
 	return newConn(ctx, c.db), nil
 }
 
-// Close closes the Conn.
-func (c *Conn) Close() error {
+// Close closes the conn.
+func (c *conn) Close() error {
 	var err error
 	if c.db != nil {
 		if e := c.db.Close(c.ctx); e != nil {
@@ -118,7 +118,7 @@ func (c *Conn) Close() error {
 }
 
 // SetBufferSize updates the size of the copy buffer.
-func (c *Conn) SetBufferSize(n int) {
+func (c *conn) SetBufferSize(n int) {
 	if n <= 0 || n > maxChunkSize {
 		n = defaultBufferSize
 	}
@@ -126,7 +126,7 @@ func (c *Conn) SetBufferSize(n int) {
 }
 
 // getBuffer returns the copy buffer.
-func (c *Conn) getBuffer() []byte {
+func (c *conn) getBuffer() []byte {
 	if len(c.buf) != c.bufSize {
 		c.buf = make([]byte, c.bufSize)
 	}
@@ -134,7 +134,7 @@ func (c *Conn) getBuffer() []byte {
 }
 
 // execNoBodyGQTP sends a command and receives a response.
-func (c *Conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
+func (c *conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
 		name = name[:idx]
@@ -150,7 +150,7 @@ func (c *Conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
 }
 
 // execNoBodyDB executes a command and receives a response.
-func (c *Conn) execNoBodyDB(cmd string) (grnci.Response, error) {
+func (c *conn) execNoBodyDB(cmd string) (grnci.Response, error) {
 	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
 		data, flags, _ := c.ctx.Recv()
 		return newDBResponse(c, data, flags, err), nil
@@ -160,7 +160,7 @@ func (c *Conn) execNoBodyDB(cmd string) (grnci.Response, error) {
 }
 
 // execNoBody sends a command without body and receives a response.
-func (c *Conn) execNoBody(cmd string) (grnci.Response, error) {
+func (c *conn) execNoBody(cmd string) (grnci.Response, error) {
 	if c.db == nil {
 		return c.execNoBodyGQTP(cmd)
 	}
@@ -168,7 +168,7 @@ func (c *Conn) execNoBody(cmd string) (grnci.Response, error) {
 }
 
 // execBodyGQTP sends a command and receives a response.
-func (c *Conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) {
+func (c *conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) {
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
 		name = name[:idx]
@@ -215,7 +215,7 @@ func (c *Conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 }
 
 // execBodyDB sends a command and receives a response.
-func (c *Conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
+func (c *conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
 	if err := c.ctx.Send([]byte(cmd), 0); err != nil {
 		data, flags, _ := c.ctx.Recv()
 		return newDBResponse(c, data, flags, err), nil
@@ -252,15 +252,20 @@ func (c *Conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
 }
 
 // execBody sends a command with body and receives a response.
-func (c *Conn) execBody(cmd string, body io.Reader) (grnci.Response, error) {
+func (c *conn) execBody(cmd string, body io.Reader) (grnci.Response, error) {
 	if c.db == nil {
 		return c.execBodyGQTP(cmd, body)
 	}
 	return c.execBodyDB(cmd, body)
 }
 
-// exec sends a command and receives a response.
-func (c *Conn) exec(cmd string, body io.Reader) (grnci.Response, error) {
+// Exec sends a command and receives a response.
+func (c *conn) Exec(cmd string, body io.Reader) (grnci.Response, error) {
+	if c.broken {
+		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
+			"error": "The connection is broken.",
+		})
+	}
 	if !c.ready {
 		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
 			"error": "The connection is not ready to send a command.",
@@ -277,34 +282,4 @@ func (c *Conn) exec(cmd string, body io.Reader) (grnci.Response, error) {
 		return c.execNoBody(cmd)
 	}
 	return c.execBody(cmd, body)
-}
-
-// Exec parses cmd, reassembles it and calls Query.
-// The Conn must not be used until the response is closed.
-func (c *Conn) Exec(cmd string, body io.Reader) (grnci.Response, error) {
-	command, err := grnci.ParseCommand(cmd)
-	if err != nil {
-		return nil, err
-	}
-	command.SetBody(body)
-	return c.Query(command)
-}
-
-// Invoke assembles name, params and body into a command and calls Query.
-func (c *Conn) Invoke(name string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
-	cmd, err := grnci.NewCommand(name, params)
-	if err != nil {
-		return nil, err
-	}
-	cmd.SetBody(body)
-	return c.Query(cmd)
-}
-
-// Query sends a command and receives a response.
-// It is the caller's responsibility to close the response.
-func (c *Conn) Query(cmd *grnci.Command) (grnci.Response, error) {
-	if err := cmd.Check(); err != nil {
-		return nil, err
-	}
-	return c.exec(cmd.String(), cmd.Body())
 }
