@@ -29,9 +29,9 @@ type Client struct {
 	idleConns chan *conn
 }
 
-// DialClient returns a new Client connected to a GQTP server.
+// Dial returns a new Client connected to a GQTP server.
 // The expected address format is [scheme://][host][:port].
-func DialClient(addr string, options *ClientOptions) (*Client, error) {
+func Dial(addr string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
@@ -48,8 +48,8 @@ func DialClient(addr string, options *ClientOptions) (*Client, error) {
 	return c, nil
 }
 
-// OpenClient opens an existing DB and returns a new Client.
-func OpenClient(path string, options *ClientOptions) (*Client, error) {
+// Open opens an existing DB and returns a new Client.
+func Open(path string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
@@ -63,8 +63,8 @@ func OpenClient(path string, options *ClientOptions) (*Client, error) {
 	}, nil
 }
 
-// CreateClient creates a new DB and returns a new Client.
-func CreateClient(path string, options *ClientOptions) (*Client, error) {
+// Create creates a new DB and returns a new Client.
+func Create(path string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = NewClientOptions()
 	}
