@@ -48,12 +48,11 @@ type gqtpHeader struct {
 
 // gqtpResponse is a GQTP response.
 type gqtpResponse struct {
-	client *GQTPClient // Client
-	conn   *GQTPConn   // Connection
-	head   gqtpHeader  // Current header
-	err    error       // Error response
-	left   int         // Number of bytes left in the current chunk
-	closed bool        // Whether or not the response is closed
+	conn   *GQTPConn  // Connection
+	head   gqtpHeader // Current header
+	err    error      // Error response
+	left   int        // Number of bytes left in the current chunk
+	closed bool       // Whether or not the response is closed
 }
 
 // newGQTPResponse returns a new GQTP response.
@@ -134,7 +133,7 @@ func (r *gqtpResponse) Close() error {
 	if err == nil {
 		r.conn.ready = true
 	}
-	if r.client != nil {
+	if r.conn.client != nil {
 		// Broken connections are closed.
 		if r.conn.broken {
 			if e := r.conn.Close(); e != nil && err != nil {
@@ -142,7 +141,7 @@ func (r *gqtpResponse) Close() error {
 			}
 		}
 		select {
-		case r.client.idleConns <- r.conn:
+		case r.conn.client.idleConns <- r.conn:
 		default:
 			if e := r.conn.Close(); e != nil && err != nil {
 				err = e
@@ -159,11 +158,12 @@ func (r *gqtpResponse) Err() error {
 
 // GQTPConn is a thread-unsafe GQTP client.
 type GQTPConn struct {
-	conn    net.Conn // Connection to a GQTP server
-	buf     []byte   // Copy buffer
-	bufSize int      // Copy buffer size
-	ready   bool     // Whether or not the connection is ready to send a command
-	broken  bool     // Whether or not the connection is broken
+	client  *GQTPClient // Owner client if available
+	conn    net.Conn    // Connection to a GQTP server
+	buf     []byte      // Copy buffer
+	bufSize int         // Copy buffer size
+	ready   bool        // Whether or not the connection is ready to send a command
+	broken  bool        // Whether or not the connection is broken
 }
 
 // DialGQTP returns a new GQTPConn connected to a GQTP server.
@@ -407,12 +407,13 @@ func NewGQTPClient(addr string) (*GQTPClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	conns := make(chan *GQTPConn, gqtpMaxIdleConns)
-	conns <- conn
-	return &GQTPClient{
+	c := &GQTPClient{
 		addr:      addr,
-		idleConns: conns,
-	}, nil
+		idleConns: make(chan *GQTPConn, gqtpMaxIdleConns),
+	}
+	c.idleConns <- conn
+	conn.client = c
+	return c, nil
 }
 
 // Close closes the idle connections.
@@ -449,7 +450,6 @@ func (c *GQTPClient) exec(cmd string, body io.Reader) (Response, error) {
 		conn.Close()
 		return nil, err
 	}
-	resp.(*gqtpResponse).client = c
 	return resp, nil
 }
 
