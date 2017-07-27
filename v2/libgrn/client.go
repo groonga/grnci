@@ -7,8 +7,20 @@ import (
 )
 
 const (
-	maxIdleConns = 2 // Maximum number of idle connections
+	defaultMaxIdleConns = 2 // Maximum number of idle connections
 )
+
+// ClientOptions is options of Client.
+type ClientOptions struct {
+	MaxIdleConns int // Maximum number of idle connections
+}
+
+// NewClientOptions returns the default ClientOptions.
+func NewClientOptions() *ClientOptions {
+	return &ClientOptions{
+		MaxIdleConns: defaultMaxIdleConns,
+	}
+}
 
 // Client is a thread-safe GQTP client or DB handle.
 type Client struct {
@@ -19,12 +31,15 @@ type Client struct {
 
 // DialClient returns a new Client connected to a GQTP server.
 // The expected address format is [scheme://][host][:port].
-func DialClient(addr string) (*Client, error) {
+func DialClient(addr string, options *ClientOptions) (*Client, error) {
+	if options == nil {
+		options = NewClientOptions()
+	}
 	conn, err := Dial(addr)
 	if err != nil {
 		return nil, err
 	}
-	conns := make(chan *Conn, maxIdleConns)
+	conns := make(chan *Conn, options.MaxIdleConns)
 	conns <- conn
 	return &Client{
 		addr:      addr,
@@ -33,26 +48,32 @@ func DialClient(addr string) (*Client, error) {
 }
 
 // OpenClient opens an existing DB and returns a new Client.
-func OpenClient(path string) (*Client, error) {
+func OpenClient(path string, options *ClientOptions) (*Client, error) {
+	if options == nil {
+		options = NewClientOptions()
+	}
 	conn, err := Open(path)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{
 		baseConn:  conn,
-		idleConns: make(chan *Conn, maxIdleConns),
+		idleConns: make(chan *Conn, options.MaxIdleConns),
 	}, nil
 }
 
 // CreateClient creates a new DB and returns a new Client.
-func CreateClient(path string) (*Client, error) {
+func CreateClient(path string, options *ClientOptions) (*Client, error) {
+	if options == nil {
+		options = NewClientOptions()
+	}
 	conn, err := Create(path)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{
 		baseConn:  conn,
-		idleConns: make(chan *Conn, maxIdleConns),
+		idleConns: make(chan *Conn, options.MaxIdleConns),
 	}, nil
 }
 
