@@ -6,7 +6,6 @@ package libgrn
 import "C"
 import (
 	"io"
-	"strings"
 	"unsafe"
 
 	"github.com/groonga/grnci/v2"
@@ -136,16 +135,12 @@ func (c *conn) Close() error {
 
 // execGQTPBody sends a command and receives a response.
 func (c *conn) execGQTPBody(cmd string, body io.Reader) (grnci.Response, error) {
-	name := strings.TrimLeft(cmd, " \t\r\n")
-	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
-		name = name[:idx]
-	}
 	if err := c.ctx.Send([]byte(cmd), 0); err != nil {
 		return nil, err
 	}
 	data, flags, err := c.ctx.Recv()
 	if len(data) != 0 {
-		return newGQTPResponse(c, name, data, flags, err), nil
+		return newResponse(c, data, flags, err), nil
 	}
 	if err != nil {
 		return nil, err
@@ -160,7 +155,7 @@ func (c *conn) execGQTPBody(cmd string, body io.Reader) (grnci.Response, error) 
 			}
 			data, flags, err := c.ctx.Recv()
 			if len(data) != 0 || err == nil {
-				return newGQTPResponse(c, name, data, flags, err), nil
+				return newResponse(c, data, flags, err), nil
 			}
 			return nil, err
 		}
@@ -171,7 +166,7 @@ func (c *conn) execGQTPBody(cmd string, body io.Reader) (grnci.Response, error) 
 			n = 0
 			data, flags, err = c.ctx.Recv()
 			if len(data) != 0 {
-				return newGQTPResponse(c, name, data, flags, err), nil
+				return newResponse(c, data, flags, err), nil
 			}
 			if err != nil {
 				return nil, err
@@ -185,10 +180,6 @@ func (c *conn) execGQTP(cmd string, body io.Reader) (grnci.Response, error) {
 	if body != nil {
 		return c.execGQTPBody(cmd, body)
 	}
-	name := strings.TrimLeft(cmd, " \t\r\n")
-	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
-		name = name[:idx]
-	}
 	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
 		return nil, err
 	}
@@ -196,18 +187,18 @@ func (c *conn) execGQTP(cmd string, body io.Reader) (grnci.Response, error) {
 	if err != nil && len(data) == 0 {
 		return nil, err
 	}
-	return newGQTPResponse(c, name, data, flags, err), nil
+	return newResponse(c, data, flags, err), nil
 }
 
 // execDBBody sends a command and receives a response.
 func (c *conn) execDBBody(cmd string, body io.Reader) (grnci.Response, error) {
 	if err := c.ctx.Send([]byte(cmd), 0); err != nil {
 		data, flags, _ := c.ctx.Recv()
-		return newDBResponse(c, data, flags, err), nil
+		return newResponse(c, data, flags, err), nil
 	}
 	data, flags, err := c.ctx.Recv()
 	if len(data) != 0 || err != nil {
-		return newDBResponse(c, data, flags, err), nil
+		return newResponse(c, data, flags, err), nil
 	}
 	n := 0
 	for {
@@ -216,20 +207,20 @@ func (c *conn) execDBBody(cmd string, body io.Reader) (grnci.Response, error) {
 		if err != nil {
 			if err := c.ctx.Send(c.buf[:n], flagTail); err != nil {
 				data, flags, _ := c.ctx.Recv()
-				return newDBResponse(c, data, flags, err), nil
+				return newResponse(c, data, flags, err), nil
 			}
 			data, flags, err := c.ctx.Recv()
-			return newDBResponse(c, data, flags, err), nil
+			return newResponse(c, data, flags, err), nil
 		}
 		if n == len(c.buf) {
 			if err := c.ctx.Send(c.buf, 0); err != nil {
 				data, flags, _ := c.ctx.Recv()
-				return newDBResponse(c, data, flags, err), nil
+				return newResponse(c, data, flags, err), nil
 			}
 			n = 0
 			data, flags, err = c.ctx.Recv()
 			if len(data) != 0 || err != nil {
-				return newDBResponse(c, data, flags, err), nil
+				return newResponse(c, data, flags, err), nil
 			}
 		}
 	}
@@ -242,10 +233,10 @@ func (c *conn) execDB(cmd string, body io.Reader) (grnci.Response, error) {
 	}
 	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
 		data, flags, _ := c.ctx.Recv()
-		return newDBResponse(c, data, flags, err), nil
+		return newResponse(c, data, flags, err), nil
 	}
 	data, flags, err := c.ctx.Recv()
-	return newDBResponse(c, data, flags, err), nil
+	return newResponse(c, data, flags, err), nil
 }
 
 // Exec sends a command and receives a response.

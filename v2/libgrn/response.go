@@ -17,18 +17,8 @@ type response struct {
 	closed bool
 }
 
-// newGQTPResponse returns a new GQTP response.
-func newGQTPResponse(conn *conn, name string, data []byte, flags byte, err error) *response {
-	return &response{
-		conn:  conn,
-		left:  data,
-		flags: flags,
-		err:   err,
-	}
-}
-
-// newDBResponse returns a new DB response.
-func newDBResponse(conn *conn, data []byte, flags byte, err error) *response {
+// newResponse returns a new GQTP response.
+func newResponse(conn *conn, data []byte, flags byte, err error) *response {
 	return &response{
 		conn:  conn,
 		left:  data,
