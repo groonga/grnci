@@ -134,42 +134,8 @@ func (c *conn) Close() error {
 	return err
 }
 
-// execNoBodyGQTP sends a command and receives a response.
-func (c *conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
-	name := strings.TrimLeft(cmd, " \t\r\n")
-	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
-		name = name[:idx]
-	}
-	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
-		return nil, err
-	}
-	data, flags, err := c.ctx.Recv()
-	if err != nil && len(data) == 0 {
-		return nil, err
-	}
-	return newGQTPResponse(c, name, data, flags, err), nil
-}
-
-// execNoBodyDB executes a command and receives a response.
-func (c *conn) execNoBodyDB(cmd string) (grnci.Response, error) {
-	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
-		data, flags, _ := c.ctx.Recv()
-		return newDBResponse(c, data, flags, err), nil
-	}
-	data, flags, err := c.ctx.Recv()
-	return newDBResponse(c, data, flags, err), nil
-}
-
-// execNoBody sends a command without body and receives a response.
-func (c *conn) execNoBody(cmd string) (grnci.Response, error) {
-	if c.db == nil {
-		return c.execNoBodyGQTP(cmd)
-	}
-	return c.execNoBodyDB(cmd)
-}
-
-// execBodyGQTP sends a command and receives a response.
-func (c *conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) {
+// execGQTPBody sends a command and receives a response.
+func (c *conn) execGQTPBody(cmd string, body io.Reader) (grnci.Response, error) {
 	name := strings.TrimLeft(cmd, " \t\r\n")
 	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
 		name = name[:idx]
@@ -214,8 +180,27 @@ func (c *conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 	}
 }
 
-// execBodyDB sends a command and receives a response.
-func (c *conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
+// execGQTP sends a command and receives a response.
+func (c *conn) execGQTP(cmd string, body io.Reader) (grnci.Response, error) {
+	if body != nil {
+		return c.execGQTPBody(cmd, body)
+	}
+	name := strings.TrimLeft(cmd, " \t\r\n")
+	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
+		name = name[:idx]
+	}
+	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
+		return nil, err
+	}
+	data, flags, err := c.ctx.Recv()
+	if err != nil && len(data) == 0 {
+		return nil, err
+	}
+	return newGQTPResponse(c, name, data, flags, err), nil
+}
+
+// execDBBody sends a command and receives a response.
+func (c *conn) execDBBody(cmd string, body io.Reader) (grnci.Response, error) {
 	if err := c.ctx.Send([]byte(cmd), 0); err != nil {
 		data, flags, _ := c.ctx.Recv()
 		return newDBResponse(c, data, flags, err), nil
@@ -250,12 +235,17 @@ func (c *conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
 	}
 }
 
-// execBody sends a command with body and receives a response.
-func (c *conn) execBody(cmd string, body io.Reader) (grnci.Response, error) {
-	if c.db == nil {
-		return c.execBodyGQTP(cmd, body)
+// execDB sends a command and receives a response.
+func (c *conn) execDB(cmd string, body io.Reader) (grnci.Response, error) {
+	if body != nil {
+		return c.execDBBody(cmd, body)
 	}
-	return c.execBodyDB(cmd, body)
+	if err := c.ctx.Send([]byte(cmd), flagTail); err != nil {
+		data, flags, _ := c.ctx.Recv()
+		return newDBResponse(c, data, flags, err), nil
+	}
+	data, flags, err := c.ctx.Recv()
+	return newDBResponse(c, data, flags, err), nil
 }
 
 // Exec sends a command and receives a response.
@@ -277,8 +267,8 @@ func (c *conn) Exec(cmd string, body io.Reader) (grnci.Response, error) {
 		})
 	}
 	c.ready = false
-	if body == nil {
-		return c.execNoBody(cmd)
+	if c.db == nil {
+		return c.execGQTP(cmd, body)
 	}
-	return c.execBody(cmd, body)
+	return c.execDB(cmd, body)
 }
