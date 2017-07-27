@@ -10,7 +10,6 @@ import (
 
 // response is a response.
 type response struct {
-	client *Client
 	conn   *Conn
 	left   []byte
 	flags  byte
@@ -90,7 +89,7 @@ func (r *response) Close() error {
 	if !r.conn.broken {
 		r.conn.ready = true
 	}
-	if r.client != nil {
+	if r.conn.client != nil {
 		// Broken connections are closed.
 		if r.conn.broken {
 			if e := r.conn.Close(); e != nil && err != nil {
@@ -98,7 +97,7 @@ func (r *response) Close() error {
 			}
 		}
 		select {
-		case r.client.idleConns <- r.conn:
+		case r.conn.client.idleConns <- r.conn:
 		default:
 			if e := r.conn.Close(); e != nil && err != nil {
 				err = e

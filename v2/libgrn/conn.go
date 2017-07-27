@@ -19,6 +19,7 @@ const (
 
 // Conn is a thread-unsafe GQTP client or DB handle.
 type Conn struct {
+	client  *Client // Owner client if available
 	ctx     *grnCtx // C.grn_ctx
 	db      *grnDB  // C.grn_obj
 	buf     []byte  // Copy buffer

@@ -39,12 +39,13 @@ func DialClient(addr string, options *ClientOptions) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	conns := make(chan *Conn, options.MaxIdleConns)
-	conns <- conn
-	return &Client{
+	c := &Client{
 		addr:      addr,
-		idleConns: conns,
-	}, nil
+		idleConns: make(chan *Conn, options.MaxIdleConns),
+	}
+	c.idleConns <- conn
+	conn.client = c
+	return c, nil
 }
 
 // OpenClient opens an existing DB and returns a new Client.
@@ -113,11 +114,13 @@ func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 			if err != nil {
 				return nil, err
 			}
+			conn.client = c
 		} else {
 			conn, err = c.baseConn.Dup()
 			if err != nil {
 				return nil, err
 			}
+			conn.client = c
 		}
 	}
 	resp, err := conn.exec(cmd, body)
@@ -125,7 +128,6 @@ func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 		conn.Close()
 		return nil, err
 	}
-	resp.(*response).client = c
 	return resp, nil
 }
 
