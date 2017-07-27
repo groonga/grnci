@@ -23,7 +23,8 @@ type Conn struct {
 	db      *grnDB  // C.grn_obj
 	buf     []byte  // Copy buffer
 	bufSize int     // Copy buffer size
-	ready   bool    // Whether or not Exec is ready
+	ready   bool    // Whether or not the connection is ready to send a command
+	broken  bool    // Whether or not the connection is broken
 }
 
 // newConn returns a new Conn.

@@ -15,7 +15,6 @@ type response struct {
 	left   []byte
 	flags  byte
 	err    error
-	broken bool
 	closed bool
 }
 
@@ -61,7 +60,7 @@ func (r *response) Read(p []byte) (n int, err error) {
 		}
 		data, flags, err := r.conn.ctx.Recv()
 		if err != nil {
-			r.broken = true
+			r.conn.broken = true
 			return 0, err
 		}
 		r.left = data
@@ -78,9 +77,9 @@ func (r *response) Close() error {
 		return nil
 	}
 	var err error
-	if !r.broken {
+	if !r.conn.broken {
 		if _, err = io.CopyBuffer(ioutil.Discard, r, r.conn.getBuffer()); err != nil {
-			r.broken = true
+			r.conn.broken = true
 			err = grnci.NewError(grnci.NetworkError, map[string]interface{}{
 				"method": "io.CopyBuffer",
 				"error":  err.Error(),
@@ -88,12 +87,12 @@ func (r *response) Close() error {
 		}
 	}
 	r.closed = true
-	if !r.broken {
+	if !r.conn.broken {
 		r.conn.ready = true
 	}
 	if r.client != nil {
 		// Broken connections are closed.
-		if r.broken {
+		if r.conn.broken {
 			if e := r.conn.Close(); e != nil && err != nil {
 				err = e
 			}
