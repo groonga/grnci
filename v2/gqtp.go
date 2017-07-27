@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"strings"
 	"time"
 )
 
@@ -56,7 +55,7 @@ type gqtpResponse struct {
 }
 
 // newGQTPResponse returns a new GQTP response.
-func newGQTPResponse(conn *gqtpConn, head gqtpHeader, name string) *gqtpResponse {
+func newGQTPResponse(conn *gqtpConn, head gqtpHeader) *gqtpResponse {
 	resp := &gqtpResponse{
 		conn: conn,
 		head: head,
@@ -276,10 +275,6 @@ func (c *gqtpConn) recvHeader() (gqtpHeader, error) {
 
 // execNoBody sends a command without body and receives a response.
 func (c *gqtpConn) execNoBody(cmd string) (Response, error) {
-	name := strings.TrimLeft(cmd, " \t\r\n")
-	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
-		name = name[:idx]
-	}
 	if err := c.sendChunkString(cmd, gqtpFlagTail); err != nil {
 		return nil, err
 	}
@@ -287,15 +282,11 @@ func (c *gqtpConn) execNoBody(cmd string) (Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newGQTPResponse(c, head, name), nil
+	return newGQTPResponse(c, head), nil
 }
 
 // execBody sends a command with body and receives a response.
 func (c *gqtpConn) execBody(cmd string, body io.Reader) (Response, error) {
-	name := strings.TrimLeft(cmd, " \t\r\n")
-	if idx := strings.IndexAny(name, " \t\r\n"); idx != -1 {
-		name = name[:idx]
-	}
 	if err := c.sendChunkString(cmd, 0); err != nil {
 		return nil, err
 	}
@@ -304,7 +295,7 @@ func (c *gqtpConn) execBody(cmd string, body io.Reader) (Response, error) {
 		return nil, err
 	}
 	if head.Status != 0 || head.Size != 0 {
-		return newGQTPResponse(c, head, name), nil
+		return newGQTPResponse(c, head), nil
 	}
 	n := 0
 	for {
@@ -318,7 +309,7 @@ func (c *gqtpConn) execBody(cmd string, body io.Reader) (Response, error) {
 			if err != nil {
 				return nil, err
 			}
-			return newGQTPResponse(c, head, name), nil
+			return newGQTPResponse(c, head), nil
 		}
 		if n == len(c.buf) {
 			if err := c.sendChunkBytes(c.buf, 0); err != nil {
@@ -329,7 +320,7 @@ func (c *gqtpConn) execBody(cmd string, body io.Reader) (Response, error) {
 				return nil, err
 			}
 			if head.Status != 0 || head.Size != 0 {
-				return newGQTPResponse(c, head, name), nil
+				return newGQTPResponse(c, head), nil
 			}
 			n = 0
 		}
@@ -370,7 +361,7 @@ type GQTPClientOptions struct {
 // NewGQTPClientOptions returns the default GQTPClientOptions.
 func NewGQTPClientOptions() *GQTPClientOptions {
 	return &GQTPClientOptions{
-		BufferSize: gqtpDefaultBufferSize,
+		BufferSize:   gqtpDefaultBufferSize,
 		MaxIdleConns: gqtpDefaultMaxIdleConns,
 	}
 }
