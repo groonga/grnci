@@ -19,22 +19,21 @@ const (
 
 // conn is a thread-unsafe GQTP client or DB handle.
 type conn struct {
-	client  *Client // Owner client if available
-	ctx     *grnCtx // C.grn_ctx
-	db      *grnDB  // C.grn_obj
-	buf     []byte  // Copy buffer
-	bufSize int     // Copy buffer size
-	ready   bool    // Whether or not the connection is ready to send a command
-	broken  bool    // Whether or not the connection is broken
+	client *Client // Owner client if available
+	ctx    *grnCtx // C.grn_ctx
+	db     *grnDB  // C.grn_obj
+	buf    []byte  // Copy buffer
+	ready  bool    // Whether or not the connection is ready to send a command
+	broken bool    // Whether or not the connection is broken
 }
 
 // newConn returns a new conn.
 func newConn(ctx *grnCtx, db *grnDB) *conn {
 	return &conn{
-		ctx:     ctx,
-		db:      db,
-		bufSize: defaultBufferSize,
-		ready:   true,
+		ctx:   ctx,
+		db:    db,
+		buf:   make([]byte, defaultBufferSize),
+		ready: true,
 	}
 }
 
@@ -117,22 +116,6 @@ func (c *conn) Close() error {
 	return err
 }
 
-// SetBufferSize updates the size of the copy buffer.
-func (c *conn) SetBufferSize(n int) {
-	if n <= 0 || n > maxChunkSize {
-		n = defaultBufferSize
-	}
-	c.bufSize = n
-}
-
-// getBuffer returns the copy buffer.
-func (c *conn) getBuffer() []byte {
-	if len(c.buf) != c.bufSize {
-		c.buf = make([]byte, c.bufSize)
-	}
-	return c.buf
-}
-
 // execNoBodyGQTP sends a command and receives a response.
 func (c *conn) execNoBodyGQTP(cmd string) (grnci.Response, error) {
 	name := strings.TrimLeft(cmd, " \t\r\n")
@@ -184,12 +167,11 @@ func (c *conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 		return nil, err
 	}
 	n := 0
-	buf := c.getBuffer()
 	for {
-		m, err := body.Read(buf[n:])
+		m, err := body.Read(c.buf[n:])
 		n += m
 		if err != nil {
-			if err := c.ctx.Send(buf[:n], flagTail); err != nil {
+			if err := c.ctx.Send(c.buf[:n], flagTail); err != nil {
 				return nil, err
 			}
 			data, flags, err := c.ctx.Recv()
@@ -198,8 +180,8 @@ func (c *conn) execBodyGQTP(cmd string, body io.Reader) (grnci.Response, error) 
 			}
 			return nil, err
 		}
-		if n == len(buf) {
-			if err := c.ctx.Send(buf, 0); err != nil {
+		if n == len(c.buf) {
+			if err := c.ctx.Send(c.buf, 0); err != nil {
 				return nil, err
 			}
 			n = 0
@@ -225,20 +207,19 @@ func (c *conn) execBodyDB(cmd string, body io.Reader) (grnci.Response, error) {
 		return newDBResponse(c, data, flags, err), nil
 	}
 	n := 0
-	buf := c.getBuffer()
 	for {
-		m, err := body.Read(buf[n:])
+		m, err := body.Read(c.buf[n:])
 		n += m
 		if err != nil {
-			if err := c.ctx.Send(buf[:n], flagTail); err != nil {
+			if err := c.ctx.Send(c.buf[:n], flagTail); err != nil {
 				data, flags, _ := c.ctx.Recv()
 				return newDBResponse(c, data, flags, err), nil
 			}
 			data, flags, err := c.ctx.Recv()
 			return newDBResponse(c, data, flags, err), nil
 		}
-		if n == len(buf) {
-			if err := c.ctx.Send(buf, 0); err != nil {
+		if n == len(c.buf) {
+			if err := c.ctx.Send(c.buf, 0); err != nil {
 				data, flags, _ := c.ctx.Recv()
 				return newDBResponse(c, data, flags, err), nil
 			}
