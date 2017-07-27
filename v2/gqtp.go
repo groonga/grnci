@@ -28,9 +28,9 @@ const (
 )
 
 const (
-	gqtpMaxChunkSize      = 1 << 30 // Maximum chunk size
-	gqtpDefaultBufferSize = 1 << 16 // Default buffer size
-	gqtpMaxIdleConns      = 2       // Maximum number of idle connections
+	gqtpMaxChunkSize        = 1 << 30 // Maximum chunk size
+	gqtpDefaultBufferSize   = 1 << 16 // Default buffer size
+	gqtpDefaultMaxIdleConns = 2       // Default maximum number of idle connections
 )
 
 // gqtpHeader is a GQTP header.
@@ -394,6 +394,18 @@ func (c *GQTPConn) Query(cmd *Command) (Response, error) {
 	return c.exec(cmd.String(), cmd.Body())
 }
 
+// GQTPClientOptions is options of GQTPClient.
+type GQTPClientOptions struct {
+	MaxIdleConns int // Maximum number of idle connections
+}
+
+// NewGQTPClientOptions returns the default GQTPClientOptions.
+func NewGQTPClientOptions() *GQTPClientOptions {
+	return &GQTPClientOptions{
+		MaxIdleConns: gqtpDefaultMaxIdleConns,
+	}
+}
+
 // GQTPClient is a thread-safe GQTP client.
 type GQTPClient struct {
 	addr      string
@@ -402,14 +414,17 @@ type GQTPClient struct {
 
 // NewGQTPClient returns a new GQTPClient connected to a GQTP server.
 // The expected address format is [scheme://][host][:port].
-func NewGQTPClient(addr string) (*GQTPClient, error) {
+func NewGQTPClient(addr string, options *GQTPClientOptions) (*GQTPClient, error) {
+	if options == nil {
+		options = NewGQTPClientOptions()
+	}
 	conn, err := DialGQTP(addr)
 	if err != nil {
 		return nil, err
 	}
 	c := &GQTPClient{
 		addr:      addr,
-		idleConns: make(chan *GQTPConn, gqtpMaxIdleConns),
+		idleConns: make(chan *GQTPConn, options.MaxIdleConns),
 	}
 	c.idleConns <- conn
 	conn.client = c
