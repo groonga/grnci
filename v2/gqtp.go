@@ -130,7 +130,7 @@ func (r *gqtpResponse) Close() error {
 		})
 	}
 	r.closed = true
-	if err == nil {
+	if !r.conn.broken {
 		r.conn.ready = true
 	}
 	if r.conn.client != nil {
