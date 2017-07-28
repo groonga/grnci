@@ -42,7 +42,7 @@ func newGQTPServer(tb testing.TB) *gqtpServer {
 		os.RemoveAll(dir)
 		tb.Skipf("cmd.Start failed: %v", err)
 	}
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 50)
 
 	return &gqtpServer{
 		dir:    dir,
@@ -61,7 +61,6 @@ func (s *gqtpServer) Close() {
 func TestGQTPClient(t *testing.T) {
 	server := newGQTPServer(t)
 	defer server.Close()
-
 	client, err := NewGQTPClient("", nil)
 	if err != nil {
 		t.Skipf("NewGQTPClient failed: %v", err)
@@ -131,14 +130,15 @@ func TestGQTPClient(t *testing.T) {
 }
 
 func BenchmarkGQTPClient(b *testing.B) {
+	b.StopTimer()
 	server := newGQTPServer(b)
 	defer server.Close()
-
 	client, err := NewGQTPClient("", nil)
 	if err != nil {
 		b.Skipf("NewGQTPClient failed: %v", err)
 	}
 	defer client.Close()
+	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		resp, err := client.Exec("status", nil)

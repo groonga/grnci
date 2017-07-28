@@ -42,7 +42,7 @@ func newHTTPServer(tb testing.TB) *httpServer {
 		os.RemoveAll(dir)
 		tb.Skipf("cmd.Start failed: %v", err)
 	}
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 50)
 
 	return &httpServer{
 		dir:    dir,
@@ -61,7 +61,6 @@ func (s *httpServer) Close() {
 func TestHTTPClient(t *testing.T) {
 	server := newHTTPServer(t)
 	defer server.Close()
-
 	client, err := NewHTTPClient("", nil)
 	if err != nil {
 		t.Skipf("NewHTTPClient failed: %v", err)
@@ -131,14 +130,15 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func BenchmarkHTTPClient(b *testing.B) {
+	b.StopTimer()
 	server := newHTTPServer(b)
 	defer server.Close()
-
 	client, err := NewHTTPClient("", nil)
 	if err != nil {
 		b.Skipf("NewHTTPClient failed: %v", err)
 	}
 	defer client.Close()
+	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		resp, err := client.Exec("status", nil)

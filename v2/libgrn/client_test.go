@@ -44,7 +44,7 @@ func newGQTPServer(tb testing.TB) *gqtpServer {
 		os.RemoveAll(dir)
 		tb.Skipf("cmd.Start failed: %v", err)
 	}
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 50)
 
 	return &gqtpServer{
 		dir:    dir,
@@ -63,7 +63,6 @@ func (s *gqtpServer) Close() {
 func TestGQTPClient(t *testing.T) {
 	server := newGQTPServer(t)
 	defer server.Close()
-
 	client, err := Dial("", nil)
 	if err != nil {
 		t.Skipf("Dial failed: %v", err)
@@ -138,7 +137,6 @@ func TestDBClient(t *testing.T) {
 		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(dir)
-
 	client, err := Create(filepath.Join(dir, "db"), nil)
 	if err != nil {
 		t.Skipf("Dial failed: %v", err)
@@ -208,14 +206,15 @@ func TestDBClient(t *testing.T) {
 }
 
 func BenchmarkGQTPClient(b *testing.B) {
+	b.StopTimer()
 	server := newGQTPServer(b)
 	defer server.Close()
-
 	client, err := Dial("", nil)
 	if err != nil {
 		b.Skipf("Dial failed: %v", err)
 	}
 	defer client.Close()
+	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		resp, err := client.Exec("status", nil)
@@ -239,17 +238,19 @@ func BenchmarkGQTPClient(b *testing.B) {
 }
 
 func BenchmarkDBClient(b *testing.B) {
+	b.StopTimer()
 	dir, err := ioutil.TempDir("", "grnci")
 	if err != nil {
 		b.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(dir)
-
 	client, err := Create(filepath.Join(dir, "db"), nil)
 	if err != nil {
 		b.Skipf("Dial failed: %v", err)
 	}
 	defer client.Close()
+	b.StartTimer()
+
 	for i := 0; i < b.N; i++ {
 		resp, err := client.Exec("status", nil)
 		if err != nil {
