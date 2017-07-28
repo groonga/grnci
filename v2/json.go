@@ -84,6 +84,7 @@ func AppendJSONGeo(buf []byte, v Geo) []byte {
 }
 
 // AppendJSONValue appends the JSON-encoded v to buf and returns the extended buffer.
+// In addition to basic types, pointer, interface, array and slice are supported.
 // If the type of v is unsupported, AppendJSONValue appends "null".
 func AppendJSONValue(buf []byte, v reflect.Value) []byte {
 	switch v.Kind() {
@@ -142,6 +143,7 @@ func AppendJSONValue(buf []byte, v reflect.Value) []byte {
 }
 
 // AppendJSON appends the JSON-encoded v to buf and returns the extended buffer.
+// In addition to basic types, pointer, interface, array and slice are supported.
 // If the type of v is unsupported, AppendJSON appends "null".
 func AppendJSON(buf []byte, v interface{}) []byte {
 	if v == nil {
@@ -186,12 +188,14 @@ func EncodeJSONGeo(v Geo) string {
 }
 
 // EncodeJSONValue returns the JSON-encoded v.
+// In addition to basic types, pointer, interface, array and slice are supported.
 // If the type of v is unsupported, EncodeJSONValue returns "null".
 func EncodeJSONValue(v reflect.Value) string {
 	return string(AppendJSONValue(nil, v))
 }
 
 // EncodeJSON returns the JSON-encoded v.
+// In addition to basic types, pointer, interface, array and slice are supported.
 // If the type of v is unsupported, EncodeJSON returns "null".
 func EncodeJSON(v interface{}) string {
 	return string(AppendJSON(nil, v))
