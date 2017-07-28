@@ -379,7 +379,8 @@ func (c *HTTPClient) exec(name string, params map[string]string, body io.Reader)
 	return newHTTPResponse(resp)
 }
 
-// Exec assembles cmd and body into a Command and calls Query.
+// Exec parses cmd, sends the parsed command and returns the response.
+// It is the caller's responsibility to close the response.
 func (c *HTTPClient) Exec(cmd string, body io.Reader) (Response, error) {
 	command, err := ParseCommand(cmd)
 	if err != nil {
@@ -389,7 +390,9 @@ func (c *HTTPClient) Exec(cmd string, body io.Reader) (Response, error) {
 	return c.Query(command)
 }
 
-// Invoke assembles name, params and body into a Command and calls Query.
+// Invoke assembles name and params into a command,
+// sends the command and returns the response.
+// It is the caller's responsibility to close the response.
 func (c *HTTPClient) Invoke(name string, params map[string]interface{}, body io.Reader) (Response, error) {
 	cmd, err := NewCommand(name, params)
 	if err != nil {
@@ -399,7 +402,7 @@ func (c *HTTPClient) Invoke(name string, params map[string]interface{}, body io.
 	return c.Query(cmd)
 }
 
-// Query sends a command and receives a response.
+// Query sends cmd and returns the response.
 // It is the caller's responsibility to close the response.
 func (c *HTTPClient) Query(cmd *Command) (Response, error) {
 	if err := cmd.Check(); err != nil {

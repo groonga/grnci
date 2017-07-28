@@ -147,7 +147,8 @@ func (c *Client) exec(cmd string, body io.Reader) (grnci.Response, error) {
 	return resp, nil
 }
 
-// Exec parses cmd, reassembles it and calls Query.
+// Exec parses cmd, sends the parsed command and returns the response.
+// It is the caller's responsibility to close the response.
 func (c *Client) Exec(cmd string, body io.Reader) (grnci.Response, error) {
 	command, err := grnci.ParseCommand(cmd)
 	if err != nil {
@@ -157,7 +158,9 @@ func (c *Client) Exec(cmd string, body io.Reader) (grnci.Response, error) {
 	return c.Query(command)
 }
 
-// Invoke assembles name, params and body into a command and calls Query.
+// Invoke assembles name and params into a command,
+// sends the command and returns the response.
+// It is the caller's responsibility to close the response.
 func (c *Client) Invoke(name string, params map[string]interface{}, body io.Reader) (grnci.Response, error) {
 	cmd, err := grnci.NewCommand(name, params)
 	if err != nil {
@@ -167,7 +170,7 @@ func (c *Client) Invoke(name string, params map[string]interface{}, body io.Read
 	return c.Query(cmd)
 }
 
-// Query sends a command and receives a response.
+// Query sends cmd and returns the response.
 // It is the caller's responsibility to close the response.
 func (c *Client) Query(cmd *grnci.Command) (grnci.Response, error) {
 	if err := cmd.Check(); err != nil {
