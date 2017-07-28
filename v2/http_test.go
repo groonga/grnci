@@ -130,6 +130,36 @@ func TestHTTPClient(t *testing.T) {
 	}
 }
 
+func BenchmarkHTTPClient(b *testing.B) {
+	server := newHTTPServer(b)
+	defer server.Close()
+
+	client, err := NewHTTPClient("", nil)
+	if err != nil {
+		b.Skipf("NewHTTPClient failed: %v", err)
+	}
+	defer client.Close()
+
+	for i := 0; i < b.N; i++ {
+		resp, err := client.Exec("status", nil)
+		if err != nil {
+			b.Fatalf("conn.Exec failed: err = %v", err)
+		}
+		respBody, err := ioutil.ReadAll(resp)
+		if err != nil {
+			b.Fatalf("ioutil.ReadAll failed: err = %v", err)
+		}
+		if err := resp.Err(); err != nil {
+			b.Fatalf("client.Exec failed: err = %v", err)
+		}
+		if len(respBody) == 0 {
+			b.Fatalf("ioutil.ReadAll failed: len(respBody) = 0")
+		}
+		if err := resp.Close(); err != nil {
+			b.Fatalf("resp.Close failed: %v", err)
+		}
+	}
+}
 func TestHTTPClientHandler(t *testing.T) {
 	var i interface{} = &HTTPClient{}
 	if _, ok := i.(Handler); !ok {
