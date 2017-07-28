@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,10 +20,10 @@ type gqtpServer struct {
 }
 
 // newGQTPServer creates a new DB and starts a server.
-func newGQTPServer(t *testing.T) *gqtpServer {
+func newGQTPServer(tb testing.TB) *gqtpServer {
 	dir, err := ioutil.TempDir("", "grnci")
 	if err != nil {
-		log.Fatalf("ioutil.TempDir failed: %v", err)
+		tb.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 
 	path := filepath.Join(dir, "db")
@@ -32,7 +31,7 @@ func newGQTPServer(t *testing.T) *gqtpServer {
 	stdin, _ := cmd.StdinPipe()
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(dir)
-		t.Skipf("cmd.Start failed: %v", err)
+		tb.Skipf("cmd.Start failed: %v", err)
 	}
 	stdin.Close()
 	cmd.Wait()
@@ -41,7 +40,7 @@ func newGQTPServer(t *testing.T) *gqtpServer {
 	cmd = exec.CommandContext(ctx, "groonga", "-s", "--protocol", "gqtp", path)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(dir)
-		t.Skipf("cmd.Start failed: %v", err)
+		tb.Skipf("cmd.Start failed: %v", err)
 	}
 	time.Sleep(time.Millisecond * 10)
 

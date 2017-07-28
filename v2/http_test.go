@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,10 +20,10 @@ type httpServer struct {
 }
 
 // newHTTPServer creates a new DB and starts a server.
-func newHTTPServer(t *testing.T) *httpServer {
+func newHTTPServer(tb testing.TB) *httpServer {
 	dir, err := ioutil.TempDir("", "grnci")
 	if err != nil {
-		log.Fatalf("ioutil.TempDir failed: %v", err)
+		tb.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 
 	path := filepath.Join(dir, "db")
@@ -32,7 +31,7 @@ func newHTTPServer(t *testing.T) *httpServer {
 	stdin, _ := cmd.StdinPipe()
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(dir)
-		t.Skipf("cmd.Start failed: %v", err)
+		tb.Skipf("cmd.Start failed: %v", err)
 	}
 	stdin.Close()
 	cmd.Wait()
@@ -41,7 +40,7 @@ func newHTTPServer(t *testing.T) *httpServer {
 	cmd = exec.CommandContext(ctx, "groonga", "-s", "--protocol", "http", path)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(dir)
-		t.Skipf("cmd.Start failed: %v", err)
+		tb.Skipf("cmd.Start failed: %v", err)
 	}
 	time.Sleep(time.Millisecond * 10)
 
