@@ -352,6 +352,8 @@ var commandFormats = map[string]*commandFormat{
 		newParamFormat("dump_schema", formatParamYesNo, false),
 		newParamFormat("dump_records", formatParamYesNo, false),
 		newParamFormat("dump_indexes", formatParamYesNo, false),
+		newParamFormat("dump_configs", formatParamYesNo, false),
+		newParamFormat("sort_hash_table", formatParamYesNo, false),
 	),
 	"io_flush": newCommandFormat(
 		nil,
