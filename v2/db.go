@@ -1359,14 +1359,14 @@ func (db *DB) Restore(r io.Reader, w io.Writer, stopOnError bool) (n int, err er
 			if w != nil {
 				if _, e = io.Copy(w, resp); e != nil && err == nil {
 					if _, ok := e.(*Error); !ok {
-						e = NewError(UnknownError, map[string]interface{}{
+						e = NewError(OutputError, map[string]interface{}{
 							"error": e.Error(),
 						})
 					}
 					err = e
 				}
 				if _, e := w.Write([]byte("\n")); e != nil && err == nil {
-					err = NewError(UnknownError, map[string]interface{}{
+					err = NewError(OutputError, map[string]interface{}{
 						"error": e.Error(),
 					})
 				}

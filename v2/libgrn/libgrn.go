@@ -100,7 +100,7 @@ func newGrnCtx() (*grnCtx, error) {
 	ctx := C.grn_ctx_open(C.int(0))
 	if ctx == nil {
 		Fin()
-		return nil, grnci.NewError(grnci.UnknownError, map[string]interface{}{
+		return nil, grnci.NewError(grnci.UnexpectedError, map[string]interface{}{
 			"method": "C.grn_ctx_open",
 		})
 	}
@@ -193,7 +193,7 @@ func createGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 		if err := ctx.Err("C.grn_db_create"); err != nil {
 			return nil, err
 		}
-		return nil, grnci.NewError(grnci.UnknownError, map[string]interface{}{
+		return nil, grnci.NewError(grnci.UnexpectedError, map[string]interface{}{
 			"method": "C.grn_db_create",
 		})
 	}
@@ -212,7 +212,7 @@ func openGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 		if err := ctx.Err("C.grn_db_open"); err != nil {
 			return nil, err
 		}
-		return nil, grnci.NewError(grnci.UnknownError, map[string]interface{}{
+		return nil, grnci.NewError(grnci.UnexpectedError, map[string]interface{}{
 			"method": "C.grn_db_open",
 		})
 	}

@@ -1053,7 +1053,7 @@ func (cr *CommandReader) fill() error {
 	if err != nil {
 		cr.err = err
 		if err != io.EOF {
-			cr.err = NewError(CommandError, map[string]interface{}{
+			cr.err = NewError(InputError, map[string]interface{}{
 				"error": err.Error(),
 			})
 		}

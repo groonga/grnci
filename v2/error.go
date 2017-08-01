@@ -15,10 +15,13 @@ const (
 	OperationError
 	ResponseError
 	TypeError
+	IOError
 	NetworkError
+	InputError
+	OutputError
 	HTTPError
 	GroongaError
-	UnknownError
+	UnexpectedError
 )
 
 // Name returns the name of the error code such as "AddressError".
@@ -36,12 +39,16 @@ func (ec ErrorCode) Name() string {
 		return "TypeError"
 	case NetworkError:
 		return "NetworkError"
+	case InputError:
+		return "InputError"
+	case OutputError:
+		return "OutputError"
 	case HTTPError:
 		return "HTTPError"
 	case GroongaError:
 		return "GroongaError"
-	case UnknownError:
-		return "UnknownError"
+	case UnexpectedError:
+		return "UnexpectedError"
 	default:
 		return "N/A"
 	}
@@ -49,16 +56,18 @@ func (ec ErrorCode) Name() string {
 
 // String returns a string that consists of the error code and its name.
 func (ec ErrorCode) String() string {
-	return strconv.Itoa(int(ec)) + " " + ec.Name()
+	return ec.Name() + " (" + strconv.Itoa(int(ec)) + ")"
 }
 
 // MarshalJSON returns the JSON-encoded error code.
 func (ec ErrorCode) MarshalJSON() ([]byte, error) {
 	buf := make([]byte, 0, 24)
 	buf = append(buf, '"')
-	buf = strconv.AppendInt(buf, int64(ec), 10)
-	buf = append(buf, ' ')
 	buf = append(buf, ec.Name()...)
+	buf = append(buf, ' ')
+	buf = append(buf, '(')
+	buf = strconv.AppendInt(buf, int64(ec), 10)
+	buf = append(buf, ')')
 	buf = append(buf, '"')
 	return buf, nil
 }
@@ -238,16 +247,18 @@ func (rc ResultCode) Name() string {
 
 // String returns a string that consists of the result code and its name.
 func (rc ResultCode) String() string {
-	return strconv.Itoa(int(rc)) + " " + rc.Name()
+	return rc.Name() + " (" + strconv.Itoa(int(rc)) + ")"
 }
 
 // MarshalJSON returns the JSON-encoded error code.
 func (rc ResultCode) MarshalJSON() ([]byte, error) {
 	buf := make([]byte, 0, 48)
 	buf = append(buf, '"')
-	buf = strconv.AppendInt(buf, int64(rc), 10)
-	buf = append(buf, ' ')
 	buf = append(buf, rc.Name()...)
+	buf = append(buf, ' ')
+	buf = append(buf, '(')
+	buf = strconv.AppendInt(buf, int64(rc), 10)
+	buf = append(buf, ')')
 	buf = append(buf, '"')
 	return buf, nil
 }
@@ -292,7 +303,7 @@ func EnhanceError(err error, data map[string]interface{}) *Error {
 		}
 		return e
 	}
-	e := NewError(UnknownError, data)
+	e := NewError(UnexpectedError, data)
 	if _, ok := e.Data["error"]; !ok {
 		data["error"] = err.Error()
 	}

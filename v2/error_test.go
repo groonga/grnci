@@ -1,6 +1,8 @@
 package grnci
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNewError(t *testing.T) {
 	data := map[string]interface{}{
