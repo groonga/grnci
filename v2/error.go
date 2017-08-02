@@ -25,7 +25,7 @@ const (
 )
 
 // Name returns the name of the error code such as
-// "AddressError" adn "GRN_UNKNOWN_ERROR".
+// "AddressError" and "GRN_UNKNOWN_ERROR".
 func (ec ErrorCode) Name() string {
 	switch ec {
 	case AddressError:
