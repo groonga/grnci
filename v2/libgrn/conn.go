@@ -106,9 +106,7 @@ func create(path string, options *connOptions) (*conn, error) {
 // Dup duplicates the conn if it is a DB handle.
 func (c *conn) Dup() (*conn, error) {
 	if c.db == nil {
-		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
-			"error": "GQTP clients do not support Dup.",
-		})
+		return nil, grnci.NewError2(grnci.OperationError, "GQTP clients do not support Dup.", nil)
 	}
 	ctx, err := c.db.Dup()
 	if err != nil {
@@ -242,19 +240,14 @@ func (c *conn) execDB(cmd string, body io.Reader) (grnci.Response, error) {
 // Exec sends a command and receives a response.
 func (c *conn) Exec(cmd string, body io.Reader) (grnci.Response, error) {
 	if c.broken {
-		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
-			"error": "The connection is broken.",
-		})
+		return nil, grnci.NewError2(grnci.OperationError, "The connection is broken.", nil)
 	}
 	if !c.ready {
-		return nil, grnci.NewError(grnci.OperationError, map[string]interface{}{
-			"error": "The connection is not ready to send a command.",
-		})
+		return nil, grnci.NewError2(grnci.OperationError, "The connection is not ready to send a command.", nil)
 	}
 	if len(cmd) > maxChunkSize {
-		return nil, grnci.NewError(grnci.CommandError, map[string]interface{}{
+		return nil, grnci.NewError2(grnci.CommandError, "The command is too long.", map[string]interface{}{
 			"length": len(cmd),
-			"error":  "The command is too long.",
 		})
 	}
 	c.ready = false
