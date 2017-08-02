@@ -40,15 +40,13 @@ func (a *Address) fillGQTP() error {
 		a.Scheme = "gqtp"
 	}
 	if a.Username != "" {
-		return NewError(AddressError, map[string]interface{}{
+		return NewError2(AddressError, "GQTP does not accept username.", map[string]interface{}{
 			"username": a.Username,
-			"error":    "GQTP does not accept username.",
 		})
 	}
 	if a.Password != "" {
-		return NewError(AddressError, map[string]interface{}{
+		return NewError2(AddressError, "GQTP does not accept password.", map[string]interface{}{
 			"password": a.Password,
-			"error":    "GQTP does not accept password.",
 		})
 	}
 	if a.Host == "" {
@@ -58,21 +56,18 @@ func (a *Address) fillGQTP() error {
 		a.Port = DefaultGQTPPort
 	}
 	if a.Path != "" {
-		return NewError(AddressError, map[string]interface{}{
-			"path":  a.Path,
-			"error": "GQTP does not accept path.",
+		return NewError2(AddressError, "GQTP does not accept path.", map[string]interface{}{
+			"path": a.Path,
 		})
 	}
 	if a.Query != "" {
-		return NewError(AddressError, map[string]interface{}{
+		return NewError2(AddressError, "GQTP does not accept query.", map[string]interface{}{
 			"query": a.Query,
-			"error": "GQTP does not accept query.",
 		})
 	}
 	if a.Fragment != "" {
-		return NewError(AddressError, map[string]interface{}{
+		return NewError2(AddressError, "GQTP does not accept fragment.", map[string]interface{}{
 			"fragment": a.Fragment,
-			"error":    "GQTP does not accept fragment.",
 		})
 	}
 	return nil
@@ -110,9 +105,8 @@ func (a *Address) fill() error {
 			return err
 		}
 	default:
-		return NewError(AddressError, map[string]interface{}{
+		return NewError2(AddressError, "The scheme is not supported.", map[string]interface{}{
 			"scheme": a.Scheme,
-			"error":  "The scheme is not supported.",
 		})
 	}
 	return nil
@@ -127,9 +121,8 @@ func (a *Address) parseHostPort(s string) error {
 	if s[0] == '[' {
 		i := strings.IndexByte(s, ']')
 		if i == -1 {
-			return NewError(AddressError, map[string]interface{}{
+			return NewError2(AddressError, "IPv6 address must be enclosed in [].", map[string]interface{}{
 				"address": s,
-				"error":   "IPv6 address must be enclosed in [].",
 			})
 		}
 		a.Host = s[:i+1]
@@ -138,9 +131,8 @@ func (a *Address) parseHostPort(s string) error {
 			return nil
 		}
 		if rest[0] != ':' {
-			return NewError(AddressError, map[string]interface{}{
+			return NewError2(AddressError, "IPv6 address and port must be separated by ':'.", map[string]interface{}{
 				"address": s,
-				"error":   "IPv6 address and port must be separated by ':'.",
 			})
 		}
 		portStr = rest[1:]
@@ -156,7 +148,7 @@ func (a *Address) parseHostPort(s string) error {
 	if portStr != "" {
 		port, err := net.LookupPort("tcp", portStr)
 		if err != nil {
-			return NewError(AddressError, map[string]interface{}{
+			return NewError2(AddressError, "net.LookupPort failed.", map[string]interface{}{
 				"port":  portStr,
 				"error": err.Error(),
 			})
@@ -239,9 +231,8 @@ func ParseGQTPAddress(s string) (*Address, error) {
 	switch strings.ToLower(a.Scheme) {
 	case "", "gqtp":
 	default:
-		return nil, NewError(AddressError, map[string]interface{}{
+		return nil, NewError2(AddressError, "The scheme is not supported.", map[string]interface{}{
 			"scheme": a.Scheme,
-			"error":  "The scheme is not supported.",
 		})
 	}
 	if err := a.fillGQTP(); err != nil {
@@ -266,9 +257,8 @@ func ParseHTTPAddress(s string) (*Address, error) {
 	switch strings.ToLower(a.Scheme) {
 	case "", "http", "https":
 	default:
-		return nil, NewError(AddressError, map[string]interface{}{
+		return nil, NewError2(AddressError, "The scheme is not supported.", map[string]interface{}{
 			"scheme": a.Scheme,
-			"error":  "The scheme is not supported.",
 		})
 	}
 	if err := a.fillHTTP(); err != nil {
