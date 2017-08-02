@@ -63,7 +63,7 @@ func newGQTPResponse(conn *gqtpConn, head gqtpHeader) *gqtpResponse {
 	}
 	if head.Status > 32767 {
 		rc := int(head.Status) - 65536
-		resp.err = NewError(ErrorCode(rc), nil)
+		resp.err = NewError2(ErrorCode(rc), "Error response received.", nil)
 	}
 	return resp
 }
@@ -106,10 +106,8 @@ func (r *gqtpResponse) Read(p []byte) (int, error) {
 	}
 	if err != nil {
 		r.conn.broken = true
-		return n, NewError(NetworkError, map[string]interface{}{
-			"method": "net.Conn.Read",
-			"n":      n,
-			"error":  err.Error(),
+		return n, NewError2(NetworkError, "net.Conn.Read failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return n, nil
@@ -123,9 +121,8 @@ func (r *gqtpResponse) Close() error {
 	var err error
 	if _, e := io.CopyBuffer(ioutil.Discard, r, r.conn.buf); e != nil {
 		r.conn.broken = true
-		err = NewError(NetworkError, map[string]interface{}{
-			"method": "io.CopyBuffer",
-			"error":  e.Error(),
+		err = NewError2(NetworkError, "io.CopyBuffer failed.", map[string]interface{}{
+			"error": e.Error(),
 		})
 	}
 	r.closed = true
@@ -185,7 +182,7 @@ func dialGQTP(addr string, options *gqtpConnOptions) (*gqtpConn, error) {
 	}
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", a.Host, a.Port))
 	if err != nil {
-		return nil, NewError(NetworkError, map[string]interface{}{
+		return nil, NewError2(NetworkError, "net.Dial failed.", map[string]interface{}{
 			"host":  a.Host,
 			"port":  a.Port,
 			"error": err.Error(),
@@ -209,9 +206,8 @@ func newGQTPConn(conn net.Conn, options *gqtpConnOptions) *gqtpConn {
 // Close closes the connection.
 func (c *gqtpConn) Close() error {
 	if err := c.conn.Close(); err != nil {
-		return NewError(NetworkError, map[string]interface{}{
-			"method": "net.Conn.Close",
-			"error":  err.Error(),
+		return NewError2(NetworkError, "net.Conn.Close failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return nil
@@ -225,9 +221,8 @@ func (c *gqtpConn) sendHeader(flags byte, size int) error {
 		Size:     uint32(size),
 	}
 	if err := binary.Write(c.conn, binary.BigEndian, head); err != nil {
-		return NewError(NetworkError, map[string]interface{}{
-			"method": "binary.Write",
-			"error":  err.Error(),
+		return NewError2(NetworkError, "binary.Write failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return nil
@@ -239,9 +234,8 @@ func (c *gqtpConn) sendChunkBytes(data []byte, flags byte) error {
 		return err
 	}
 	if _, err := c.conn.Write(data); err != nil {
-		return NewError(NetworkError, map[string]interface{}{
-			"method": "net.Conn.Write",
-			"error":  err.Error(),
+		return NewError2(NetworkError, "net.Conn.Write failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return nil
@@ -253,9 +247,8 @@ func (c *gqtpConn) sendChunkString(data string, flags byte) error {
 		return err
 	}
 	if _, err := io.WriteString(c.conn, data); err != nil {
-		return NewError(NetworkError, map[string]interface{}{
-			"method": "io.WriteString",
-			"error":  err.Error(),
+		return NewError2(NetworkError, "io.WriteString failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return nil
@@ -265,9 +258,8 @@ func (c *gqtpConn) sendChunkString(data string, flags byte) error {
 func (c *gqtpConn) recvHeader() (gqtpHeader, error) {
 	var head gqtpHeader
 	if err := binary.Read(c.conn, binary.BigEndian, &head); err != nil {
-		return head, NewError(NetworkError, map[string]interface{}{
-			"method": "binary.Read",
-			"error":  err.Error(),
+		return head, NewError2(NetworkError, "binary.Read failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return head, nil
@@ -330,20 +322,14 @@ func (c *gqtpConn) execBody(cmd string, body io.Reader) (Response, error) {
 // Exec sends a command and receives a response.
 func (c *gqtpConn) Exec(cmd string, body io.Reader) (Response, error) {
 	if c.broken {
-		return nil, NewError(OperationError, map[string]interface{}{
-			"error": "The connection is broken.",
-		})
+		return nil, NewError2(OperationError, "The connection is broken.", nil)
 	}
 	if !c.ready {
-		return nil, NewError(OperationError, map[string]interface{}{
-			"error": "The connection is not ready to send a command.",
-		})
+		return nil, NewError2(OperationError, "The connection is not ready to send a command.", nil)
 	}
 	if len(cmd) > gqtpMaxChunkSize {
-		return nil, NewError(CommandError, map[string]interface{}{
-			"length": len(cmd),
-			"error":  "The command is too long.",
-		})
+		return nil, NewError2(CommandError, "The command is too long.",
+			map[string]interface{}{"length": len(cmd)})
 	}
 	c.ready = false
 	if body == nil {
