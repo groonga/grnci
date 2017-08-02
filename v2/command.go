@@ -32,7 +32,7 @@ func formatParamValue(key string, value interface{}) (string, error) {
 	case reflect.String:
 		return v.String(), nil
 	default:
-		return "", NewError2(CommandError, "The type is not supported.", map[string]interface{}{
+		return "", NewError(CommandError, "The type is not supported.", map[string]interface{}{
 			"key":   key,
 			"value": value,
 			"type":  reflect.TypeOf(value).Name(),
@@ -53,13 +53,13 @@ func formatParamBoolean(key string, value interface{}, t, f string) (string, err
 		case t, f:
 			return v, nil
 		default:
-			return "", NewError2(CommandError, fmt.Sprintf("The value must be %s or %s.", t, f), map[string]interface{}{
+			return "", NewError(CommandError, fmt.Sprintf("The value must be %s or %s.", t, f), map[string]interface{}{
 				"key":   key,
 				"value": v,
 			})
 		}
 	default:
-		return "", NewError2(CommandError, "The type is not supported.", map[string]interface{}{
+		return "", NewError(CommandError, "The type is not supported.", map[string]interface{}{
 			"key":   key,
 			"value": value,
 			"type":  reflect.TypeOf(value).Name(),
@@ -96,7 +96,7 @@ func formatParamDelim(key string, value interface{}, delim string) (string, erro
 		}
 		return string(buf), nil
 	}
-	return "", NewError2(CommandError, "The type is not supported.", map[string]interface{}{
+	return "", NewError(CommandError, "The type is not supported.", map[string]interface{}{
 		"key":   key,
 		"value": value,
 		"type":  reflect.TypeOf(value).Name(),
@@ -152,7 +152,7 @@ type formatParam func(key string, value interface{}) (string, error)
 // formatParamDefault is the default formatParam.
 func formatParamDefault(key string, value interface{}) (string, error) {
 	if key == "" {
-		return "", NewError2(CommandError, "The key must not be empty.", map[string]interface{}{
+		return "", NewError(CommandError, "The key must not be empty.", map[string]interface{}{
 			"key":   key,
 			"value": value,
 		})
@@ -162,7 +162,7 @@ func formatParamDefault(key string, value interface{}) (string, error) {
 		case c >= 'a' && c <= 'z':
 		case c == '_':
 		default:
-			return "", NewError2(CommandError, "The key must consist of [a-z_].", map[string]interface{}{
+			return "", NewError(CommandError, "The key must consist of [a-z_].", map[string]interface{}{
 				"key":   key,
 				"value": value,
 			})
@@ -174,7 +174,7 @@ func formatParamDefault(key string, value interface{}) (string, error) {
 // formatParamSelect formats a parameter of select.
 func formatParamSelect(key string, value interface{}) (string, error) {
 	if key == "" {
-		return "", NewError2(CommandError, "The key must not be empty.", map[string]interface{}{
+		return "", NewError(CommandError, "The key must not be empty.", map[string]interface{}{
 			"key":   key,
 			"value": value,
 		})
@@ -188,7 +188,7 @@ func formatParamSelect(key string, value interface{}) (string, error) {
 			switch c {
 			case '#', '@', '-', '_', '.', '[', ']':
 			default:
-				return "", NewError2(CommandError, "The key must consist of [0-9A-Za-z#@-_.[]].", map[string]interface{}{
+				return "", NewError(CommandError, "The key must consist of [0-9A-Za-z#@-_.[]].", map[string]interface{}{
 					"key":   key,
 					"value": value,
 				})
@@ -620,7 +620,7 @@ type Command struct {
 func newCommand(name string) (*Command, error) {
 	format := getCommandFormat(name)
 	if format == nil {
-		return nil, NewError2(CommandError, "The name is not defined.", map[string]interface{}{
+		return nil, NewError(CommandError, "The name is not defined.", map[string]interface{}{
 			"name": name,
 		})
 	}
@@ -685,7 +685,7 @@ func tokenizeCommand(cmd string) ([]string, error) {
 				}
 				i++
 				if i == len(s) {
-					return nil, NewError2(CommandError, "The command ends with an unclosed token.", map[string]interface{}{
+					return nil, NewError(CommandError, "The command ends with an unclosed token.", map[string]interface{}{
 						"command": cmd,
 					})
 				}
@@ -702,7 +702,7 @@ func tokenizeCommand(cmd string) ([]string, error) {
 				case '\\':
 					i++
 					if i == len(s) {
-						return nil, NewError2(CommandError, "The command ends with an escape character.", map[string]interface{}{
+						return nil, NewError(CommandError, "The command ends with an escape character.", map[string]interface{}{
 							"command": cmd,
 						})
 					}
@@ -734,7 +734,7 @@ func ParseCommand(cmd string) (*Command, error) {
 		return nil, err
 	}
 	if len(tokens) == 0 {
-		return nil, NewError2(CommandError, "The command has no tokens.", map[string]interface{}{
+		return nil, NewError(CommandError, "The command has no tokens.", map[string]interface{}{
 			"command": cmd,
 		})
 	}
@@ -749,7 +749,7 @@ func ParseCommand(cmd string) (*Command, error) {
 			k = tokens[i][2:]
 			i++
 			if i >= len(tokens) {
-				return nil, NewError2(CommandError, "The key requires a value.", map[string]interface{}{
+				return nil, NewError(CommandError, "The key requires a value.", map[string]interface{}{
 					"command": cmd,
 					"key":     k,
 				})
@@ -793,7 +793,7 @@ func (c *Command) NeedsBody() bool {
 func (c *Command) Check() error {
 	for _, pf := range c.format.requiredParams {
 		if _, ok := c.params[pf.key]; !ok {
-			return NewError2(CommandError, "The command requires the key.", map[string]interface{}{
+			return NewError(CommandError, "The command requires the key.", map[string]interface{}{
 				"name":   c.name,
 				"params": c.params,
 				"key":    pf.key,
@@ -801,13 +801,13 @@ func (c *Command) Check() error {
 		}
 	}
 	if !c.NeedsBody() && c.body != nil {
-		return NewError2(CommandError, "The command does not require a body", map[string]interface{}{
+		return NewError(CommandError, "The command does not require a body", map[string]interface{}{
 			"name":   c.name,
 			"params": c.params,
 		})
 	}
 	if c.NeedsBody() && c.body == nil {
-		return NewError2(CommandError, "The command requires a body", map[string]interface{}{
+		return NewError(CommandError, "The command requires a body", map[string]interface{}{
 			"name":   c.name,
 			"params": c.params,
 		})
@@ -821,7 +821,7 @@ func (c *Command) Check() error {
 func (c *Command) SetParam(key string, value interface{}) error {
 	if value == nil {
 		if _, ok := c.params[key]; !ok {
-			return NewError2(CommandError, "The key does not exist.", map[string]interface{}{
+			return NewError(CommandError, "The key does not exist.", map[string]interface{}{
 				"name": c.name,
 				"key":  key,
 			})
@@ -831,7 +831,7 @@ func (c *Command) SetParam(key string, value interface{}) error {
 	}
 	if key == "" {
 		if c.index >= len(c.format.params) {
-			return NewError2(CommandError, "The index is too large.", map[string]interface{}{
+			return NewError(CommandError, "The index is too large.", map[string]interface{}{
 				"name":  c.name,
 				"index": c.index,
 			})
@@ -1030,7 +1030,7 @@ func (cr *CommandReader) fill() error {
 	if err != nil {
 		cr.err = err
 		if err != io.EOF {
-			cr.err = NewError2(InputError, "CommandReader.reader.Read failed.", map[string]interface{}{
+			cr.err = NewError(InputError, "CommandReader.reader.Read failed.", map[string]interface{}{
 				"error": err.Error(),
 			})
 		}

@@ -249,19 +249,7 @@ type Error struct {
 }
 
 // NewError returns a new Error.
-func NewError(code ErrorCode, data map[string]interface{}) *Error {
-	err := &Error{
-		Code: code,
-		Data: make(map[string]interface{}),
-	}
-	for k, v := range data {
-		err.Data[k] = v
-	}
-	return err
-}
-
-// NewError2 returns a new Error.
-func NewError2(code ErrorCode, msg string, data map[string]interface{}) *Error {
+func NewError(code ErrorCode, msg string, data map[string]interface{}) *Error {
 	err := &Error{
 		Code:    code,
 		Message: msg,

@@ -33,7 +33,7 @@ func (db *DB) recvBool(resp Response) (bool, Response, error) {
 		if resp.Err() != nil {
 			return false, resp, nil
 		}
-		return false, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -52,7 +52,7 @@ func (db *DB) recvInt(resp Response) (int, Response, error) {
 		if resp.Err() != nil {
 			return 0, resp, nil
 		}
-		return 0, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return 0, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -71,7 +71,7 @@ func (db *DB) recvString(resp Response) (string, Response, error) {
 		if resp.Err() != nil {
 			return "", resp, nil
 		}
-		return "", resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return "", resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -98,14 +98,14 @@ func (db *DB) CacheLimit(max int) (int, Response, error) {
 func (db *DB) ColumnCopy(from, to string) (bool, Response, error) {
 	i := strings.IndexByte(from, '.')
 	if i == -1 {
-		return false, nil, NewError2(CommandError, "The from must contain a dot.", map[string]interface{}{
+		return false, nil, NewError(CommandError, "The from must contain a dot.", map[string]interface{}{
 			"from": from,
 		})
 	}
 	fromTable := from[:i]
 	fromName := from[i+1:]
 	if i = strings.IndexByte(to, '.'); i == -1 {
-		return false, nil, NewError2(CommandError, "The to must contain a dot.", map[string]interface{}{
+		return false, nil, NewError(CommandError, "The to must contain a dot.", map[string]interface{}{
 			"to": to,
 		})
 	}
@@ -127,7 +127,7 @@ func (db *DB) ColumnCopy(from, to string) (bool, Response, error) {
 func (db *DB) ColumnCreate(name, typ string, flags []string) (bool, Response, error) {
 	i := strings.IndexByte(name, '.')
 	if i == -1 {
-		return false, nil, NewError2(CommandError, "The name must contain a dot.", map[string]interface{}{
+		return false, nil, NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
 			"name": name,
 		})
 	}
@@ -191,12 +191,12 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
 	if len(result) == 0 {
-		return nil, resp, NewError2(ResponseError, "The result is empty.", nil)
+		return nil, resp, NewError(ResponseError, "The result is empty.", nil)
 	}
 	var fields []string
 	for _, meta := range result[0] {
@@ -258,7 +258,7 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
 func (db *DB) ColumnRemove(name string) (bool, Response, error) {
 	i := strings.IndexByte(name, '.')
 	if i == -1 {
-		return false, nil, NewError2(CommandError, "The name must contain a dot.", map[string]interface{}{
+		return false, nil, NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
 			"name": name,
 		})
 	}
@@ -276,13 +276,13 @@ func (db *DB) ColumnRemove(name string) (bool, Response, error) {
 func (db *DB) ColumnRename(name, newName string) (bool, Response, error) {
 	i := strings.IndexByte(name, '.')
 	if i == -1 {
-		return false, nil, NewError2(CommandError, "The name must contain a dot.", map[string]interface{}{
+		return false, nil, NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
 			"name": name,
 		})
 	}
 	if j := strings.IndexByte(newName, '.'); j != -1 {
 		if i != j || name[:i] != newName[:i] {
-			return false, nil, NewError2(CommandError, "The names have different table names.", map[string]interface{}{
+			return false, nil, NewError(CommandError, "The names have different table names.", map[string]interface{}{
 				"name":    name,
 				"newName": newName,
 			})
@@ -533,7 +533,7 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 		for _, col := range options.Columns {
 			cf, ok := rs.ColumnsByName[col]
 			if !ok {
-				return 0, nil, NewError2(CommandError, "The column has no associated field.", map[string]interface{}{
+				return 0, nil, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
 					"column": col,
 				})
 			}
@@ -546,11 +546,11 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 	switch v.Kind() {
 	case reflect.Ptr:
 		if v.IsNil() {
-			return 0, nil, NewError2(CommandError, "The rows must not be nil.", nil)
+			return 0, nil, NewError(CommandError, "The rows must not be nil.", nil)
 		}
 		v = v.Elem()
 		if v.Kind() != reflect.Struct {
-			return 0, nil, NewError2(CommandError, "The type is not supported.", map[string]interface{}{
+			return 0, nil, NewError(CommandError, "The type is not supported.", map[string]interface{}{
 				"type": reflect.TypeOf(rows).Name(),
 			})
 		}
@@ -560,7 +560,7 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 	case reflect.Struct:
 		body = db.appendRow(body, v, cfs)
 	default:
-		return 0, nil, NewError2(CommandError, "The type is not supported.", map[string]interface{}{
+		return 0, nil, NewError(CommandError, "The type is not supported.", map[string]interface{}{
 			"type": reflect.TypeOf(rows).Name(),
 		})
 	}
@@ -716,7 +716,7 @@ func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, Respon
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -853,7 +853,7 @@ func (db *DB) LogicalSelectRows(logicalTable, shardKey string, rows interface{},
 		for _, col := range options.OutputColumns {
 			cf, ok := rs.ColumnsByName[col]
 			if !ok {
-				return 0, nil, NewError2(CommandError, "The column has no associated field.", map[string]interface{}{
+				return 0, nil, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
 					"column": col,
 				})
 			}
@@ -899,7 +899,7 @@ func (db *DB) LogicalShardList(logicalTable string) ([]DBLogicalShard, Response,
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -980,7 +980,7 @@ func (db *DB) Normalize(normalizer, str string, flags []string) (*DBNormalizedTe
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -1008,9 +1008,8 @@ func (db *DB) NormalizerList() ([]DBNormalizer, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError(ResponseError, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return result, resp, nil
@@ -1143,7 +1142,7 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 			if resp.Err() != nil {
 				return nil, resp, nil
 			}
-			return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 				"error": err.Error(),
 			})
 		}
@@ -1154,7 +1153,7 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 			if resp.Err() != nil {
 				return nil, resp, nil
 			}
-			return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 				"error": err.Error(),
 			})
 		}
@@ -1169,9 +1168,8 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 			if resp.Err() != nil {
 				return nil, resp, nil
 			}
-			return nil, resp, NewError(ResponseError, map[string]interface{}{
-				"method": "json.Unmarshal",
-				"error":  err.Error(),
+			return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
 			})
 		}
 		switch {
@@ -1181,7 +1179,7 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 				if resp.Err() != nil {
 					return nil, resp, nil
 				}
-				return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 					"error": err.Error(),
 				})
 			}
@@ -1192,7 +1190,7 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 				if resp.Err() != nil {
 					return nil, resp, nil
 				}
-				return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 					"error": err.Error(),
 				})
 			}
@@ -1201,7 +1199,7 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 			if resp.Err() != nil {
 				return nil, resp, nil
 			}
-			return nil, resp, NewError2(ResponseError, "The response format is not invalid.", map[string]interface{}{
+			return nil, resp, NewError(ResponseError, "The response format is not invalid.", map[string]interface{}{
 				"command": "object_inspect",
 			})
 		}
@@ -1247,7 +1245,7 @@ func (db *DB) ObjectList() (map[string]*DBObject, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -1331,14 +1329,14 @@ func (db *DB) Restore(r io.Reader, w io.Writer, stopOnError bool) (n int, err er
 			if w != nil {
 				if _, e = io.Copy(w, resp); e != nil && err == nil {
 					if _, ok := e.(*Error); !ok {
-						e = NewError2(OutputError, "io.Copy failed.", map[string]interface{}{
+						e = NewError(OutputError, "io.Copy failed.", map[string]interface{}{
 							"error": e.Error(),
 						})
 					}
 					err = e
 				}
 				if _, e := w.Write([]byte("\n")); e != nil && err == nil {
-					err = NewError2(OutputError, "io.Writer.Write", map[string]interface{}{
+					err = NewError(OutputError, "io.Writer.Write", map[string]interface{}{
 						"error": e.Error(),
 					})
 				}
@@ -1378,7 +1376,7 @@ func (db *DB) RequestCancel(id int) (bool, Response, error) {
 		if resp.Err() != nil {
 			return false, resp, nil
 		}
-		return false, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -1406,9 +1404,8 @@ func (db *DB) RubyEval(script string) (interface{}, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return false, resp, NewError(ResponseError, map[string]interface{}{
-			"method": "json.Unmarshal",
-			"error":  err.Error(),
+		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
 		})
 	}
 	return result.Value, resp, nil
@@ -1435,7 +1432,7 @@ func (db *DB) RubyLoad(path string) (interface{}, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return false, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -1560,7 +1557,7 @@ func (db *DB) Schema() (*DBSchema, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -1774,7 +1771,7 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (io.ReadCloser, Respo
 func (db *DB) parseRows(rows interface{}, data []byte, cfs []*ColumnField) (int, error) {
 	var raw [][][]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -1794,7 +1791,7 @@ func (db *DB) parseRows(rows interface{}, data []byte, cfs []*ColumnField) (int,
 				for _, rawCol := range rawCols {
 					var nameType []string
 					if err := json.Unmarshal(rawCol, &nameType); err != nil {
-						return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+						return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 							"error": err.Error(),
 						})
 					}
@@ -1813,7 +1810,7 @@ func (db *DB) parseRows(rows interface{}, data []byte, cfs []*ColumnField) (int,
 			}
 		}
 		if nCols != len(cfs) {
-			return 0, NewError2(ResponseError, "nFields and nColumns must be same.", map[string]interface{}{
+			return 0, NewError(ResponseError, "nFields and nColumns must be same.", map[string]interface{}{
 				"nFields": len(cfs),
 				"nCols":   nCols,
 			})
@@ -1843,184 +1840,184 @@ func (db *DB) parseRows(rows interface{}, data []byte, cfs []*ColumnField) (int,
 			switch v := ptr.Interface().(type) {
 			case *bool:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *int:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *int8:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *int16:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *int32:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *int64:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *uint:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *uint8:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *uint16:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *uint32:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *uint64:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *float32:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *float64:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *string:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *time.Time:
 				var f float64
 				if err := json.Unmarshal(rawRecs[i][j], &f); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 				*v = time.Unix(int64(f), int64(f*1000000)%1000000)
 			case *[]bool:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]int:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]int8:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]int16:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]int32:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]int64:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]uint:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]uint8:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]uint16:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]uint32:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]uint64:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]float32:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]float64:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]string:
 				if err := json.Unmarshal(rawRecs[i][j], v); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
 			case *[]time.Time:
 				var f []float64
 				if err := json.Unmarshal(rawRecs[i][j], &f); err != nil {
-					return 0, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 						"error": err.Error(),
 					})
 				}
@@ -2054,7 +2051,7 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 		for _, col := range options.OutputColumns {
 			cf, ok := rs.ColumnsByName[col]
 			if !ok {
-				return 0, nil, NewError2(CommandError, "The column has no associated field.", map[string]interface{}{
+				return 0, nil, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
 					"column": col,
 				})
 			}
@@ -2121,7 +2118,7 @@ func (db *DB) Status() (*DBStatus, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -2217,12 +2214,12 @@ func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Res
 			switch flag {
 			case "TABLE_NO_KEY":
 				if keyFlag != "" {
-					return false, nil, NewError2(CommandError, "The combination of flags is wrong.", map[string]interface{}{
+					return false, nil, NewError(CommandError, "The combination of flags is wrong.", map[string]interface{}{
 						"flags": flags,
 					})
 				}
 				if options.KeyType != "" {
-					return false, nil, NewError2(CommandError, "TABLE_NO_KEY denies key_type.", map[string]interface{}{
+					return false, nil, NewError(CommandError, "TABLE_NO_KEY denies key_type.", map[string]interface{}{
 						"flags":    flags,
 						"key_type": options.KeyType,
 					})
@@ -2230,12 +2227,12 @@ func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Res
 				keyFlag = flag
 			case "TABLE_HASH_KEY", "TABLE_PAT_KEY", "TABLE_DAT_KEY":
 				if keyFlag != "" {
-					return false, nil, NewError2(CommandError, "The combination of flags is wrong.", map[string]interface{}{
+					return false, nil, NewError(CommandError, "The combination of flags is wrong.", map[string]interface{}{
 						"flags": flags,
 					})
 				}
 				if options.KeyType == "" {
-					return false, nil, NewError2(CommandError, fmt.Sprintf("%s requires key_type.", flag), map[string]interface{}{
+					return false, nil, NewError(CommandError, fmt.Sprintf("%s requires key_type.", flag), map[string]interface{}{
 						"flags":    flags,
 						"key_type": options.KeyType,
 					})
@@ -2305,12 +2302,12 @@ func (db *DB) TableList() ([]DBTable, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
 	if len(result) == 0 {
-		return nil, resp, NewError2(ResponseError, "The result is empty.", nil)
+		return nil, resp, NewError(ResponseError, "The result is empty.", nil)
 	}
 	var fields []string
 	for _, meta := range result[0] {
@@ -2439,7 +2436,7 @@ func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -2510,7 +2507,7 @@ func (db *DB) Tokenize(tokenizer, str string, options *DBTokenizeOptions) ([]DBT
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -2538,7 +2535,7 @@ func (db *DB) TokenizerList() ([]DBTokenizer, Response, error) {
 		if resp.Err() != nil {
 			return nil, resp, nil
 		}
-		return nil, resp, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}

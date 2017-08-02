@@ -32,7 +32,7 @@ type httpResponse struct {
 func extractHTTPResponseHeader(data []byte) (head, left []byte, err error) {
 	left = bytes.TrimLeft(data[1:], " \t\r\n")
 	if !bytes.HasPrefix(left, []byte("[")) {
-		err = NewError2(ResponseError, "The response does not contain a header.", map[string]interface{}{
+		err = NewError(ResponseError, "The response does not contain a header.", map[string]interface{}{
 			"data": string(data),
 		})
 		return
@@ -48,7 +48,7 @@ Loop:
 			stack = append(stack, '}')
 		case ']', '}':
 			if left[i] != stack[len(stack)-1] {
-				err = NewError2(ResponseError, "The response header is broken.", map[string]interface{}{
+				err = NewError(ResponseError, "The response header is broken.", map[string]interface{}{
 					"data": string(data),
 				})
 				return
@@ -70,7 +70,7 @@ Loop:
 		}
 	}
 	if len(stack) != 0 {
-		err = NewError2(ResponseError, "The response header is too long or broken.", map[string]interface{}{
+		err = NewError(ResponseError, "The response header is too long or broken.", map[string]interface{}{
 			"data": string(data),
 		})
 		return
@@ -85,7 +85,7 @@ Loop:
 
 // parseHTTPResponseHeaderError parses the error information in the HTTP resonse header.
 func parseHTTPResponseHeaderError(rc int, elems []interface{}) error {
-	err := NewError2(ErrorCode(rc), "Error response received.", nil)
+	err := NewError(ErrorCode(rc), "Error response received.", nil)
 	if len(elems) >= 1 {
 		err.Data["message"] = elems[0]
 	}
@@ -125,26 +125,26 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	// TODO: use another JSON decoder.
 	var elems []interface{}
 	if err := json.Unmarshal(head, &elems); err != nil {
-		return nil, NewError2(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"head":  string(head),
 			"error": err.Error(),
 		})
 	}
 	if len(elems) < 3 {
-		return nil, NewError2(ResponseError, "Too few elements in the response header.", map[string]interface{}{
+		return nil, NewError(ResponseError, "Too few elements in the response header.", map[string]interface{}{
 			"elems": elems,
 		})
 	}
 	f, ok := elems[0].(float64)
 	if !ok {
-		return nil, NewError2(ResponseError, "The 1st element must be the result code (number).", map[string]interface{}{
+		return nil, NewError(ResponseError, "The 1st element must be the result code (number).", map[string]interface{}{
 			"elems": elems,
 		})
 	}
 	rc := int(f)
 	f, ok = elems[1].(float64)
 	if !ok {
-		return nil, NewError2(ResponseError, "The 2nd element must be the start time (number).", map[string]interface{}{
+		return nil, NewError(ResponseError, "The 2nd element must be the start time (number).", map[string]interface{}{
 			"elems": elems,
 		})
 	}
@@ -152,7 +152,7 @@ func parseHTTPResponseHeader(resp *http.Response, data []byte) (*httpResponse, e
 	start := time.Unix(int64(i), int64(math.Floor(f*1000000+0.5))*1000).Local()
 	f, ok = elems[2].(float64)
 	if !ok {
-		return nil, NewError2(ResponseError, "The 3rd element must be the elapsed time (number).", map[string]interface{}{
+		return nil, NewError(ResponseError, "The 3rd element must be the elapsed time (number).", map[string]interface{}{
 			"elems": elems,
 		})
 	}
@@ -178,7 +178,7 @@ func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
 	case http.StatusBadRequest:
 	default:
 		resp.Body.Close()
-		return nil, NewError2(HTTPError, "The status is unexpected.", map[string]interface{}{
+		return nil, NewError(HTTPError, "The status is unexpected.", map[string]interface{}{
 			"status": fmt.Sprintf("%d %s", code, http.StatusText(code)),
 		})
 	}
@@ -187,7 +187,7 @@ func newHTTPResponse(resp *http.Response) (*httpResponse, error) {
 	n, err := io.ReadFull(resp.Body, buf)
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		resp.Body.Close()
-		return nil, NewError2(NetworkError, "io.ReadFull failed.", map[string]interface{}{
+		return nil, NewError(NetworkError, "io.ReadFull failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -239,7 +239,7 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 				n--
 			}
 			if err != io.EOF {
-				err = NewError2(NetworkError, "http.Response.Body.Read failed.", map[string]interface{}{
+				err = NewError(NetworkError, "http.Response.Body.Read failed.", map[string]interface{}{
 					"error": err.Error(),
 				})
 			}
@@ -258,7 +258,7 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 		n--
 	}
 	if err != io.EOF {
-		err = NewError2(NetworkError, "http.Response.Body.Read failed.", map[string]interface{}{
+		err = NewError(NetworkError, "http.Response.Body.Read failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -269,12 +269,12 @@ func (r *httpResponse) Read(p []byte) (n int, err error) {
 func (r *httpResponse) Close() error {
 	if _, err := io.Copy(ioutil.Discard, r.resp.Body); err != nil {
 		r.resp.Body.Close()
-		return NewError2(NetworkError, "io.Copy failed.", map[string]interface{}{
+		return NewError(NetworkError, "io.Copy failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
 	if err := r.resp.Body.Close(); err != nil {
-		return NewError2(NetworkError, "http.Response.Body.Close failed.", map[string]interface{}{
+		return NewError(NetworkError, "http.Response.Body.Close failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
@@ -303,7 +303,7 @@ func NewHTTPClient(addr string, client *http.Client) (*HTTPClient, error) {
 	}
 	url, err := url.Parse(a.String())
 	if err != nil {
-		return nil, NewError2(AddressError, "url.Parse failed.", map[string]interface{}{
+		return nil, NewError(AddressError, "url.Parse failed.", map[string]interface{}{
 			"url":   a.String(),
 			"error": err.Error(),
 		})
@@ -336,7 +336,7 @@ func (c *HTTPClient) exec(name string, params map[string]string, body io.Reader)
 	if body == nil {
 		resp, err := c.client.Get(url.String())
 		if err != nil {
-			return nil, NewError2(NetworkError, "http.Client.Get failed.", map[string]interface{}{
+			return nil, NewError(NetworkError, "http.Client.Get failed.", map[string]interface{}{
 				"url":   url.String(),
 				"error": err.Error(),
 			})
@@ -345,7 +345,7 @@ func (c *HTTPClient) exec(name string, params map[string]string, body io.Reader)
 	}
 	resp, err := c.client.Post(url.String(), "application/json", body)
 	if err != nil {
-		return nil, NewError2(NetworkError, "http.Client.Post failed.", map[string]interface{}{
+		return nil, NewError(NetworkError, "http.Client.Post failed.", map[string]interface{}{
 			"url":   url.String(),
 			"error": err.Error(),
 		})

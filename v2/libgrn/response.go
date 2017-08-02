@@ -69,7 +69,7 @@ func (r *response) Close() error {
 	if !r.conn.broken {
 		if _, err = io.CopyBuffer(ioutil.Discard, r, r.conn.buf); err != nil {
 			r.conn.broken = true
-			err = grnci.NewError2(grnci.NetworkError, "io.CopyBuffer failed.", map[string]interface{}{
+			err = grnci.NewError(grnci.NetworkError, "io.CopyBuffer failed.", map[string]interface{}{
 				"error": err.Error(),
 			})
 		}

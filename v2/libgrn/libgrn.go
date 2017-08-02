@@ -42,7 +42,7 @@ func Init() error {
 	defer libMutex.Unlock()
 	if !initFinDisabled && libCount == 0 {
 		if rc := C.grn_init(); rc != C.GRN_SUCCESS {
-			return grnci.NewError2(grnci.ErrorCode(rc), "C.grn_init failed.", nil)
+			return grnci.NewError(grnci.ErrorCode(rc), "C.grn_init failed.", nil)
 		}
 	}
 	libCount++
@@ -60,14 +60,14 @@ func Fin() error {
 	libMutex.Lock()
 	defer libMutex.Unlock()
 	if libCount <= 0 {
-		return grnci.NewError2(grnci.OperationError, "libCount must be greater than 0.", map[string]interface{}{
+		return grnci.NewError(grnci.OperationError, "libCount must be greater than 0.", map[string]interface{}{
 			"libCount": libCount,
 		})
 	}
 	libCount--
 	if !initFinDisabled && libCount == 0 {
 		if rc := C.grn_fin(); rc != C.GRN_SUCCESS {
-			return grnci.NewError2(grnci.ErrorCode(rc), "C.grn_fin failed.", nil)
+			return grnci.NewError(grnci.ErrorCode(rc), "C.grn_fin failed.", nil)
 		}
 	}
 	return nil
@@ -93,7 +93,7 @@ func newGrnCtx() (*grnCtx, error) {
 	ctx := C.grn_ctx_open(C.int(0))
 	if ctx == nil {
 		Fin()
-		return nil, grnci.NewError2(grnci.UnexpectedError, "C.grn_ctx_open failed.", nil)
+		return nil, grnci.NewError(grnci.UnexpectedError, "C.grn_ctx_open failed.", nil)
 	}
 	return &grnCtx{ctx: ctx}, nil
 }
@@ -101,7 +101,7 @@ func newGrnCtx() (*grnCtx, error) {
 // Close closes the grnCtx.
 func (c *grnCtx) Close() error {
 	if rc := C.grn_ctx_close(c.ctx); rc != C.GRN_SUCCESS {
-		return grnci.NewError2(grnci.ErrorCode(rc), "C.grn_ctx_close failed.", nil)
+		return grnci.NewError(grnci.ErrorCode(rc), "C.grn_ctx_close failed.", nil)
 	}
 	if err := Fin(); err != nil {
 		return err
@@ -127,7 +127,7 @@ func (c *grnCtx) Err(method string) error {
 	if c.ctx.errbuf[0] != 0 {
 		data["error"] = C.GoString(&c.ctx.errbuf[0])
 	}
-	return grnci.NewError2(grnci.ErrorCode(c.ctx.rc), method+" failed.", data)
+	return grnci.NewError(grnci.ErrorCode(c.ctx.rc), method+" failed.", data)
 }
 
 // Send sends data with flags.
@@ -180,7 +180,7 @@ func createGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 		if err := ctx.Err("C.grn_db_create"); err != nil {
 			return nil, err
 		}
-		return nil, grnci.NewError2(grnci.UnexpectedError, "C.grn_db_create failed.", nil)
+		return nil, grnci.NewError(grnci.UnexpectedError, "C.grn_db_create failed.", nil)
 	}
 	return &grnDB{
 		obj:   obj,
@@ -197,7 +197,7 @@ func openGrnDB(ctx *grnCtx, path string) (*grnDB, error) {
 		if err := ctx.Err("C.grn_db_open"); err != nil {
 			return nil, err
 		}
-		return nil, grnci.NewError2(grnci.UnexpectedError, "C.grn_db_open failed.", nil)
+		return nil, grnci.NewError(grnci.UnexpectedError, "C.grn_db_open failed.", nil)
 	}
 	return &grnDB{
 		obj:   obj,
@@ -210,7 +210,7 @@ func (db *grnDB) Close(ctx *grnCtx) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 	if db.count <= 0 {
-		return grnci.NewError2(grnci.OperationError, "count must be greater than 0.", map[string]interface{}{
+		return grnci.NewError(grnci.OperationError, "count must be greater than 0.", map[string]interface{}{
 			"count": db.count,
 		})
 	}
@@ -220,7 +220,7 @@ func (db *grnDB) Close(ctx *grnCtx) error {
 			if err := ctx.Err("C.grn_obj_close"); err != nil {
 				return err
 			}
-			return grnci.NewError2(grnci.ErrorCode(rc), "C.grn_obj_close failed.", map[string]interface{}{})
+			return grnci.NewError(grnci.ErrorCode(rc), "C.grn_obj_close failed.", map[string]interface{}{})
 		}
 		db.obj = nil
 	}

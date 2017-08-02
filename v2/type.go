@@ -45,17 +45,17 @@ type ColumnField struct {
 func checkTableName(s string) error {
 	switch s {
 	case "":
-		return NewError2(TypeError, "A table name must not be empty.", map[string]interface{}{
+		return NewError(TypeError, "A table name must not be empty.", map[string]interface{}{
 			"name": s,
 		})
 	case "Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64",
 		"Float", "ShortText", "Text", "LongText", "Time", "WGS84GeoPoint", "TokyoGeoPoint":
-		return NewError2(TypeError, "The name specifies a built-in type and not available as a table name.", map[string]interface{}{
+		return NewError(TypeError, "The name specifies a built-in type and not available as a table name.", map[string]interface{}{
 			"name": s,
 		})
 	}
 	if s[0] == '_' {
-		return NewError2(TypeError, "A table name must not start with '_'.", map[string]interface{}{
+		return NewError(TypeError, "A table name must not start with '_'.", map[string]interface{}{
 			"name": s,
 		})
 	}
@@ -66,7 +66,7 @@ func checkTableName(s string) error {
 		case c >= 'a' && c <= 'z':
 		case c == '_':
 		default:
-			return NewError2(TypeError, "A table name must consist of [0-9A-Za-z_].", map[string]interface{}{
+			return NewError(TypeError, "A table name must consist of [0-9A-Za-z_].", map[string]interface{}{
 				"name": s,
 			})
 		}
@@ -77,7 +77,7 @@ func checkTableName(s string) error {
 // parseIDOptions parses options of _id.
 func (cf *ColumnField) parseIDOptions(options []string) error {
 	if len(options) > 1 {
-		return NewError2(TypeError, "The tag must not contain more than one option.", map[string]interface{}{
+		return NewError(TypeError, "The tag must not contain more than one option.", map[string]interface{}{
 			"name":    cf.Name,
 			"options": options,
 		})
@@ -90,7 +90,7 @@ func (cf *ColumnField) parseIDOptions(options []string) error {
 		cf.Type = "UInt32"
 	case "UInt32":
 	default:
-		return NewError2(TypeError, "The type is not supported as _id.", map[string]interface{}{
+		return NewError(TypeError, "The type is not supported as _id.", map[string]interface{}{
 			"type": cf.Type,
 		})
 	}
@@ -135,7 +135,7 @@ func (cf *ColumnField) checkKeyType() error {
 			}
 		}
 		if cf.Type == "" {
-			return NewError2(TypeError, "The type is not supported as _key.", map[string]interface{}{
+			return NewError(TypeError, "The type is not supported as _key.", map[string]interface{}{
 				"type": reflect.TypeOf(cf.Field.Type).Name(),
 			})
 		}
@@ -143,7 +143,7 @@ func (cf *ColumnField) checkKeyType() error {
 		"Float", "ShortText", "Time", "WGS84GeoPoint", "TokyoGeoPoint":
 	default:
 		if err := checkTableName(cf.Type); err != nil {
-			return NewError2(TypeError, "The type is not supported as _key.", map[string]interface{}{
+			return NewError(TypeError, "The type is not supported as _key.", map[string]interface{}{
 				"type": cf.Type,
 			})
 		}
@@ -163,10 +163,9 @@ func (cf *ColumnField) checkKey() error {
 // parseKeyOptions parses options of _key.
 func (cf *ColumnField) parseKeyOptions(options []string) error {
 	if len(options) > 5 {
-		return NewError(TypeError, map[string]interface{}{
+		return NewError(TypeError, "The tag must not contain more than 5 options.", map[string]interface{}{
 			"name":    cf.Name,
 			"options": options,
-			"error":   "The tag must not contain more than 5 options.",
 		})
 	}
 	if len(options) > 0 {
@@ -229,14 +228,14 @@ func (cf *ColumnField) checkValue() error {
 			}
 		}
 		if cf.Type == "" {
-			return NewError2(TypeError, "The type is not supported as _value.", map[string]interface{}{
+			return NewError(TypeError, "The type is not supported as _value.", map[string]interface{}{
 				"type": reflect.TypeOf(cf.Field.Type).Name(),
 			})
 		}
 	case "Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64",
 		"Float", "Time", "WGS84GeoPoint", "TokyoGeoPoint":
 	default:
-		return NewError2(TypeError, "The type is not supported as _value.", map[string]interface{}{
+		return NewError(TypeError, "The type is not supported as _value.", map[string]interface{}{
 			"type": cf.Type,
 		})
 	}
@@ -246,7 +245,7 @@ func (cf *ColumnField) checkValue() error {
 // parseValueOptions parses options of _value.
 func (cf *ColumnField) parseValueOptions(options []string) error {
 	if len(options) > 1 {
-		return NewError2(TypeError, "The tag must not contain more than one option.", map[string]interface{}{
+		return NewError(TypeError, "The tag must not contain more than one option.", map[string]interface{}{
 			"name":    cf.Name,
 			"options": options,
 		})
@@ -264,7 +263,7 @@ func (cf *ColumnField) parseValueOptions(options []string) error {
 // parseScoreOptions parses options of _score.
 func (cf *ColumnField) parseScoreOptions(options []string) error {
 	if len(options) > 1 {
-		return NewError2(TypeError, "The tag must not contain more than one option.", map[string]interface{}{
+		return NewError(TypeError, "The tag must not contain more than one option.", map[string]interface{}{
 			"name":    cf.Name,
 			"options": options,
 		})
@@ -279,7 +278,7 @@ func (cf *ColumnField) parseScoreOptions(options []string) error {
 		cf.Type = "Float"
 	case "Int32", "Float":
 	default:
-		return NewError2(TypeError, "The type is not supported as _score.", map[string]interface{}{
+		return NewError(TypeError, "The type is not supported as _score.", map[string]interface{}{
 			"type": cf.Type,
 		})
 	}
@@ -334,7 +333,7 @@ Loop:
 		}
 	}
 	if cf.Type == "" {
-		return NewError2(TypeError, "The type is not supported as a column.", map[string]interface{}{
+		return NewError(TypeError, "The type is not supported as a column.", map[string]interface{}{
 			"type": reflect.TypeOf(cf.Field.Type).Name(),
 		})
 	}
@@ -358,7 +357,7 @@ func (cf *ColumnField) checkColumnType() error {
 		"Float", "ShortText", "Text", "LongText", "Time", "WGS84GeoPoint", "TokyoGeoPoint":
 	default:
 		if err := checkTableName(typ); err != nil {
-			return NewError2(TypeError, "The type is not supported as a column.", map[string]interface{}{
+			return NewError(TypeError, "The type is not supported as a column.", map[string]interface{}{
 				"type": cf.Type,
 			})
 		}
@@ -371,12 +370,12 @@ func (cf *ColumnField) checkColumnType() error {
 func (cf *ColumnField) checkColumnName() error {
 	s := cf.Name
 	if s == "" {
-		return NewError2(TypeError, "A column name must not be empty.", map[string]interface{}{
+		return NewError(TypeError, "A column name must not be empty.", map[string]interface{}{
 			"name": s,
 		})
 	}
 	if s[0] == '_' {
-		return NewError2(TypeError, "A column name must not start with '_'.", map[string]interface{}{
+		return NewError(TypeError, "A column name must not start with '_'.", map[string]interface{}{
 			"name": s,
 		})
 	}
@@ -416,7 +415,7 @@ func (cf *ColumnField) checkColumn() error {
 // parseColumnOptions parses options of a column.
 func (cf *ColumnField) parseColumnOptions(options []string) error {
 	if len(options) > 2 {
-		return NewError2(TypeError, "The tag must not contain more than 2 options.", map[string]interface{}{
+		return NewError(TypeError, "The tag must not contain more than 2 options.", map[string]interface{}{
 			"name":    cf.Name,
 			"options": options,
 		})
@@ -450,7 +449,7 @@ func (cf *ColumnField) parseOptions(options []string) error {
 func newColumnField(field *reflect.StructField, index int) (*ColumnField, error) {
 	tag := field.Tag.Get(columnFieldTagKey)
 	if tag == "" {
-		return nil, NewError2(TypeError, "The struct field must have a non-empty "+columnFieldTagKey+" tag.", map[string]interface{}{
+		return nil, NewError(TypeError, "The struct field must have a non-empty "+columnFieldTagKey+" tag.", map[string]interface{}{
 			"name": field.Name,
 			"tag":  field.Tag,
 		})
@@ -489,7 +488,7 @@ Loop:
 		case reflect.Struct:
 			break Loop
 		default:
-			return nil, NewError2(TypeError, "The type is not supported as a row struct.", map[string]interface{}{
+			return nil, NewError(TypeError, "The type is not supported as a row struct.", map[string]interface{}{
 				"type": reflect.TypeOf(v).Name(),
 			})
 		}
@@ -519,7 +518,7 @@ Loop:
 			cfs = append(cfs, cf)
 		}
 		if _, ok := cfsByName[cf.Name]; ok {
-			return nil, NewError2(TypeError, "The name appears more than once.", map[string]interface{}{
+			return nil, NewError(TypeError, "The name appears more than once.", map[string]interface{}{
 				"name": cf.Name,
 			})
 		}
