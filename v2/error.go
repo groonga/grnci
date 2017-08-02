@@ -5,10 +5,10 @@ import (
 	"strconv"
 )
 
-// ErrorCode is an error code.
+// ErrorCode represents an error code or Groonga result code.
 type ErrorCode int
 
-// List of error codes except Groonga result codes.
+// List of error codes.
 const (
 	AddressError = ErrorCode(1000 + iota)
 	CommandError
@@ -23,8 +23,9 @@ const (
 	UnexpectedError
 )
 
-// Name returns the name of the error code such as
-// "AddressError" and "GRN_UNKNOWN_ERROR".
+// Name returns the name of the ErrorCode,
+// such as "AddressError" for an error code and
+// "GRN_UNKNOWN_ERROR" for a Groonga result code.
 func (ec ErrorCode) Name() string {
 	switch ec {
 	case AddressError:
@@ -218,7 +219,8 @@ func (ec ErrorCode) Name() string {
 	}
 }
 
-// String returns a string that consists of the error code and its name.
+// String returns the name of the ErrorCode if available.
+// Otherwise, String returns the string representation of the integer.
 func (ec ErrorCode) String() string {
 	if name := ec.Name(); name != "" {
 		return name
@@ -226,7 +228,7 @@ func (ec ErrorCode) String() string {
 	return strconv.Itoa(int(ec))
 }
 
-// MarshalJSON returns the JSON-encoded error code.
+// MarshalJSON returns the JSON-encoded ErrorCode.
 func (ec ErrorCode) MarshalJSON() ([]byte, error) {
 	if name := ec.Name(); name != "" {
 		buf := make([]byte, len(name)+2)
@@ -257,7 +259,7 @@ func NewError(code ErrorCode, data map[string]interface{}) *Error {
 	return err
 }
 
-// Error returns the JSON-encoded error object.
+// Error returns the JSON-encoded error.
 func (e *Error) Error() string {
 	b, _ := json.Marshal(e)
 	return string(b)
