@@ -88,7 +88,7 @@ Loop:
 
 // parseHTTPResponseHeaderError parses the error information in the HTTP resonse header.
 func parseHTTPResponseHeaderError(rc int, elems []interface{}) error {
-	err := NewGroongaError(ResultCode(rc), nil)
+	err := NewError(ErrorCode(rc), nil)
 	if len(elems) >= 1 {
 		err = EnhanceError(err, map[string]interface{}{
 			"message": elems[0],

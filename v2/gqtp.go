@@ -63,7 +63,7 @@ func newGQTPResponse(conn *gqtpConn, head gqtpHeader) *gqtpResponse {
 	}
 	if head.Status > 32767 {
 		rc := int(head.Status) - 65536
-		resp.err = NewGroongaError(ResultCode(rc), nil)
+		resp.err = NewError(ErrorCode(rc), nil)
 	}
 	return resp
 }

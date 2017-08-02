@@ -1,6 +1,7 @@
 package grnci
 
 import (
+	"log"
 	"testing"
 )
 
@@ -18,6 +19,7 @@ func TestNewError(t *testing.T) {
 			t.Fatalf("NewError failed: Data[\"%s\"]: actual = %s, want = %s", k, err.Data[k], v)
 		}
 	}
+	log.Printf("err = %v", err)
 }
 
 func TestEnhanceError(t *testing.T) {

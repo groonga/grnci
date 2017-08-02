@@ -8,9 +8,9 @@ import (
 // ErrorCode is an error code.
 type ErrorCode int
 
-// List of error codes.
+// List of error codes except Groonga result codes.
 const (
-	AddressError = ErrorCode(1 + iota)
+	AddressError = ErrorCode(1000 + iota)
 	CommandError
 	OperationError
 	ResponseError
@@ -24,7 +24,8 @@ const (
 	UnexpectedError
 )
 
-// Name returns the name of the error code such as "AddressError".
+// Name returns the name of the error code such as
+// "AddressError" adn "GRN_UNKNOWN_ERROR".
 func (ec ErrorCode) Name() string {
 	switch ec {
 	case AddressError:
@@ -49,35 +50,7 @@ func (ec ErrorCode) Name() string {
 		return "GroongaError"
 	case UnexpectedError:
 		return "UnexpectedError"
-	default:
-		return "N/A"
-	}
-}
 
-// String returns a string that consists of the error code and its name.
-func (ec ErrorCode) String() string {
-	return ec.Name() + " (" + strconv.Itoa(int(ec)) + ")"
-}
-
-// MarshalJSON returns the JSON-encoded error code.
-func (ec ErrorCode) MarshalJSON() ([]byte, error) {
-	buf := make([]byte, 0, 24)
-	buf = append(buf, '"')
-	buf = append(buf, ec.Name()...)
-	buf = append(buf, ' ')
-	buf = append(buf, '(')
-	buf = strconv.AppendInt(buf, int64(ec), 10)
-	buf = append(buf, ')')
-	buf = append(buf, '"')
-	return buf, nil
-}
-
-// ResultCode is a Groonga result code.
-type ResultCode int
-
-// Name returns the name of the result code such as "GRN_SUCCESS".
-func (rc ResultCode) Name() string {
-	switch rc {
 	case 0:
 		return "GRN_SUCCESS"
 	case 1:
@@ -240,27 +213,31 @@ func (rc ResultCode) Name() string {
 		return "GRN_WINDOW_FUNCTION_ERROR"
 	case -79:
 		return "GRN_ZSTD_ERROR"
+
 	default:
-		return "N/A"
+		return ""
 	}
 }
 
-// String returns a string that consists of the result code and its name.
-func (rc ResultCode) String() string {
-	return rc.Name() + " (" + strconv.Itoa(int(rc)) + ")"
+// String returns a string that consists of the error code and its name.
+func (ec ErrorCode) String() string {
+	if name := ec.Name(); name != "" {
+		return name
+	}
+	return strconv.Itoa(int(ec))
 }
 
 // MarshalJSON returns the JSON-encoded error code.
-func (rc ResultCode) MarshalJSON() ([]byte, error) {
-	buf := make([]byte, 0, 48)
-	buf = append(buf, '"')
-	buf = append(buf, rc.Name()...)
-	buf = append(buf, ' ')
-	buf = append(buf, '(')
-	buf = strconv.AppendInt(buf, int64(rc), 10)
-	buf = append(buf, ')')
-	buf = append(buf, '"')
-	return buf, nil
+func (ec ErrorCode) MarshalJSON() ([]byte, error) {
+	if name := ec.Name(); name != "" {
+		buf := make([]byte, len(name)+2)
+		buf[0] = '"'
+		copy(buf[1:], name)
+		buf[len(buf)-1] = '"'
+		return buf, nil
+	}
+	var buf []byte
+	return strconv.AppendInt(buf, int64(ec), 10), nil
 }
 
 // Error stores an error.
@@ -274,20 +251,6 @@ func NewError(code ErrorCode, data map[string]interface{}) *Error {
 	err := &Error{
 		Code: code,
 		Data: make(map[string]interface{}),
-	}
-	for k, v := range data {
-		err.Data[k] = v
-	}
-	return err
-}
-
-// NewGroongaError returns a new Error.
-func NewGroongaError(rc ResultCode, data map[string]interface{}) *Error {
-	err := &Error{
-		Code: GroongaError,
-		Data: map[string]interface{}{
-			"rc": rc,
-		},
 	}
 	for k, v := range data {
 		err.Data[k] = v
