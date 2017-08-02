@@ -236,9 +236,7 @@ func (db *grnDB) Close(ctx *grnCtx) error {
 	if db.count == 0 {
 		if rc := C.grn_obj_close(ctx.ctx, db.obj); rc != C.GRN_SUCCESS {
 			if err := ctx.Err("C.grn_obj_close"); err != nil {
-				return grnci.EnhanceError(err, map[string]interface{}{
-					"rc": int(rc),
-				})
+				return err
 			}
 			return grnci.NewError(grnci.ErrorCode(rc), map[string]interface{}{
 				"method": "C.grn_obj_close",

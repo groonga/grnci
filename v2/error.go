@@ -258,21 +258,6 @@ func NewError(code ErrorCode, data map[string]interface{}) *Error {
 	return err
 }
 
-// EnhanceError adds data to err and returns the modified Error.
-func EnhanceError(err error, data map[string]interface{}) *Error {
-	if e, ok := err.(*Error); ok {
-		for k, v := range data {
-			e.Data[k] = v
-		}
-		return e
-	}
-	e := NewError(UnexpectedError, data)
-	if _, ok := e.Data["error"]; !ok {
-		data["error"] = err.Error()
-	}
-	return e
-}
-
 // Error returns the JSON-encoded error object.
 func (e *Error) Error() string {
 	b, _ := json.Marshal(e)

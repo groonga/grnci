@@ -648,9 +648,8 @@ func NewCommand(name string, params map[string]interface{}) (*Command, error) {
 	}
 	for k, v := range params {
 		if err := c.SetParam(k, v); err != nil {
-			return nil, EnhanceError(err, map[string]interface{}{
-				"name": name,
-			})
+			err.(*Error).Data["name"] = name
+			return nil, err
 		}
 	}
 	return c, nil
@@ -753,9 +752,8 @@ func ParseCommand(cmd string) (*Command, error) {
 	}
 	c, err := newCommand(tokens[0])
 	if err != nil {
-		return nil, EnhanceError(err, map[string]interface{}{
-			"command": cmd,
-		})
+		err.(*Error).Data["command"] = cmd
+		return nil, err
 	}
 	for i := 1; i < len(tokens); i++ {
 		var k, v string
@@ -772,9 +770,8 @@ func ParseCommand(cmd string) (*Command, error) {
 		}
 		v = tokens[i]
 		if err := c.SetParam(k, v); err != nil {
-			return nil, EnhanceError(err, map[string]interface{}{
-				"command": cmd,
-			})
+			err.(*Error).Data["command"] = cmd
+			return nil, err
 		}
 	}
 	return c, nil
@@ -860,9 +857,8 @@ func (c *Command) SetParam(key string, value interface{}) error {
 		pf := c.format.params[c.index]
 		fv, err := pf.Format(value)
 		if err != nil {
-			return EnhanceError(err, map[string]interface{}{
-				"name": c.name,
-			})
+			err.(*Error).Data["name"] = c.name
+			return err
 		}
 		c.params[pf.key] = fv
 		c.index++
@@ -870,9 +866,8 @@ func (c *Command) SetParam(key string, value interface{}) error {
 	}
 	fv, err := c.format.Format(key, value)
 	if err != nil {
-		return EnhanceError(err, map[string]interface{}{
-			"name": c.name,
-		})
+		err.(*Error).Data["name"] = c.name
+		return err
 	}
 	c.params[key] = fv
 	return nil

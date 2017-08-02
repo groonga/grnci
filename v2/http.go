@@ -90,9 +90,7 @@ Loop:
 func parseHTTPResponseHeaderError(rc int, elems []interface{}) error {
 	err := NewError(ErrorCode(rc), nil)
 	if len(elems) >= 1 {
-		err = EnhanceError(err, map[string]interface{}{
-			"message": elems[0],
-		})
+		err.Data["message"] = elems[0]
 	}
 	if len(elems) >= 2 {
 		if locs, ok := elems[1].([]interface{}); ok {
@@ -100,23 +98,17 @@ func parseHTTPResponseHeaderError(rc int, elems []interface{}) error {
 				if grnLocs, ok := locs[0].([]interface{}); ok {
 					if len(grnLocs) >= 1 {
 						if f, ok := grnLocs[0].(string); ok {
-							err = EnhanceError(err, map[string]interface{}{
-								"function": f,
-							})
+							err.Data["function"] = f
 						}
 					}
 					if len(grnLocs) >= 2 {
 						if f, ok := grnLocs[1].(string); ok {
-							err = EnhanceError(err, map[string]interface{}{
-								"file": f,
-							})
+							err.Data["file"] = f
 						}
 					}
 					if len(grnLocs) >= 3 {
 						if f, ok := grnLocs[2].(float64); ok {
-							err = EnhanceError(err, map[string]interface{}{
-								"line": int(f),
-							})
+							err.Data["line"] = f
 						}
 					}
 				}
