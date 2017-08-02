@@ -15,7 +15,6 @@ const (
 	OperationError
 	ResponseError
 	TypeError
-	IOError
 	NetworkError
 	InputError
 	OutputError
