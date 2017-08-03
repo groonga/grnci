@@ -1397,7 +1397,7 @@ func (db *DB) RubyEval(script string) (interface{}, Response, error) {
 		return nil, resp, err
 	}
 	type Result struct {
-		Value interface{} `json:"vlaue"`
+		Value interface{} `json:"value"`
 	}
 	var result Result
 	if err := json.Unmarshal(jsonData, &result); err != nil {
@@ -1425,7 +1425,7 @@ func (db *DB) RubyLoad(path string) (interface{}, Response, error) {
 		return nil, resp, err
 	}
 	type Result struct {
-		Value interface{} `json:"vlaue"`
+		Value interface{} `json:"value"`
 	}
 	var result Result
 	if err := json.Unmarshal(jsonData, &result); err != nil {
