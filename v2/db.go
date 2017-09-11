@@ -2523,26 +2523,25 @@ type DBTokenizer struct {
 }
 
 // TokenizerList executes tokenizer_list.
-func (db *DB) TokenizerList() ([]DBTokenizer, Response, error) {
+func (db *DB) TokenizerList() ([]DBTokenizer, error) {
 	resp, err := db.Invoke("tokenizer_list", nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result []DBTokenizer
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result, resp, nil
+	return result, resp.Err()
 }
 
 // Truncate executes truncate.
