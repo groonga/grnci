@@ -118,11 +118,6 @@ func formatParamMatchColumns(key string, value interface{}) (string, error) {
 	return formatParamDelim(key, value, "||")
 }
 
-// formatParamJSON returns the JSON-encoded value (delete --key).
-func formatParamJSON(key string, value interface{}) (string, error) {
-	return EncodeJSON(value), nil
-}
-
 type paramFormat struct {
 	key      string      // Parameter key
 	format   formatParam // Custom function to format a parameter.
@@ -333,7 +328,7 @@ var commandFormats = map[string]*commandFormat{
 	"delete": newCommandFormat(
 		nil,
 		newParamFormat("table", nil, true),
-		newParamFormat("key", formatParamJSON, false),
+		newParamFormat("key", nil, false),
 		newParamFormat("id", nil, false),
 		newParamFormat("filter", nil, false),
 	),
