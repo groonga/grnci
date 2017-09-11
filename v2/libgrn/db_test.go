@@ -573,10 +573,7 @@ func TestDBTableTokenize(t *testing.T) {
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
 		t.Fatalf("db.Restore failed: %v", err)
 	}
-	result, resp, err := db.TableTokenize("Tbl", "あいうえお", nil)
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.TableTokenize("Tbl", "あいうえお", nil)
 	if err != nil {
 		t.Fatalf("db.TableTokenize failed: %v", err)
 	}
@@ -598,11 +595,7 @@ func TestDBTableTokenizeInvalidTable(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.TableTokenize("no_such_table", "あいうえお", nil)
-	if err != nil {
-		t.Fatalf("db.TableTokenize failed: %v", err)
-	}
-	if resp.Err() == nil {
+	if _, err := db.TableTokenize("no_such_table", "あいうえお", nil); err == nil {
 		t.Fatalf("db.TableTokenize wrongly succeeded")
 	}
 }
@@ -618,10 +611,7 @@ func TestDBTableTokenizeWithOptions(t *testing.T) {
 	options := grnci.NewDBTableTokenizeOptions()
 	options.Flags = []string{"NONE"}
 	options.Mode = "ADD"
-	result, resp, err := db.TableTokenize("Tbl", "あいうえお", options)
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.TableTokenize("Tbl", "あいうえお", options)
 	if err != nil {
 		t.Fatalf("db.TableTokenize failed: %v", err)
 	}
@@ -643,10 +633,7 @@ func TestDBTokenize(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	result, resp, err := db.Tokenize("TokenBigram", "あいうえお", nil)
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.Tokenize("TokenBigram", "あいうえお", nil)
 	if err != nil {
 		t.Fatalf("db.Tokenize failed: %v", err)
 	}
@@ -668,11 +655,7 @@ func TestDBTokenizeInvalidTokenizer(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.Tokenize("", "あいうえお", nil)
-	if err != nil {
-		t.Fatalf("db.Tokenize failed: %v", err)
-	}
-	if resp.Err() == nil {
+	if _, err := db.Tokenize("", "あいうえお", nil); err == nil {
 		t.Fatalf("db.Tokenize wrongly succeeded")
 	}
 }
@@ -687,10 +670,7 @@ func TestDBTokenizeWithOptions(t *testing.T) {
 	options.Flags = []string{"NONE"}
 	options.Mode = "ADD"
 	options.TokenFilters = []string{"TokenFilterStem"}
-	result, resp, err := db.Tokenize("TokenBigram", "It works well.", options)
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.Tokenize("TokenBigram", "It works well.", options)
 	if err != nil {
 		t.Fatalf("db.Tokenize failed: %v", err)
 	}

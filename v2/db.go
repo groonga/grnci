@@ -2408,7 +2408,7 @@ type DBToken struct {
 }
 
 // TableTokenize executes tokenize.
-func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([]DBToken, Response, error) {
+func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([]DBToken, error) {
 	if options == nil {
 		options = NewDBTableTokenizeOptions()
 	}
@@ -2427,23 +2427,22 @@ func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([
 	}
 	resp, err := db.Invoke("table_tokenize", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result []DBToken
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result, resp, nil
+	return result, resp.Err()
 }
 
 // ThreadLimit executes thread_limit.
@@ -2476,7 +2475,7 @@ func NewDBTokenizeOptions() *DBTokenizeOptions {
 }
 
 // Tokenize executes tokenize.
-func (db *DB) Tokenize(tokenizer, str string, options *DBTokenizeOptions) ([]DBToken, Response, error) {
+func (db *DB) Tokenize(tokenizer, str string, options *DBTokenizeOptions) ([]DBToken, error) {
 	if options == nil {
 		options = NewDBTokenizeOptions()
 	}
@@ -2498,23 +2497,22 @@ func (db *DB) Tokenize(tokenizer, str string, options *DBTokenizeOptions) ([]DBT
 	}
 	resp, err := db.Invoke("tokenize", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result []DBToken
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result, resp, nil
+	return result, resp.Err()
 }
 
 // DBTokenizer is a result of tokenizer_list.
