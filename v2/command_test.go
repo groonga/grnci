@@ -161,14 +161,6 @@ func TestFormatParamMatchColumns(t *testing.T) {
 	}
 }
 
-func TestFormatParamJSON(t *testing.T) {
-	if actual, err := formatParamJSON("", []string{"a", "b", "c"}); err != nil {
-		t.Fatalf("formatParamJSON failed: %v", err)
-	} else if want := `["a","b","c"]`; actual != want {
-		t.Fatalf("formatParamJSON failed: actual = %s, want = %s", actual, want)
-	}
-}
-
 func TestFormatParamDefault(t *testing.T) {
 	if actual, err := formatParamDefault("", true); err == nil {
 		t.Fatalf("formatParamDefault wrongly succeeded: actual = %s", actual)
