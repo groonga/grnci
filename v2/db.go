@@ -22,22 +22,25 @@ func NewDB(h Handler) *DB {
 }
 
 // recvBool reads the bool result from resp.
-func (db *DB) recvBool(resp Response) (bool, Response, error) {
+func (db *DB) recvBool(resp Response) error {
 	defer resp.Close()
+	if resp.Err() != nil {
+		return resp.Err()
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return false, resp, err
+		return err
 	}
 	var result bool
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return false, resp, nil
-		}
-		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
-	return result, resp, nil
+	if !result {
+		return NewError(ResponseError, "Operation failed.", nil)
+	}
+	return nil
 }
 
 // recvInt reads the int result from resp.
@@ -95,17 +98,17 @@ func (db *DB) CacheLimit(max int) (int, Response, error) {
 }
 
 // ColumnCopy executes column_copy.
-func (db *DB) ColumnCopy(from, to string) (bool, Response, error) {
+func (db *DB) ColumnCopy(from, to string) error {
 	i := strings.IndexByte(from, '.')
 	if i == -1 {
-		return false, nil, NewError(CommandError, "The from must contain a dot.", map[string]interface{}{
+		return NewError(CommandError, "The from must contain a dot.", map[string]interface{}{
 			"from": from,
 		})
 	}
 	fromTable := from[:i]
 	fromName := from[i+1:]
 	if i = strings.IndexByte(to, '.'); i == -1 {
-		return false, nil, NewError(CommandError, "The to must contain a dot.", map[string]interface{}{
+		return NewError(CommandError, "The to must contain a dot.", map[string]interface{}{
 			"to": to,
 		})
 	}
@@ -118,16 +121,16 @@ func (db *DB) ColumnCopy(from, to string) (bool, Response, error) {
 		"to_name":    toName,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // ColumnCreate executes column_create.
-func (db *DB) ColumnCreate(name, typ string, flags []string) (bool, Response, error) {
+func (db *DB) ColumnCreate(name, typ string, flags []string) error {
 	i := strings.IndexByte(name, '.')
 	if i == -1 {
-		return false, nil, NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
+		return NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
 			"name": name,
 		})
 	}
@@ -156,7 +159,7 @@ func (db *DB) ColumnCreate(name, typ string, flags []string) (bool, Response, er
 	}
 	resp, err := db.Invoke("column_create", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -255,10 +258,10 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
 }
 
 // ColumnRemove executes column_remove.
-func (db *DB) ColumnRemove(name string) (bool, Response, error) {
+func (db *DB) ColumnRemove(name string) error {
 	i := strings.IndexByte(name, '.')
 	if i == -1 {
-		return false, nil, NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
+		return NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
 			"name": name,
 		})
 	}
@@ -267,22 +270,22 @@ func (db *DB) ColumnRemove(name string) (bool, Response, error) {
 		"name":  name[i+1:],
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // ColumnRename executes column_rename.
-func (db *DB) ColumnRename(name, newName string) (bool, Response, error) {
+func (db *DB) ColumnRename(name, newName string) error {
 	i := strings.IndexByte(name, '.')
 	if i == -1 {
-		return false, nil, NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
+		return NewError(CommandError, "The name must contain a dot.", map[string]interface{}{
 			"name": name,
 		})
 	}
 	if j := strings.IndexByte(newName, '.'); j != -1 {
 		if i != j || name[:i] != newName[:i] {
-			return false, nil, NewError(CommandError, "The names have different table names.", map[string]interface{}{
+			return NewError(CommandError, "The names have different table names.", map[string]interface{}{
 				"name":    name,
 				"newName": newName,
 			})
@@ -295,18 +298,18 @@ func (db *DB) ColumnRename(name, newName string) (bool, Response, error) {
 		"new_name": newName,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // ConfigDelete executes config_delete.
-func (db *DB) ConfigDelete(key, value string) (bool, Response, error) {
+func (db *DB) ConfigDelete(key, value string) error {
 	resp, err := db.Invoke("config_delete", map[string]interface{}{
 		"key": key,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -323,58 +326,58 @@ func (db *DB) ConfigGet(key string) (string, Response, error) {
 }
 
 // ConfigSet executes config_set.
-func (db *DB) ConfigSet(key, value string) (bool, Response, error) {
+func (db *DB) ConfigSet(key, value string) error {
 	resp, err := db.Invoke("config_set", map[string]interface{}{
 		"key":   key,
 		"value": value,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // DatabaseUnmap executes database_unmap.
-func (db *DB) DatabaseUnmap() (bool, Response, error) {
+func (db *DB) DatabaseUnmap() error {
 	resp, err := db.Invoke("delete", nil, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // DeleteByID executes delete.
-func (db *DB) DeleteByID(tbl string, id int) (bool, Response, error) {
+func (db *DB) DeleteByID(tbl string, id int) error {
 	resp, err := db.Invoke("delete", map[string]interface{}{
 		"table": tbl,
 		"id":    id,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // DeleteByKey executes delete.
-func (db *DB) DeleteByKey(tbl string, key interface{}) (bool, Response, error) {
+func (db *DB) DeleteByKey(tbl string, key interface{}) error {
 	resp, err := db.Invoke("delete", map[string]interface{}{
 		"table": tbl,
 		"key":   key,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // DeleteByFilter executes delete.
-func (db *DB) DeleteByFilter(tbl, filter string) (bool, Response, error) {
+func (db *DB) DeleteByFilter(tbl, filter string) error {
 	resp, err := db.Invoke("delete", map[string]interface{}{
 		"table":  tbl,
 		"filter": filter,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -435,7 +438,7 @@ func NewDBIOFlushOptions() *DBIOFlushOptions {
 }
 
 // IOFlush executes io_flush.
-func (db *DB) IOFlush(options *DBIOFlushOptions) (bool, Response, error) {
+func (db *DB) IOFlush(options *DBIOFlushOptions) error {
 	if options == nil {
 		options = NewDBIOFlushOptions()
 	}
@@ -448,7 +451,7 @@ func (db *DB) IOFlush(options *DBIOFlushOptions) (bool, Response, error) {
 	}
 	resp, err := db.Invoke("io_flush", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -569,7 +572,7 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 }
 
 // LockAcquire executes lock_acquire.
-func (db *DB) LockAcquire(target string) (bool, Response, error) {
+func (db *DB) LockAcquire(target string) error {
 	var params map[string]interface{}
 	if target != "" {
 		params = map[string]interface{}{
@@ -578,13 +581,13 @@ func (db *DB) LockAcquire(target string) (bool, Response, error) {
 	}
 	resp, err := db.Invoke("lock_acquire", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // LockClear executes lock_clear.
-func (db *DB) LockClear(target string) (bool, Response, error) {
+func (db *DB) LockClear(target string) error {
 	var params map[string]interface{}
 	if target != "" {
 		params = map[string]interface{}{
@@ -593,13 +596,13 @@ func (db *DB) LockClear(target string) (bool, Response, error) {
 	}
 	resp, err := db.Invoke("lock_clear", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // LockRelease executes lock_release.
-func (db *DB) LockRelease(target string) (bool, Response, error) {
+func (db *DB) LockRelease(target string) error {
 	var params map[string]interface{}
 	if target != "" {
 		params = map[string]interface{}{
@@ -608,39 +611,39 @@ func (db *DB) LockRelease(target string) (bool, Response, error) {
 	}
 	resp, err := db.Invoke("lock_release", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // LogLevel executes log_level.
-func (db *DB) LogLevel(level string) (bool, Response, error) {
+func (db *DB) LogLevel(level string) error {
 	resp, err := db.Invoke("log_level", map[string]interface{}{
 		"level": level,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // LogPut executes log_put.
-func (db *DB) LogPut(level, msg string) (bool, Response, error) {
+func (db *DB) LogPut(level, msg string) error {
 	resp, err := db.Invoke("log_put", map[string]interface{}{
 		"level":   level,
 		"message": msg,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // LogReopen executes log_reopen.
-func (db *DB) LogReopen() (bool, Response, error) {
+func (db *DB) LogReopen() error {
 	resp, err := db.Invoke("log_reopen", nil, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -925,7 +928,7 @@ func NewDBLogicalTableRemoveOptions() *DBLogicalTableRemoveOptions {
 }
 
 // LogicalTableRemove executes logical_table_remove.
-func (db *DB) LogicalTableRemove(logicalTable, shardKey string, options *DBLogicalTableRemoveOptions) (bool, Response, error) {
+func (db *DB) LogicalTableRemove(logicalTable, shardKey string, options *DBLogicalTableRemoveOptions) error {
 	params := map[string]interface{}{
 		"logical_table": logicalTable,
 		"shard_key":     shardKey,
@@ -945,7 +948,7 @@ func (db *DB) LogicalTableRemove(logicalTable, shardKey string, options *DBLogic
 	params["force"] = options.Force
 	resp, err := db.Invoke("logical_table_remove", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -1016,12 +1019,12 @@ func (db *DB) NormalizerList() ([]DBNormalizer, Response, error) {
 }
 
 // ObjectExist executes object_exist.
-func (db *DB) ObjectExist(name string) (bool, Response, error) {
+func (db *DB) ObjectExist(name string) error {
 	resp, err := db.Invoke("object_exist", map[string]interface{}{
 		"name": name,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -1253,50 +1256,50 @@ func (db *DB) ObjectList() (map[string]*DBObject, Response, error) {
 }
 
 // ObjectRemove executes object_remove.
-func (db *DB) ObjectRemove(name string, force bool) (bool, Response, error) {
+func (db *DB) ObjectRemove(name string, force bool) error {
 	resp, err := db.Invoke("object_remove", map[string]interface{}{
 		"name":  name,
 		"force": force,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // PluginRegister executes plugin_register.
-func (db *DB) PluginRegister(name string) (bool, Response, error) {
+func (db *DB) PluginRegister(name string) error {
 	resp, err := db.Invoke("plugin_register", map[string]interface{}{
 		"name": name,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // PluginUnregister executes plugin_unregister.
-func (db *DB) PluginUnregister(name string) (bool, Response, error) {
+func (db *DB) PluginUnregister(name string) error {
 	resp, err := db.Invoke("plugin_unregister", map[string]interface{}{
 		"name": name,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // Quit executes quit.
-func (db *DB) Quit() (bool, Response, error) {
+func (db *DB) Quit() error {
 	resp, err := db.Invoke("quit", nil, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // Reindex executes reindex.
-func (db *DB) Reindex(target string) (bool, Response, error) {
+func (db *DB) Reindex(target string) error {
 	var params map[string]interface{}
 	if target != "" {
 		params = map[string]interface{}{
@@ -1305,7 +1308,7 @@ func (db *DB) Reindex(target string) (bool, Response, error) {
 	}
 	resp, err := db.Invoke("reindex", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -2081,10 +2084,10 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 }
 
 // Shutdown executes shutdown.
-func (db *DB) Shutdown() (bool, Response, error) {
+func (db *DB) Shutdown() error {
 	resp, err := db.Invoke("shutdown", nil, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -2172,13 +2175,13 @@ func (db *DB) Status() (*DBStatus, Response, error) {
 }
 
 // TableCopy executes table_copy.
-func (db *DB) TableCopy(from, to string) (bool, Response, error) {
+func (db *DB) TableCopy(from, to string) error {
 	resp, err := db.Invoke("table_copy", map[string]interface{}{
 		"from": from,
 		"to":   to,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -2200,7 +2203,7 @@ func NewDBTableCreateOptions() *DBTableCreateOptions {
 }
 
 // TableCreate executes table_create.
-func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Response, error) {
+func (db *DB) TableCreate(name string, options *DBTableCreateOptions) error {
 	if options == nil {
 		options = NewDBTableCreateOptions()
 	}
@@ -2214,12 +2217,12 @@ func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Res
 			switch flag {
 			case "TABLE_NO_KEY":
 				if keyFlag != "" {
-					return false, nil, NewError(CommandError, "The combination of flags is wrong.", map[string]interface{}{
+					return NewError(CommandError, "The combination of flags is wrong.", map[string]interface{}{
 						"flags": flags,
 					})
 				}
 				if options.KeyType != "" {
-					return false, nil, NewError(CommandError, "TABLE_NO_KEY denies key_type.", map[string]interface{}{
+					return NewError(CommandError, "TABLE_NO_KEY denies key_type.", map[string]interface{}{
 						"flags":    flags,
 						"key_type": options.KeyType,
 					})
@@ -2227,12 +2230,12 @@ func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Res
 				keyFlag = flag
 			case "TABLE_HASH_KEY", "TABLE_PAT_KEY", "TABLE_DAT_KEY":
 				if keyFlag != "" {
-					return false, nil, NewError(CommandError, "The combination of flags is wrong.", map[string]interface{}{
+					return NewError(CommandError, "The combination of flags is wrong.", map[string]interface{}{
 						"flags": flags,
 					})
 				}
 				if options.KeyType == "" {
-					return false, nil, NewError(CommandError, fmt.Sprintf("%s requires key_type.", flag), map[string]interface{}{
+					return NewError(CommandError, fmt.Sprintf("%s requires key_type.", flag), map[string]interface{}{
 						"flags":    flags,
 						"key_type": options.KeyType,
 					})
@@ -2269,7 +2272,7 @@ func (db *DB) TableCreate(name string, options *DBTableCreateOptions) (bool, Res
 	}
 	resp, err := db.Invoke("table_create", params, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -2362,25 +2365,25 @@ func (db *DB) TableList() ([]DBTable, Response, error) {
 }
 
 // TableRemove executes table_remove.
-func (db *DB) TableRemove(name string, dependent bool) (bool, Response, error) {
+func (db *DB) TableRemove(name string, dependent bool) error {
 	resp, err := db.Invoke("table_remove", map[string]interface{}{
 		"name":      name,
 		"dependent": dependent,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
 
 // TableRename executes table_rename.
-func (db *DB) TableRename(name, newName string) (bool, Response, error) {
+func (db *DB) TableRename(name, newName string) error {
 	resp, err := db.Invoke("table_rename", map[string]interface{}{
 		"name":     name,
 		"new_name": newName,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }
@@ -2543,12 +2546,12 @@ func (db *DB) TokenizerList() ([]DBTokenizer, Response, error) {
 }
 
 // Truncate executes truncate.
-func (db *DB) Truncate(target string) (bool, Response, error) {
+func (db *DB) Truncate(target string) error {
 	resp, err := db.Invoke("truncate", map[string]interface{}{
 		"target_name": target,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	return db.recvBool(resp)
 }

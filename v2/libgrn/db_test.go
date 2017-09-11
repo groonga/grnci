@@ -95,22 +95,11 @@ func TestDBColumnCreate(t *testing.T) {
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
 		t.Fatalf("db.Restore failed: %v", err)
 	}
-	_, resp, err := db.ColumnCreate("Tbl.col", "Text", nil)
-	if err == nil {
-		err = resp.Err()
-	}
-	if err != nil {
+	if err := db.ColumnCreate("Tbl.col", "Text", nil); err != nil {
 		t.Fatalf("db.ColumnCreate failed: %v", err)
 	}
-	result, resp, err := db.ObjectExist("Tbl.col")
-	if err == nil {
-		err = resp.Err()
-	}
-	if err != nil {
+	if err := db.ObjectExist("Tbl.col"); err != nil {
 		t.Fatalf("db.ObjectExist failed: %v", err)
-	}
-	if !result {
-		t.Fatalf("Column not found")
 	}
 }
 
@@ -118,11 +107,8 @@ func TestDBColumnCreateInvalidTable(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.ColumnCreate("no_such_table.col", "Text", nil)
-	if err != nil {
-		t.Fatalf("db.ColumnCreate failed: %v", err)
-	}
-	if resp.Err() == nil {
+	err := db.ColumnCreate("no_such_table.col", "Text", nil)
+	if err == nil {
 		t.Fatalf("db.ColumnCreate wrongly succeeded")
 	}
 }
@@ -136,11 +122,7 @@ column_create Tbl col COLUMN_SCALAR ShortText`
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
 		t.Fatalf("db.Restore failed: %v", err)
 	}
-	_, resp, err := db.ColumnRemove("Tbl.col")
-	if err == nil {
-		err = resp.Err()
-	}
-	if err != nil {
+	if err := db.ColumnRemove("Tbl.col"); err != nil {
 		t.Fatalf("db.ColumnRemove failed: %v", err)
 	}
 }
@@ -149,11 +131,7 @@ func TestDBColumnRemoveInvalidTable(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.ColumnRemove("no_such_table.no_such_column")
-	if err != nil {
-		t.Fatalf("db.ColumnRemove failed: %v", err)
-	}
-	if resp.Err() == nil {
+	if err := db.ColumnRemove("no_such_table.no_such_column"); err == nil {
 		t.Fatalf("db.ColumnRemove wrongly succeeded")
 	}
 }
@@ -166,11 +144,7 @@ func TestDBColumnRemoveInvalidColumn(t *testing.T) {
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
 		t.Fatalf("db.Restore failed: %v", err)
 	}
-	_, resp, err := db.ColumnRemove("Tbl.no_such_column")
-	if err != nil {
-		t.Fatalf("db.ColumnRemove failed: %v", err)
-	}
-	if resp.Err() == nil {
+	if err := db.ColumnRemove("Tbl.no_such_column"); err == nil {
 		t.Fatalf("db.ColumnRemove wrongly succeeded")
 	}
 }
@@ -393,15 +367,8 @@ func TestDBQuit(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	result, resp, err := db.Quit()
-	if err == nil {
-		err = resp.Err()
-	}
-	if err != nil {
+	if err := db.Quit(); err != nil {
 		t.Fatalf("db.Quit failed: %v", err)
-	}
-	if !result {
-		t.Fatalf("db.Quit failed: result = %v", result)
 	}
 }
 
@@ -750,11 +717,7 @@ load --table Tbl --columns _key --values '[["Key"]]'`
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
 		t.Fatalf("db.Restore failed: %v", err)
 	}
-	_, resp, err := db.Truncate("Tbl")
-	if err == nil {
-		err = resp.Err()
-	}
-	if err != nil {
+	if err := db.Truncate("Tbl"); err != nil {
 		t.Fatalf("db.Truncate failed: %v", err)
 	}
 	obj, resp, err := db.ObjectInspect("Tbl")
@@ -777,11 +740,7 @@ func TestDBTruncateInvalidTarget(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.Truncate("no_such_target")
-	if err != nil {
-		t.Fatalf("db.Truncate failed: %v", err)
-	}
-	if resp.Err() == nil {
+	if err := db.Truncate("no_such_target"); err == nil {
 		t.Fatalf("db.Truncate wrongly succeeded")
 	}
 }
@@ -794,11 +753,7 @@ func TestDBTableRemove(t *testing.T) {
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
 		t.Fatalf("db.Restore failed: %v", err)
 	}
-	_, resp, err := db.TableRemove("Tbl", false)
-	if err == nil {
-		err = resp.Err()
-	}
-	if err != nil {
+	if err := db.TableRemove("Tbl", false); err != nil {
 		t.Fatalf("db.TableRemove failed: %v", err)
 	}
 }
@@ -807,11 +762,7 @@ func TestDBTableRemoveInvalidName(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.TableRemove("no_such_table", false)
-	if err != nil {
-		t.Fatalf("db.TableRemove failed: %v", err)
-	}
-	if resp.Err() == nil {
+	if err := db.TableRemove("no_such_table", false); err == nil {
 		t.Fatalf("db.TableRemove wrongly succeeded")
 	}
 }
@@ -825,11 +776,7 @@ table_create Referrer TABLE_HASH_KEY Referred`
 	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
 		t.Fatalf("db.Restore failed: %v", err)
 	}
-	_, resp, err := db.TableRemove("Referred", true)
-	if err == nil {
-		err = resp.Err()
-	}
-	if err != nil {
+	if err := db.TableRemove("Referred", true); err != nil {
 		t.Fatalf("db.TableRemove failed: %v", err)
 	}
 }
