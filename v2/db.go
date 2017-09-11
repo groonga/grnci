@@ -44,22 +44,21 @@ func (db *DB) recvBool(resp Response) error {
 }
 
 // recvInt reads the int result from resp.
-func (db *DB) recvInt(resp Response) (int, Response, error) {
+func (db *DB) recvInt(resp Response) (int, error) {
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return 0, resp, err
+		return 0, err
 	}
 	var result int
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return 0, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return 0, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result, resp, nil
+	return result, resp.Err()
 }
 
 // recvInt reads the string result from resp.
@@ -83,7 +82,7 @@ func (db *DB) recvString(resp Response) (string, Response, error) {
 
 // CacheLimit executes cache_limit.
 // If max < 0, max is not passed to cache_limit.
-func (db *DB) CacheLimit(max int) (int, Response, error) {
+func (db *DB) CacheLimit(max int) (int, error) {
 	var params map[string]interface{}
 	if max >= 0 {
 		params = map[string]interface{}{
@@ -92,7 +91,7 @@ func (db *DB) CacheLimit(max int) (int, Response, error) {
 	}
 	resp, err := db.Invoke("cache_limit", params, nil)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	return db.recvInt(resp)
 }
@@ -469,7 +468,7 @@ func NewDBLoadOptions() *DBLoadOptions {
 }
 
 // Load executes load.
-func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, Response, error) {
+func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, error) {
 	params := map[string]interface{}{
 		"table": tbl,
 	}
@@ -484,7 +483,7 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, R
 	}
 	resp, err := db.Invoke("load", params, values)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	return db.recvInt(resp)
 }
@@ -516,13 +515,13 @@ func (db *DB) appendRows(body []byte, rows reflect.Value, cfs []*ColumnField) []
 }
 
 // LoadRows executes load.
-func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (int, Response, error) {
+func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (int, error) {
 	if options == nil {
 		options = NewDBLoadOptions()
 	}
 	rs, err := GetRowStruct(rows)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	var cfs []*ColumnField
 	if options.Columns == nil {
@@ -536,7 +535,7 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 		for _, col := range options.Columns {
 			cf, ok := rs.ColumnsByName[col]
 			if !ok {
-				return 0, nil, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
+				return 0, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
 					"column": col,
 				})
 			}
@@ -549,11 +548,11 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 	switch v.Kind() {
 	case reflect.Ptr:
 		if v.IsNil() {
-			return 0, nil, NewError(CommandError, "The rows must not be nil.", nil)
+			return 0, NewError(CommandError, "The rows must not be nil.", nil)
 		}
 		v = v.Elem()
 		if v.Kind() != reflect.Struct {
-			return 0, nil, NewError(CommandError, "The type is not supported.", map[string]interface{}{
+			return 0, NewError(CommandError, "The type is not supported.", map[string]interface{}{
 				"type": reflect.TypeOf(rows).Name(),
 			})
 		}
@@ -563,7 +562,7 @@ func (db *DB) LoadRows(tbl string, rows interface{}, options *DBLoadOptions) (in
 	case reflect.Struct:
 		body = db.appendRow(body, v, cfs)
 	default:
-		return 0, nil, NewError(CommandError, "The type is not supported.", map[string]interface{}{
+		return 0, NewError(CommandError, "The type is not supported.", map[string]interface{}{
 			"type": reflect.TypeOf(rows).Name(),
 		})
 	}
@@ -666,7 +665,7 @@ func NewDBLogicalCountOptions() *DBLogicalCountOptions {
 }
 
 // LogicalCount executes logical_count.
-func (db *DB) LogicalCount(logicalTable, shardKey string, options *DBLogicalCountOptions) (int, Response, error) {
+func (db *DB) LogicalCount(logicalTable, shardKey string, options *DBLogicalCountOptions) (int, error) {
 	params := map[string]interface{}{
 		"logical_table": logicalTable,
 		"shard_key":     shardKey,
@@ -687,7 +686,7 @@ func (db *DB) LogicalCount(logicalTable, shardKey string, options *DBLogicalCoun
 	}
 	resp, err := db.Invoke("logical_count", params, nil)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	return db.recvInt(resp)
 }
@@ -2447,7 +2446,7 @@ func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([
 
 // ThreadLimit executes thread_limit.
 // If max < 0, max is not passed to thread_limit.
-func (db *DB) ThreadLimit(max int) (int, Response, error) {
+func (db *DB) ThreadLimit(max int) (int, error) {
 	var params map[string]interface{}
 	if max >= 0 {
 		params = map[string]interface{}{
@@ -2456,7 +2455,7 @@ func (db *DB) ThreadLimit(max int) (int, Response, error) {
 	}
 	resp, err := db.Invoke("thread_limit", params, nil)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	return db.recvInt(resp)
 }
