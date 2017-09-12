@@ -426,7 +426,8 @@ func (db *DB) Dump(options *DBDumpOptions) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return resp, err
+	// Note that a dump command never returns an error response.
+	return resp, nil
 }
 
 // DBIOFlushOptions stores options for DB.IOFlush.
