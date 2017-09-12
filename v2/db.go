@@ -1124,7 +1124,7 @@ type DBObjectDatabase struct {
 }
 
 // ObjectInspect executes object_inspect.
-func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
+func (db *DB) ObjectInspect(name string) (interface{}, error) {
 	var params map[string]interface{}
 	if name != "" {
 		params = map[string]interface{}{
@@ -1133,78 +1133,69 @@ func (db *DB) ObjectInspect(name string) (interface{}, Response, error) {
 	}
 	resp, err := db.Invoke("object_inspect", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	switch {
 	case name == "": // Database
 		var result DBObjectDatabase
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			if resp.Err() != nil {
-				return nil, resp, nil
+		if len(jsonData) != 0 {
+			if err := json.Unmarshal(jsonData, &result); err != nil {
+				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					"error": err.Error(),
+				})
 			}
-			return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
 		}
-		return &result, resp, nil
+		return &result, resp.Err()
 	case strings.Contains(name, "."): // Column
 		var result DBObjectColumn
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			if resp.Err() != nil {
-				return nil, resp, nil
+		if len(jsonData) != 0 {
+			if err := json.Unmarshal(jsonData, &result); err != nil {
+				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					"error": err.Error(),
+				})
 			}
-			return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
 		}
-		return &result, resp, nil
+		return &result, resp.Err()
 	default: // Table of type
 		type SizeNRecords struct {
 			Size     *int `json:"size"`
 			NRecords *int `json:"n_records"`
 		}
 		var sizeNRecords SizeNRecords
-		if err := json.Unmarshal(jsonData, &sizeNRecords); err != nil {
-			if resp.Err() != nil {
-				return nil, resp, nil
+		if len(jsonData) != 0 {
+			if err := json.Unmarshal(jsonData, &sizeNRecords); err != nil {
+				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+					"error": err.Error(),
+				})
 			}
-			return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
 		}
 		switch {
 		case sizeNRecords.Size != nil:
 			var result DBObjectType
 			if err := json.Unmarshal(jsonData, &result); err != nil {
-				if resp.Err() != nil {
-					return nil, resp, nil
-				}
-				return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 					"error": err.Error(),
 				})
 			}
-			return &result, resp, nil
+			return &result, resp.Err()
 		case sizeNRecords.NRecords != nil:
 			var result DBObjectTable
 			if err := json.Unmarshal(jsonData, &result); err != nil {
-				if resp.Err() != nil {
-					return nil, resp, nil
-				}
-				return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 					"error": err.Error(),
 				})
 			}
-			return &result, resp, nil
+			return &result, resp.Err()
 		default:
 			if resp.Err() != nil {
-				return nil, resp, nil
+				return nil, resp.Err()
 			}
-			return nil, resp, NewError(ResponseError, "The response format is not invalid.", map[string]interface{}{
+			return nil, NewError(ResponseError, "The response format is invalid.", map[string]interface{}{
 				"command": "object_inspect",
 			})
 		}

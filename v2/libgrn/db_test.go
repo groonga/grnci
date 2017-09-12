@@ -1050,10 +1050,7 @@ load --table Tbl --columns _key --values '[["Key"]]'`
 	if err := db.Truncate("Tbl"); err != nil {
 		t.Fatalf("db.Truncate failed: %v", err)
 	}
-	obj, resp, err := db.ObjectInspect("Tbl")
-	if err == nil {
-		err = resp.Err()
-	}
+	obj, err := db.ObjectInspect("Tbl")
 	if err != nil {
 		t.Fatalf("db.ObjectInspect failed: %v", err)
 	}
