@@ -680,10 +680,7 @@ func TestDBNormalizerList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	result, resp, err := db.NormalizerList()
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.NormalizerList()
 	if err != nil {
 		t.Fatalf("db.NormalizerList failed: %v", err)
 	}
