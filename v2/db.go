@@ -704,7 +704,7 @@ type DBLogicalParameters struct {
 }
 
 // LogicalParameters executes logical_parameters.
-func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, Response, error) {
+func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, error) {
 	var params map[string]interface{}
 	if rangeIndex != "" {
 		params = map[string]interface{}{
@@ -713,23 +713,22 @@ func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, Respon
 	}
 	resp, err := db.Invoke("logical_parameters", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
-	var result DBLogicalParameters
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	var result *DBLogicalParameters
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return &result, resp, nil
+	return result, resp.Err()
 }
 
 // LogicalRangeFilter executes logical_range_filter.
