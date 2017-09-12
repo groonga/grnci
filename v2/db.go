@@ -302,7 +302,7 @@ func (db *DB) ColumnRename(name, newName string) error {
 }
 
 // ConfigDelete executes config_delete.
-func (db *DB) ConfigDelete(key, value string) error {
+func (db *DB) ConfigDelete(key string) error {
 	resp, err := db.Invoke("config_delete", map[string]interface{}{
 		"key": key,
 	}, nil)
