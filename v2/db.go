@@ -1364,17 +1364,20 @@ func (db *DB) Restore(r io.Reader, w io.Writer, stopOnError bool) (n int, err er
 }
 
 // RequestCancel executes request_cancel.
-func (db *DB) RequestCancel(id int) (bool, Response, error) {
+func (db *DB) RequestCancel(id int) error {
 	resp, err := db.Invoke("request_cancel", map[string]interface{}{
 		"id": id,
 	}, nil)
 	if err != nil {
-		return false, nil, err
+		return err
 	}
 	defer resp.Close()
+	if resp.Err() != nil {
+		return resp.Err()
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return false, resp, err
+		return err
 	}
 	type Result struct {
 		ID       int  `json:"id"`
@@ -1382,14 +1385,16 @@ func (db *DB) RequestCancel(id int) (bool, Response, error) {
 	}
 	var result Result
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return false, resp, nil
-		}
-		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
-	return result.Canceled, resp, nil
+	if !result.Canceled {
+		return NewError(ResponseError, "The request does not exist.", map[string]interface{}{
+			"id": result.ID,
+		})
+	}
+	return nil
 }
 
 // RubyEval executes ruby_eval.
