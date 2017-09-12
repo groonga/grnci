@@ -733,9 +733,9 @@ func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, Respon
 }
 
 // LogicalRangeFilter executes logical_range_filter.
-func (db *DB) LogicalRangeFilter() (bool, Response, error) {
+func (db *DB) LogicalRangeFilter() error {
 	// TODO
-	return false, nil, nil
+	return NewError(OperationError, "Not implemented yet.", nil)
 }
 
 // DBLogicalSelectOptions stores options for DB.LogicalSelect.
