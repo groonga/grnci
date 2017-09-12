@@ -220,29 +220,321 @@ func TestDBConfigSetOverwrite(t *testing.T) {
 	}
 }
 
-// func TestDBDump(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBDump(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.Dump(nil)
-// 	if err != nil {
-// 		t.Fatalf("db.Dump failed: %v", err)
-// 	}
-// 	body, err := ioutil.ReadAll(result)
-// 	if err != nil {
-// 		t.Fatalf("ioutil.ReadAll failed: %v", err)
-// 	}
-// 	result.Close()
-// 	log.Printf("body = %s", body)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	result, err := db.Dump(nil)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := ""; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpPlugins(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `plugin_register functions/math`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.Dump(nil)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := dump; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpPluginsNo(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `plugin_register functions/math`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	options := grnci.NewDBDumpOptions()
+	options.DumpPlugins = false
+	result, err := db.Dump(options)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := ""; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpSchema(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.Dump(nil)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := dump; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpSchemaNo(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	options := grnci.NewDBDumpOptions()
+	options.DumpSchema = false
+	result, err := db.Dump(options)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := ""; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpRecords(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+
+load --table Tbl
+[
+["_key"],
+["Hello"]
+]`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.Dump(nil)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := dump; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpRecordsNo(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+
+load --table Tbl
+[
+["_key"],
+["Hello"]
+]`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	options := grnci.NewDBDumpOptions()
+	options.DumpRecords = false
+	result, err := db.Dump(options)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	want := "table_create Tbl TABLE_PAT_KEY ShortText"
+	if string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpIndexes(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Idx TABLE_PAT_KEY ShortText
+
+table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText
+
+column_create Idx col COLUMN_INDEX Tbl col`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.Dump(nil)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := dump; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpIndexesNo(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Idx TABLE_PAT_KEY ShortText
+
+table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText
+
+column_create Idx col COLUMN_INDEX Tbl col`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	options := grnci.NewDBDumpOptions()
+	options.DumpIndexes = false
+	result, err := db.Dump(options)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	want := `table_create Idx TABLE_PAT_KEY ShortText
+
+table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText`
+	if string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpConfigs(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `config_set config_key config_value`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.Dump(nil)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := dump; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpConfigsNo(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `config_set config_key config_value`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	options := grnci.NewDBDumpOptions()
+	options.DumpConfigs = false
+	result, err := db.Dump(options)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	if want := ""; string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
+
+func TestDBDumpSortHashTable(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_HASH_KEY ShortText
+
+load --table Tbl
+[
+["_key"],
+["Orange"],
+["Banana"],
+["Apple"]
+]`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	options := grnci.NewDBDumpOptions()
+	options.SortHashTable = true
+	result, err := db.Dump(options)
+	if err != nil {
+		t.Fatalf("db.Dump failed: %v", err)
+	}
+	body, err := ioutil.ReadAll(result)
+	if err != nil {
+		t.Fatalf("ioutil.ReadAll failed: %v", err)
+	}
+	result.Close()
+	want := `table_create Tbl TABLE_HASH_KEY ShortText
+
+load --table Tbl
+[
+["_key"],
+["Apple"],
+["Banana"],
+["Orange"]
+]`
+	if string(body) != want {
+		t.Fatalf("db.Dump failed: actual = %s, want = %s", body, want)
+	}
+}
 
 // func TestDBLoad(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
