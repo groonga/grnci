@@ -2288,27 +2288,26 @@ type DBTable struct {
 }
 
 // TableList executes table_list.
-func (db *DB) TableList() ([]DBTable, Response, error) {
+func (db *DB) TableList() ([]DBTable, error) {
 	resp, err := db.Invoke("table_list", nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result [][]interface{}
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
 	if len(result) == 0 {
-		return nil, resp, NewError(ResponseError, "The result is empty.", nil)
+		return nil, NewError(ResponseError, "The result is empty.", nil)
 	}
 	var fields []string
 	for _, meta := range result[0] {
@@ -2359,7 +2358,7 @@ func (db *DB) TableList() ([]DBTable, Response, error) {
 		}
 		tables = append(tables, table)
 	}
-	return tables, resp, nil
+	return tables, resp.Err()
 }
 
 // TableRemove executes table_remove.
