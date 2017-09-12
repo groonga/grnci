@@ -149,6 +149,84 @@ func TestDBColumnRemoveInvalidColumn(t *testing.T) {
 	}
 }
 
+func TestDBConfigDelete(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.ConfigSet("config_key", "config_value"); err != nil {
+		t.Fatalf("db.ConfigSet failed: %v", err)
+	}
+	if err := db.ConfigDelete("config_key"); err != nil {
+		t.Fatalf("db.ConfigDelete failed: %v", err)
+	}
+	value, err := db.ConfigGet("config_key")
+	if err != nil {
+		t.Fatalf("db.ConfigGet failed: %v", err)
+	}
+	if value != "" {
+		t.Fatalf("db.ConfigGet wrongly succeeded")
+	}
+}
+
+func TestDBConfigDeleteInvalidKey(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.ConfigDelete("no_such_key"); err == nil {
+		t.Fatalf("db.ConfigDelete wrongly succeeded")
+	}
+}
+
+func TestDBConfigGetInvalidKey(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	value, err := db.ConfigGet("no_such_key")
+	if err != nil {
+		t.Fatalf("db.ConfigGet failed: %v", err)
+	}
+	if value != "" {
+		t.Fatalf("db.ConfigGet wrongly succeeded")
+	}
+}
+
+func TestDBConfigSet(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	want := "config_value"
+	if err := db.ConfigSet("config_key", want); err != nil {
+		t.Fatalf("db.ConfigSet failed: %v", err)
+	}
+	value, err := db.ConfigGet("config_key")
+	if err != nil {
+		t.Fatalf("db.ConfigGet failed: %v", err)
+	}
+	if value != want {
+		t.Fatalf("db.ConfigGet failed: actual = %s, want = %s", value, want)
+	}
+}
+
+func TestDBConfigSetOverwrite(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	want := "config_value"
+	if err := db.ConfigSet("config_key", "pre_config_value"); err != nil {
+		t.Fatalf("db.ConfigSet failed: %v", err)
+	}
+	if err := db.ConfigSet("config_key", want); err != nil {
+		t.Fatalf("db.ConfigSet failed: %v", err)
+	}
+	value, err := db.ConfigGet("config_key")
+	if err != nil {
+		t.Fatalf("db.ConfigGet failed: %v", err)
+	}
+	if value != want {
+		t.Fatalf("db.ConfigGet failed: actual = %s, want = %s", value, want)
+	}
+}
+
 // func TestDBDump(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
 // 	if err != nil {
