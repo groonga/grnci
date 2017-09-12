@@ -1543,26 +1543,25 @@ type DBSchema struct {
 }
 
 // Schema executes schema.
-func (db *DB) Schema() (*DBSchema, Response, error) {
+func (db *DB) Schema() (*DBSchema, error) {
 	resp, err := db.Invoke("schema", nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result DBSchema
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return &result, resp, nil
+	return &result, resp.Err()
 }
 
 // DBSelectOptionsColumn stores --columns[NAME].

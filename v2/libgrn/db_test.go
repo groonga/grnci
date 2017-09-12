@@ -759,10 +759,7 @@ func TestDBSchema(t *testing.T) {
 
 	db.PluginRegister("token_filters/stem")
 	db.TableCreate("Tbl", nil)
-	result, resp, err := db.Schema()
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.Schema()
 	if err != nil {
 		t.Fatalf("db.Schema failed: %v", err)
 	}
