@@ -965,7 +965,7 @@ type DBNormalizedText struct {
 }
 
 // Normalize executes normalize.
-func (db *DB) Normalize(normalizer, str string, flags []string) (*DBNormalizedText, Response, error) {
+func (db *DB) Normalize(normalizer, str string, flags []string) (*DBNormalizedText, error) {
 	params := map[string]interface{}{
 		"normalizer": normalizer,
 		"string":     str,
@@ -975,23 +975,22 @@ func (db *DB) Normalize(normalizer, str string, flags []string) (*DBNormalizedTe
 	}
 	resp, err := db.Invoke("normalize", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result DBNormalizedText
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return &result, resp, nil
+	return &result, resp.Err()
 }
 
 // DBNormalizer is a result of tokenizer_list.

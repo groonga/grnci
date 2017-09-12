@@ -623,10 +623,7 @@ func TestDBNormalize(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	result, resp, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", nil)
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", nil)
 	if err != nil {
 		t.Fatalf("db.Tokenize failed: %v", err)
 	}
@@ -645,11 +642,7 @@ func TestDBNormalizeInvalidNormalizer(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	_, resp, err := db.Normalize("", "ｳｫｰﾀｰ Two \t\r\n㍑", nil)
-	if err != nil {
-		t.Fatalf("db.Normalize failed: %v", err)
-	}
-	if resp.Err() == nil {
+	if _, err := db.Normalize("", "ｳｫｰﾀｰ Two \t\r\n㍑", nil); err == nil {
 		t.Fatalf("db.Normalize wrongly succeeded")
 	}
 }
@@ -659,10 +652,7 @@ func TestDBNormalizeWithFlags(t *testing.T) {
 	defer removeDB(db, dir)
 
 	flags := []string{"WITH_TYPES", "WITH_CHECKS"}
-	result, resp, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", flags)
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", flags)
 	if err != nil {
 		t.Fatalf("db.Tokenize failed: %v", err)
 	}
