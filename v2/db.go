@@ -61,23 +61,22 @@ func (db *DB) recvInt(resp Response) (int, error) {
 	return result, resp.Err()
 }
 
-// recvInt reads the string result from resp.
-func (db *DB) recvString(resp Response) (string, Response, error) {
+// recvString reads the string result from resp.
+func (db *DB) recvString(resp Response) (string, error) {
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return "", resp, err
+		return "", err
 	}
 	var result string
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return "", resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return "", NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return "", resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result, resp, nil
+	return result, resp.Err()
 }
 
 // CacheLimit executes cache_limit.
@@ -314,12 +313,12 @@ func (db *DB) ConfigDelete(key, value string) error {
 }
 
 // ConfigGet executes config_get.
-func (db *DB) ConfigGet(key string) (string, Response, error) {
+func (db *DB) ConfigGet(key string) (string, error) {
 	resp, err := db.Invoke("config_get", map[string]interface{}{
 		"key": key,
 	}, nil)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 	return db.recvString(resp)
 }
