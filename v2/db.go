@@ -773,7 +773,7 @@ func NewDBLogicalSelectOptions() *DBLogicalSelectOptions {
 }
 
 // LogicalSelect executes logical_select.
-func (db *DB) LogicalSelect(logicalTable, shardKey string, options *DBLogicalSelectOptions) (io.ReadCloser, Response, error) {
+func (db *DB) LogicalSelect(logicalTable, shardKey string, options *DBLogicalSelectOptions) (io.ReadCloser, error) {
 	if options == nil {
 		options = NewDBLogicalSelectOptions()
 	}
@@ -838,19 +838,23 @@ func (db *DB) LogicalSelect(logicalTable, shardKey string, options *DBLogicalSel
 	}
 	resp, err := db.Invoke("logical_select", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return resp, resp, err
+	if resp.Err() != nil {
+		resp.Close()
+		return nil, resp.Err()
+	}
+	return resp, nil
 }
 
 // LogicalSelectRows executes logical_select.
-func (db *DB) LogicalSelectRows(logicalTable, shardKey string, rows interface{}, options *DBLogicalSelectOptions) (int, Response, error) {
+func (db *DB) LogicalSelectRows(logicalTable, shardKey string, rows interface{}, options *DBLogicalSelectOptions) (int, error) {
 	if options == nil {
 		options = NewDBLogicalSelectOptions()
 	}
 	rs, err := GetRowStruct(rows)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	var cfs []*ColumnField
 	if options.OutputColumns == nil {
@@ -862,27 +866,24 @@ func (db *DB) LogicalSelectRows(logicalTable, shardKey string, rows interface{},
 		for _, col := range options.OutputColumns {
 			cf, ok := rs.ColumnsByName[col]
 			if !ok {
-				return 0, nil, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
+				return 0, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
 					"column": col,
 				})
 			}
 			cfs = append(cfs, cf)
 		}
 	}
-	result, resp, err := db.LogicalSelect(logicalTable, shardKey, options)
+	result, err := db.LogicalSelect(logicalTable, shardKey, options)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	defer result.Close()
 	data, err := ioutil.ReadAll(result)
 	if err != nil {
-		return 0, resp, err
-	}
-	if resp.Err() != nil {
-		return 0, resp, err
+		return 0, err
 	}
 	n, err := db.parseRows(rows, data, cfs)
-	return n, resp, err
+	return n, err
 }
 
 // DBLogicalShard is a result of logical_shard_list.
