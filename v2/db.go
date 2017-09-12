@@ -1387,59 +1387,57 @@ func (db *DB) RequestCancel(id int) error {
 }
 
 // RubyEval executes ruby_eval.
-func (db *DB) RubyEval(script string) (interface{}, Response, error) {
+func (db *DB) RubyEval(script string) (interface{}, error) {
 	resp, err := db.Invoke("ruby_eval", map[string]interface{}{
 		"script": script,
 	}, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	type Result struct {
 		Value interface{} `json:"value"`
 	}
 	var result Result
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return false, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result.Value, resp, nil
+	return result.Value, resp.Err()
 }
 
 // RubyLoad executes ruby_load.
-func (db *DB) RubyLoad(path string) (interface{}, Response, error) {
+func (db *DB) RubyLoad(path string) (interface{}, error) {
 	resp, err := db.Invoke("ruby_load", map[string]interface{}{
 		"path": path,
 	}, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	type Result struct {
 		Value interface{} `json:"value"`
 	}
 	var result Result
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return false, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return false, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result.Value, resp, nil
+	return result.Value, resp.Err()
 }
 
 // DBSchemaPlugin is a part of DBSchema.
