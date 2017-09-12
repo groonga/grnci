@@ -385,11 +385,13 @@ func (db *DB) DeleteByFilter(tbl, filter string) error {
 
 // DBDumpOptions stores options for DB.Dump.
 type DBDumpOptions struct {
-	Tables      string // --table
-	DumpPlugins bool   // --dump_plugins
-	DumpSchema  bool   // --dump_schema
-	DumpRecords bool   // --dump_records
-	DumpIndexes bool   // --dump_indexes
+	Tables        []string // --tables
+	DumpPlugins   bool     // --dump_plugins
+	DumpSchema    bool     // --dump_schema
+	DumpRecords   bool     // --dump_records
+	DumpIndexes   bool     // --dump_indexes
+	DumpConfigs   bool     // --dump_configs
+	SortHashTable bool     // --sort_hash_table
 }
 
 // NewDBDumpOptions returns the default DBDumpOptions.
@@ -399,29 +401,32 @@ func NewDBDumpOptions() *DBDumpOptions {
 		DumpSchema:  true,
 		DumpRecords: true,
 		DumpIndexes: true,
+		DumpConfigs: true,
 	}
 }
 
 // Dump executes dump.
 // On success, it is the caller's responsibility to close the result.
-func (db *DB) Dump(options *DBDumpOptions) (io.ReadCloser, Response, error) {
+func (db *DB) Dump(options *DBDumpOptions) (io.ReadCloser, error) {
 	if options == nil {
 		options = NewDBDumpOptions()
 	}
 	params := map[string]interface{}{
-		"dump_plugins": options.DumpPlugins,
-		"dump_schema":  options.DumpSchema,
-		"dump_records": options.DumpRecords,
-		"dump_indexes": options.DumpIndexes,
+		"dump_plugins":    options.DumpPlugins,
+		"dump_schema":     options.DumpSchema,
+		"dump_records":    options.DumpRecords,
+		"dump_indexes":    options.DumpIndexes,
+		"dump_configs":    options.DumpConfigs,
+		"sort_hash_table": options.SortHashTable,
 	}
-	if options.Tables != "" {
+	if len(options.Tables) != 0 {
 		params["tables"] = options.Tables
 	}
 	resp, err := db.Invoke("dump", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return resp, resp, err
+	return resp, err
 }
 
 // DBIOFlushOptions stores options for DB.IOFlush.
