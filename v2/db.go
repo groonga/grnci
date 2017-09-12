@@ -1678,7 +1678,7 @@ func NewDBSelectOptions() *DBSelectOptions {
 
 // Select executes select.
 // On success, it is the caller's responsibility to close the result.
-func (db *DB) Select(tbl string, options *DBSelectOptions) (io.ReadCloser, Response, error) {
+func (db *DB) Select(tbl string, options *DBSelectOptions) (io.ReadCloser, error) {
 	if options == nil {
 		options = NewDBSelectOptions()
 	}
@@ -1763,9 +1763,13 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (io.ReadCloser, Respo
 	}
 	resp, err := db.Invoke("select", params, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return resp, resp, err
+	if resp.Err() != nil {
+		resp.Close()
+		return nil, resp.Err()
+	}
+	return resp, nil
 }
 
 // parseRows parses rows.
@@ -2034,13 +2038,13 @@ func (db *DB) parseRows(rows interface{}, data []byte, cfs []*ColumnField) (int,
 }
 
 // SelectRows executes select.
-func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions) (int, Response, error) {
+func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions) (int, error) {
 	if options == nil {
 		options = NewDBSelectOptions()
 	}
 	rs, err := GetRowStruct(rows)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	var cfs []*ColumnField
 	if options.OutputColumns == nil {
@@ -2052,33 +2056,27 @@ func (db *DB) SelectRows(tbl string, rows interface{}, options *DBSelectOptions)
 		for _, col := range options.OutputColumns {
 			cf, ok := rs.ColumnsByName[col]
 			if !ok {
-				return 0, nil, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
+				return 0, NewError(CommandError, "The column has no associated field.", map[string]interface{}{
 					"column": col,
 				})
 			}
 			cfs = append(cfs, cf)
 		}
 	}
-	result, resp, err := db.Select(tbl, options)
+	result, err := db.Select(tbl, options)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	defer result.Close()
 	data, err := ioutil.ReadAll(result)
 	if err != nil {
-		return 0, resp, err
-	}
-	if resp.Err() != nil {
-		return 0, resp, err
+		return 0, err
 	}
 	n, err := db.parseRows(rows, data, cfs)
 	if err != nil {
-		if resp.Err() != nil {
-			return n, resp, nil
-		}
-		return n, resp, err
+		return n, err
 	}
-	return n, resp, nil
+	return n, nil
 }
 
 // Shutdown executes shutdown.
