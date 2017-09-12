@@ -890,28 +890,27 @@ type DBLogicalShard struct {
 }
 
 // LogicalShardList executes logical_shard_list.
-func (db *DB) LogicalShardList(logicalTable string) ([]DBLogicalShard, Response, error) {
+func (db *DB) LogicalShardList(logicalTable string) ([]DBLogicalShard, error) {
 	resp, err := db.Invoke("logical_shard_list", map[string]interface{}{
 		"logical_table": logicalTable,
 	}, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result []DBLogicalShard
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result, resp, nil
+	return result, resp.Err()
 }
 
 // DBLogicalTableRemoveOptions stores options for DB.LogicalTableRemove.
