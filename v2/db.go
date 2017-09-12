@@ -175,29 +175,32 @@ type DBColumn struct {
 }
 
 // ColumnList executes column_list.
-func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
+func (db *DB) ColumnList(tbl string) ([]DBColumn, error) {
 	resp, err := db.Invoke("column_list", map[string]interface{}{
 		"table": tbl,
 	}, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
+	}
+	if len(jsonData) == 0 {
+		return nil, resp.Err()
 	}
 	var result [][]interface{}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
-		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
 	if len(result) == 0 {
-		return nil, resp, NewError(ResponseError, "The result is empty.", nil)
+		if resp.Err() != nil {
+			return nil, resp.Err()
+		}
+		return nil, NewError(ResponseError, "The result is empty.", nil)
 	}
 	var fields []string
 	for _, meta := range result[0] {
@@ -252,7 +255,7 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, Response, error) {
 		}
 		columns = append(columns, column)
 	}
-	return columns, resp, nil
+	return columns, resp.Err()
 }
 
 // ColumnRemove executes column_remove.
