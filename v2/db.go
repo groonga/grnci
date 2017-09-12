@@ -1226,26 +1226,28 @@ type DBObject struct {
 }
 
 // ObjectList executes object_list.
-func (db *DB) ObjectList() (map[string]*DBObject, Response, error) {
+func (db *DB) ObjectList() (map[string]*DBObject, error) {
 	resp, err := db.Invoke("object_list", nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var result map[string]*DBObject
-	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
-	return result, resp, nil
+	if result == nil && resp.Err() == nil {
+		result = make(map[string]*DBObject)
+	}
+	return result, resp.Err()
 }
 
 // ObjectRemove executes object_remove.
