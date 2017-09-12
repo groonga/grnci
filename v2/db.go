@@ -720,7 +720,7 @@ func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, error)
 	if err != nil {
 		return nil, err
 	}
-	var result *DBLogicalParameters
+	var result DBLogicalParameters
 	if len(jsonData) != 0 {
 		if err := json.Unmarshal(jsonData, &result); err != nil {
 			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
@@ -728,7 +728,7 @@ func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, error)
 			})
 		}
 	}
-	return result, resp.Err()
+	return &result, resp.Err()
 }
 
 // LogicalRangeFilter executes logical_range_filter.
