@@ -857,10 +857,7 @@ func TestDBStatus(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
 
-	result, resp, err := db.Status()
-	if err == nil {
-		err = resp.Err()
-	}
+	result, err := db.Status()
 	if err != nil {
 		t.Fatalf("db.Status failed: %v", err)
 	}

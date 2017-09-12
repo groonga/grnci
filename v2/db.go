@@ -2103,72 +2103,73 @@ type DBStatus struct {
 }
 
 // Status executes status.
-func (db *DB) Status() (*DBStatus, Response, error) {
+func (db *DB) Status() (*DBStatus, error) {
 	resp, err := db.Invoke("status", nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Close()
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 	var data map[string]interface{}
-	if err := json.Unmarshal(jsonData, &data); err != nil {
-		if resp.Err() != nil {
-			return nil, resp, nil
+	if len(jsonData) != 0 {
+		if err := json.Unmarshal(jsonData, &data); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return nil, resp, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-			"error": err.Error(),
-		})
 	}
 	var result DBStatus
-	if v, ok := data["alloc_count"]; ok {
-		if v, ok := v.(float64); ok {
-			result.AllocCount = int(v)
+	if data != nil {
+		if v, ok := data["alloc_count"]; ok {
+			if v, ok := v.(float64); ok {
+				result.AllocCount = int(v)
+			}
+		}
+		if v, ok := data["cache_hit_rate"]; ok {
+			if v, ok := v.(float64); ok {
+				result.CacheHitRate = v
+			}
+		}
+		if v, ok := data["command_version"]; ok {
+			if v, ok := v.(float64); ok {
+				result.CommandVersion = int(v)
+			}
+		}
+		if v, ok := data["default_command_version"]; ok {
+			if v, ok := v.(float64); ok {
+				result.DefaultCommandVersion = int(v)
+			}
+		}
+		if v, ok := data["max_command_version"]; ok {
+			if v, ok := v.(float64); ok {
+				result.MaxCommandVersion = int(v)
+			}
+		}
+		if v, ok := data["n_queries"]; ok {
+			if v, ok := v.(float64); ok {
+				result.NQueries = int(v)
+			}
+		}
+		if v, ok := data["start_time"]; ok {
+			if v, ok := v.(float64); ok {
+				result.StartTime = time.Unix(int64(v), 0)
+			}
+		}
+		if v, ok := data["uptime"]; ok {
+			if v, ok := v.(float64); ok {
+				result.Uptime = time.Duration(time.Duration(v) * time.Second)
+			}
+		}
+		if v, ok := data["version"]; ok {
+			if v, ok := v.(string); ok {
+				result.Version = v
+			}
 		}
 	}
-	if v, ok := data["cache_hit_rate"]; ok {
-		if v, ok := v.(float64); ok {
-			result.CacheHitRate = v
-		}
-	}
-	if v, ok := data["command_version"]; ok {
-		if v, ok := v.(float64); ok {
-			result.CommandVersion = int(v)
-		}
-	}
-	if v, ok := data["default_command_version"]; ok {
-		if v, ok := v.(float64); ok {
-			result.DefaultCommandVersion = int(v)
-		}
-	}
-	if v, ok := data["max_command_version"]; ok {
-		if v, ok := v.(float64); ok {
-			result.MaxCommandVersion = int(v)
-		}
-	}
-	if v, ok := data["n_queries"]; ok {
-		if v, ok := v.(float64); ok {
-			result.NQueries = int(v)
-		}
-	}
-	if v, ok := data["start_time"]; ok {
-		if v, ok := v.(float64); ok {
-			result.StartTime = time.Unix(int64(v), 0)
-		}
-	}
-	if v, ok := data["uptime"]; ok {
-		if v, ok := v.(float64); ok {
-			result.Uptime = time.Duration(time.Duration(v) * time.Second)
-		}
-	}
-	if v, ok := data["version"]; ok {
-		if v, ok := v.(string); ok {
-			result.Version = v
-		}
-	}
-	return &result, resp, nil
+	return &result, resp.Err()
 }
 
 // TableCopy executes table_copy.
