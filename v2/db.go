@@ -185,12 +185,12 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
-	}
-	if len(jsonData) == 0 {
-		return nil, resp.Err()
 	}
 	var result [][]interface{}
 	if err := json.Unmarshal(jsonData, &result); err != nil {
@@ -199,9 +199,6 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, error) {
 		})
 	}
 	if len(result) == 0 {
-		if resp.Err() != nil {
-			return nil, resp.Err()
-		}
 		return nil, NewError(ResponseError, "The result is empty.", nil)
 	}
 	var fields []string
@@ -257,7 +254,7 @@ func (db *DB) ColumnList(tbl string) ([]DBColumn, error) {
 		}
 		columns = append(columns, column)
 	}
-	return columns, resp.Err()
+	return columns, nil
 }
 
 // ColumnRemove executes column_remove.
@@ -498,23 +495,20 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, e
 	// recvInt should not be used because a load command returns the result
 	// even if resp has an error.
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return 0, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
-		if resp.Err() != nil {
-			return 0, resp.Err()
-		}
 		return 0, err
 	}
 	var result int
 	if err := json.Unmarshal(jsonData, &result); err != nil {
-		if resp.Err() != nil {
-			return 0, resp.Err()
-		}
 		return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // appendRow appends the JSON-encoded row to buf nad returns the exetended buffer.
@@ -738,19 +732,20 @@ func (db *DB) LogicalParameters(rangeIndex string) (*DBLogicalParameters, error)
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result DBLogicalParameters
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return &result, resp.Err()
+	return &result, nil
 }
 
 // LogicalRangeFilter executes logical_range_filter.
@@ -861,9 +856,9 @@ func (db *DB) LogicalSelect(logicalTable, shardKey string, options *DBLogicalSel
 	if err != nil {
 		return nil, err
 	}
-	if resp.Err() != nil {
+	if err := resp.Err(); err != nil {
 		resp.Close()
-		return nil, resp.Err()
+		return nil, err
 	}
 	return resp, nil
 }
@@ -921,19 +916,20 @@ func (db *DB) LogicalShardList(logicalTable string) ([]DBLogicalShard, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result []DBLogicalShard
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // DBLogicalTableRemoveOptions stores options for DB.LogicalTableRemove.
@@ -1001,19 +997,20 @@ func (db *DB) Normalize(normalizer, str string, flags []string) (*DBNormalizedTe
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result DBNormalizedText
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return &result, resp.Err()
+	return &result, nil
 }
 
 // DBNormalizer is a result of tokenizer_list.
@@ -1028,19 +1025,20 @@ func (db *DB) NormalizerList() ([]DBNormalizer, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result []DBNormalizer
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // ObjectExist executes object_exist.
@@ -1159,6 +1157,9 @@ func (db *DB) ObjectInspect(name string) (interface{}, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
@@ -1166,36 +1167,30 @@ func (db *DB) ObjectInspect(name string) (interface{}, error) {
 	switch {
 	case name == "": // Database
 		var result DBObjectDatabase
-		if len(jsonData) != 0 {
-			if err := json.Unmarshal(jsonData, &result); err != nil {
-				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-					"error": err.Error(),
-				})
-			}
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return &result, resp.Err()
+		return &result, nil
 	case strings.Contains(name, "."): // Column
 		var result DBObjectColumn
-		if len(jsonData) != 0 {
-			if err := json.Unmarshal(jsonData, &result); err != nil {
-				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-					"error": err.Error(),
-				})
-			}
+		if err := json.Unmarshal(jsonData, &result); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
-		return &result, resp.Err()
+		return &result, nil
 	default: // Table of type
 		type SizeNRecords struct {
 			Size     *int `json:"size"`
 			NRecords *int `json:"n_records"`
 		}
 		var sizeNRecords SizeNRecords
-		if len(jsonData) != 0 {
-			if err := json.Unmarshal(jsonData, &sizeNRecords); err != nil {
-				return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-					"error": err.Error(),
-				})
-			}
+		if err := json.Unmarshal(jsonData, &sizeNRecords); err != nil {
+			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 		switch {
 		case sizeNRecords.Size != nil:
@@ -1205,7 +1200,7 @@ func (db *DB) ObjectInspect(name string) (interface{}, error) {
 					"error": err.Error(),
 				})
 			}
-			return &result, resp.Err()
+			return &result, nil
 		case sizeNRecords.NRecords != nil:
 			var result DBObjectTable
 			if err := json.Unmarshal(jsonData, &result); err != nil {
@@ -1213,11 +1208,8 @@ func (db *DB) ObjectInspect(name string) (interface{}, error) {
 					"error": err.Error(),
 				})
 			}
-			return &result, resp.Err()
+			return &result, nil
 		default:
-			if resp.Err() != nil {
-				return nil, resp.Err()
-			}
 			return nil, NewError(ResponseError, "The response format is invalid.", map[string]interface{}{
 				"command": "object_inspect",
 			})
@@ -1255,22 +1247,23 @@ func (db *DB) ObjectList() (map[string]*DBObject, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result map[string]*DBObject
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	if result == nil && resp.Err() == nil {
+	if result == nil {
 		result = make(map[string]*DBObject)
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // ObjectRemove executes object_remove.
@@ -1384,8 +1377,8 @@ func (db *DB) RequestCancel(id int) error {
 		return err
 	}
 	defer resp.Close()
-	if resp.Err() != nil {
-		return resp.Err()
+	if err := resp.Err(); err != nil {
+		return err
 	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
@@ -1418,6 +1411,9 @@ func (db *DB) RubyEval(script string) (interface{}, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
@@ -1426,14 +1422,12 @@ func (db *DB) RubyEval(script string) (interface{}, error) {
 		Value interface{} `json:"value"`
 	}
 	var result Result
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return false, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result.Value, resp.Err()
+	return result.Value, nil
 }
 
 // RubyLoad executes ruby_load.
@@ -1445,6 +1439,9 @@ func (db *DB) RubyLoad(path string) (interface{}, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
@@ -1453,14 +1450,12 @@ func (db *DB) RubyLoad(path string) (interface{}, error) {
 		Value interface{} `json:"value"`
 	}
 	var result Result
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return false, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result.Value, resp.Err()
+	return result.Value, nil
 }
 
 // DBSchemaPlugin is a part of DBSchema.
@@ -1572,19 +1567,20 @@ func (db *DB) Schema() (*DBSchema, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result DBSchema
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return &result, resp.Err()
+	return &result, nil
 }
 
 // DBSelectOptionsColumn stores --columns[NAME].
@@ -1787,9 +1783,9 @@ func (db *DB) Select(tbl string, options *DBSelectOptions) (io.ReadCloser, error
 	if err != nil {
 		return nil, err
 	}
-	if resp.Err() != nil {
+	if err := resp.Err(); err != nil {
 		resp.Close()
-		return nil, resp.Err()
+		return nil, err
 	}
 	return resp, nil
 }
@@ -2130,17 +2126,18 @@ func (db *DB) Status() (*DBStatus, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var data map[string]interface{}
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &data); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 	var result DBStatus
 	if data != nil {
@@ -2190,7 +2187,7 @@ func (db *DB) Status() (*DBStatus, error) {
 			}
 		}
 	}
-	return &result, resp.Err()
+	return &result, nil
 }
 
 // TableCopy executes table_copy.
@@ -2315,17 +2312,18 @@ func (db *DB) TableList() ([]DBTable, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result [][]interface{}
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 	if len(result) == 0 {
 		return nil, NewError(ResponseError, "The result is empty.", nil)
@@ -2379,7 +2377,7 @@ func (db *DB) TableList() ([]DBTable, error) {
 		}
 		tables = append(tables, table)
 	}
-	return tables, resp.Err()
+	return tables, nil
 }
 
 // TableRemove executes table_remove.
@@ -2448,19 +2446,20 @@ func (db *DB) TableTokenize(tbl, str string, options *DBTableTokenizeOptions) ([
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result []DBToken
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // ThreadLimit executes thread_limit.
@@ -2518,19 +2517,20 @@ func (db *DB) Tokenize(tokenizer, str string, options *DBTokenizeOptions) ([]DBT
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result []DBToken
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // DBTokenizer is a result of tokenizer_list.
@@ -2545,19 +2545,20 @@ func (db *DB) TokenizerList() ([]DBTokenizer, error) {
 		return nil, err
 	}
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return nil, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return nil, err
 	}
 	var result []DBTokenizer
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // Truncate executes truncate.
