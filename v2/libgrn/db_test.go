@@ -625,7 +625,7 @@ func TestDBNormalize(t *testing.T) {
 
 	result, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", nil)
 	if err != nil {
-		t.Fatalf("db.Tokenize failed: %v", err)
+		t.Fatalf("db.Normalize failed: %v", err)
 	}
 	if result.Normalized != "ウォーター two リットル" {
 		t.Fatalf("Normalized is wrong: result = %#v", result)
@@ -654,7 +654,7 @@ func TestDBNormalizeWithFlags(t *testing.T) {
 	flags := []string{"WITH_TYPES", "WITH_CHECKS"}
 	result, err := db.Normalize("NormalizerAuto", "ｳｫｰﾀｰ Two \t\r\n㍑", flags)
 	if err != nil {
-		t.Fatalf("db.Tokenize failed: %v", err)
+		t.Fatalf("db.Normalize failed: %v", err)
 	}
 	if result.Normalized != "ウォーター two リットル" {
 		t.Fatalf("Normalized is wrong: result = %#v", result)
@@ -909,6 +909,42 @@ func TestDBStatus(t *testing.T) {
 // 	}
 // }
 
+func TestDBTableRemove(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.TableRemove("Tbl", false); err != nil {
+		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+}
+
+func TestDBTableRemoveInvalidName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.TableRemove("no_such_table", false); err == nil {
+		t.Fatalf("db.TableRemove wrongly succeeded")
+	}
+}
+
+func TestDBTableRemoveDependent(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Referred TABLE_HASH_KEY ShortText
+table_create Referrer TABLE_HASH_KEY Referred`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.TableRemove("Referred", true); err != nil {
+		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+}
+
 func TestDBTableTokenize(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
@@ -1032,6 +1068,24 @@ func TestDBTokenizeWithOptions(t *testing.T) {
 	}
 }
 
+func TestDBTokenizerList(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	result, err := db.TokenizerList()
+	if err != nil {
+		t.Fatalf("db.TokenizerList failed: %v", err)
+	}
+	if len(result) == 0 {
+		t.Fatalf("Tokenizers not found")
+	}
+	for i, tokenizer := range result {
+		if tokenizer.Name == "" {
+			t.Fatalf("Name is wrong: i = %d, tokenizer = %#v", i, tokenizer)
+		}
+	}
+}
+
 func TestDBTruncate(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
@@ -1063,59 +1117,5 @@ func TestDBTruncateInvalidTarget(t *testing.T) {
 
 	if err := db.Truncate("no_such_target"); err == nil {
 		t.Fatalf("db.Truncate wrongly succeeded")
-	}
-}
-
-func TestDBTableRemove(t *testing.T) {
-	db, dir := makeDB(t)
-	defer removeDB(db, dir)
-
-	dump := `table_create Tbl TABLE_NO_KEY`
-	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
-		t.Fatalf("db.Restore failed: %v", err)
-	}
-	if err := db.TableRemove("Tbl", false); err != nil {
-		t.Fatalf("db.TableRemove failed: %v", err)
-	}
-}
-
-func TestDBTableRemoveInvalidName(t *testing.T) {
-	db, dir := makeDB(t)
-	defer removeDB(db, dir)
-
-	if err := db.TableRemove("no_such_table", false); err == nil {
-		t.Fatalf("db.TableRemove wrongly succeeded")
-	}
-}
-
-func TestDBTableRemoveDependent(t *testing.T) {
-	db, dir := makeDB(t)
-	defer removeDB(db, dir)
-
-	dump := `table_create Referred TABLE_HASH_KEY ShortText
-table_create Referrer TABLE_HASH_KEY Referred`
-	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
-		t.Fatalf("db.Restore failed: %v", err)
-	}
-	if err := db.TableRemove("Referred", true); err != nil {
-		t.Fatalf("db.TableRemove failed: %v", err)
-	}
-}
-
-func TestDBTokenizerList(t *testing.T) {
-	db, dir := makeDB(t)
-	defer removeDB(db, dir)
-
-	result, err := db.TokenizerList()
-	if err != nil {
-		t.Fatalf("db.TokenizerList failed: %v", err)
-	}
-	if len(result) == 0 {
-		t.Fatalf("Tokenizers not found")
-	}
-	for i, tokenizer := range result {
-		if tokenizer.Name == "" {
-			t.Fatalf("Name is wrong: i = %d, tokenizer = %#v", i, tokenizer)
-		}
 	}
 }
