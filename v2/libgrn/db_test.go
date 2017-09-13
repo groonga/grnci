@@ -1029,6 +1029,29 @@ func TestDBTableTokenizeWithOptions(t *testing.T) {
 	}
 }
 
+func TestDBThreadLimit(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	n, err := db.ThreadLimit(2)
+	if err != nil {
+		t.Fatalf("db.ThreadLimit failed: %v", err)
+	}
+	if n == 0 {
+		t.Skipf("This client does not support thread_limit")
+	}
+	if want := 1; n != want {
+		t.Fatalf("db.ThreadLimit failed: n = %d, want = %d", n, want)
+	}
+	n, err = db.ThreadLimit(-1)
+	if err != nil {
+		t.Fatalf("db.ThreadLimit failed: %v", err)
+	}
+	if want := 2; n != want {
+		t.Fatalf("db.ThreadLimit failed: n = %d, want = %d", n, want)
+	}
+}
+
 func TestDBTokenize(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
