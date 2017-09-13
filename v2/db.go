@@ -24,8 +24,8 @@ func NewDB(h Handler) *DB {
 // recvBool reads the bool result from resp.
 func (db *DB) recvBool(resp Response) error {
 	defer resp.Close()
-	if resp.Err() != nil {
-		return resp.Err()
+	if err := resp.Err(); err != nil {
+		return err
 	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
@@ -46,37 +46,39 @@ func (db *DB) recvBool(resp Response) error {
 // recvInt reads the int result from resp.
 func (db *DB) recvInt(resp Response) (int, error) {
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return 0, err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return 0, err
 	}
 	var result int
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // recvString reads the string result from resp.
 func (db *DB) recvString(resp Response) (string, error) {
 	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return "", err
+	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
 		return "", err
 	}
 	var result string
-	if len(jsonData) != 0 {
-		if err := json.Unmarshal(jsonData, &result); err != nil {
-			return "", NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return "", NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
-	return result, resp.Err()
+	return result, nil
 }
 
 // CacheLimit executes cache_limit.
@@ -493,7 +495,26 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, e
 	if err != nil {
 		return 0, err
 	}
-	return db.recvInt(resp)
+	// recvInt should not be used because a load command returns the result
+	// even if resp has an error.
+	defer resp.Close()
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		if resp.Err() != nil {
+			return 0, resp.Err()
+		}
+		return 0, err
+	}
+	var result int
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return 0, resp.Err()
+		}
+		return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+	return result, resp.Err()
 }
 
 // appendRow appends the JSON-encoded row to buf nad returns the exetended buffer.
