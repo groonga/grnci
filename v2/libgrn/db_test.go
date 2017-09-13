@@ -34,6 +34,26 @@ func removeDB(db *grnci.DB, dir string) {
 	os.RemoveAll(dir)
 }
 
+func TestDBCacheLimit(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	n, err := db.CacheLimit(50)
+	if err != nil {
+		t.Fatalf("db.CacheLimit failed: %v", err)
+	}
+	if want := 100; n != want {
+		t.Fatalf("db.CacheLimit failed: n = %d, want = %d", n, want)
+	}
+	n, err = db.CacheLimit(-1)
+	if err != nil {
+		t.Fatalf("db.CacheLimit failed: %v", err)
+	}
+	if want := 50; n != want {
+		t.Fatalf("db.CacheLimit failed: n = %d, want = %d", n, want)
+	}
+}
+
 // func TestDBColumnCopy(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
 // 	if err != nil {
