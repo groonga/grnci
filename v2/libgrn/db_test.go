@@ -773,6 +773,38 @@ true
 	}
 }
 
+func TestRubyEval(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.PluginRegister("ruby/eval"); err != nil {
+		t.Skipf("db.PluginRegister failed: %v", err)
+	}
+	result, err := db.RubyEval("1 + 2")
+	if err != nil {
+		t.Fatalf("db.RubyEval failed: %v", err)
+	}
+	value := reflect.ValueOf(result)
+	if kind, want := value.Kind(), reflect.Float64; kind != want {
+		t.Fatalf("db.RubyEval failed: kind = %v, want = %v", kind, want)
+	}
+	if float, want := value.Float(), 3.0; float != want {
+		t.Fatalf("db.RubyEval failed: value = %f, want = %f", float, want)
+	}
+}
+
+func TestRubyEvalInvalidScript(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.PluginRegister("ruby/eval"); err != nil {
+		t.Skipf("db.PluginRegister failed: %v", err)
+	}
+	if _, err := db.RubyEval(""); err == nil {
+		t.Fatalf("db.RubyEval wrongly succeeded")
+	}
+}
+
 func TestDBSchema(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
