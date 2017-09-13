@@ -672,7 +672,7 @@ func (db *DB) LogReopen() error {
 
 // DBLogicalCountOptions stores options for DB.LogicalCount.
 type DBLogicalCountOptions struct {
-	Min       time.Time //--min
+	Min       time.Time // --min
 	MinBorder bool      // --min_border
 	Max       time.Time // --max
 	MaxBorder bool      // --max_border
@@ -757,7 +757,7 @@ func (db *DB) LogicalRangeFilter() error {
 // DBLogicalSelectOptions stores options for DB.LogicalSelect.
 // http://groonga.org/docs/reference/commands/logical_select.html
 type DBLogicalSelectOptions struct {
-	Min                    time.Time //--min
+	Min                    time.Time // --min
 	MinBorder              bool      // --min_border
 	Max                    time.Time // --max
 	MaxBorder              bool      // --max_border
@@ -934,7 +934,7 @@ func (db *DB) LogicalShardList(logicalTable string) ([]DBLogicalShard, error) {
 
 // DBLogicalTableRemoveOptions stores options for DB.LogicalTableRemove.
 type DBLogicalTableRemoveOptions struct {
-	Min       time.Time //--min
+	Min       time.Time // --min
 	MinBorder bool      // --min_border
 	Max       time.Time // --max
 	MaxBorder bool      // --max_border
