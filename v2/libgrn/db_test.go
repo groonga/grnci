@@ -54,24 +54,56 @@ func TestDBCacheLimit(t *testing.T) {
 	}
 }
 
-// func TestDBColumnCopy(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBColumnCopy(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.ColumnCopy("Tbl.col", "Tbl.col2")
-// 	if err != nil {
-// 		t.Fatalf("db.ColumnCopy failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText
+column_create Tbl col2 COLUMN_SCALAR ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.ColumnCopy("Tbl.col", "Tbl.col2"); err != nil {
+		t.Fatalf("db.ColumnCopy failed: %v", err)
+	}
+}
+
+func TestDBColumnCopyInvalidFrom(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText
+column_create Tbl col2 COLUMN_SCALAR ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.ColumnCopy("no_such_table.col", "Tbl.col2"); err == nil {
+		t.Fatalf("db.ColumnCopy wrongly succeeded.")
+	}
+	if err := db.ColumnCopy("Tbl.no_such_column", "Tbl.col2"); err == nil {
+		t.Fatalf("db.ColumnCopy wrongly succeeded.")
+	}
+}
+
+func TestDBColumnCopyInvalidTo(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText
+column_create Tbl col2 COLUMN_SCALAR ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.ColumnCopy("Tbl.col", "no_such_table.col2"); err == nil {
+		t.Fatalf("db.ColumnCopy wrongly succeeded.")
+	}
+	if err := db.ColumnCopy("Tbl.col", "Tbl.no_such_column"); err == nil {
+		t.Fatalf("db.ColumnCopy wrongly succeeded.")
+	}
+}
 
 func TestDBColumnCreate(t *testing.T) {
 	db, dir := makeDB(t)
