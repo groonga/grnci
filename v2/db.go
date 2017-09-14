@@ -2209,8 +2209,8 @@ func (db *DB) Status() (*DBStatus, error) {
 // TableCopy executes table_copy.
 func (db *DB) TableCopy(from, to string) error {
 	resp, err := db.Invoke("table_copy", map[string]interface{}{
-		"from": from,
-		"to":   to,
+		"from_name": from,
+		"to_name":   to,
 	}, nil)
 	if err != nil {
 		return err
