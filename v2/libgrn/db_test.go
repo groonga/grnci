@@ -801,6 +801,63 @@ func TestDBIOFlushInvalidTargetName(t *testing.T) {
 // 	}
 // }
 
+func TestDBLockAcquire(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.LockAcquire(""); err != nil {
+		t.Fatalf("db.LockAcquire failed: %v", err)
+	}
+}
+
+func TestDBLockAcquireInvalidTargetName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.LockAcquire("no_such_target"); err == nil {
+		t.Fatalf("db.LockAcquire wrongly succeeded")
+	}
+}
+
+func TestDBLockClear(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.LockClear(""); err != nil {
+		t.Fatalf("db.LockClear failed: %v", err)
+	}
+}
+
+func TestDBLockClearInvalidTargetName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.LockClear("no_such_target"); err == nil {
+		t.Fatalf("db.LockClear wrongly succeeded")
+	}
+}
+
+func TestDBLockRelease(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.LockAcquire(""); err != nil {
+		t.Fatalf("db.LockAcquire failed: %v", err)
+	}
+	if err := db.LockRelease(""); err != nil {
+		t.Fatalf("db.LockRelease failed: %v", err)
+	}
+}
+
+func TestDBLockReleaseInvalidTargetName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.LockRelease("no_such_target"); err == nil {
+		t.Fatalf("db.LockRelease wrongly succeeded")
+	}
+}
+
 func TestDBNormalize(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
