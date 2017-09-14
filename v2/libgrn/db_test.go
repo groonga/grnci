@@ -301,6 +301,87 @@ func TestDBDatabaseUnmap(t *testing.T) {
 	}
 }
 
+func TestDBDeleteByFilter(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+	load --table Tbl --values '[["_key"],["foo"]]'`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.DeleteByFilter("Tbl", "_key == \"foo\""); err != nil {
+		t.Fatalf("db.DeleteByFilter failed: %v", err)
+	}
+}
+
+func TestDBDeleteByFilterInvalidFilter(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.DeleteByFilter("Tbl", "no_such_filter"); err == nil {
+		t.Fatalf("db.DeleteByFilter wrongly succeeded")
+	}
+}
+
+func TestDBDeleteByID(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY
+load --table Tbl --values '[[],[]]'`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.DeleteByID("Tbl", 1); err != nil {
+		t.Fatalf("db.DeleteByID failed: %v", err)
+	}
+}
+
+func TestDBDeleteByIDInvalidID(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.DeleteByID("Tbl", 1); err == nil {
+		t.Fatalf("db.DeleteByID wrongly succeeded")
+	}
+}
+
+func TestDBDeleteByKey(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+load --table Tbl --values '[["_key"],["foo"]]'`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.DeleteByKey("Tbl", "foo"); err != nil {
+		t.Fatalf("db.DeleteByKey failed: %v", err)
+	}
+}
+
+func TestDBDeleteByKeyInvalidKey(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.DeleteByKey("Tbl", "no_such_key"); err == nil {
+		t.Fatalf("db.DeleteByKey wrongly succeeded")
+	}
+}
+
 func TestDBDump(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
