@@ -138,6 +138,9 @@ column_create Tbl col COLUMN_SCALAR ShortText`
 	if err := db.ColumnRemove("Tbl.col"); err != nil {
 		t.Fatalf("db.ColumnRemove failed: %v", err)
 	}
+	if ok, _ := db.ObjectExist("Tbl.col"); ok {
+		t.Fatalf("db.ObjectExist wrongly succeeded")
+	}
 }
 
 func TestDBColumnRemoveInvalidTable(t *testing.T) {
@@ -1060,6 +1063,9 @@ func TestDBTableRemove(t *testing.T) {
 	}
 	if err := db.TableRemove("Tbl", false); err != nil {
 		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+	if ok, _ := db.ObjectExist("Tbl"); ok {
+		t.Fatalf("db.ObjectExist wrongly succeeded")
 	}
 }
 
