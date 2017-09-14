@@ -240,6 +240,22 @@ func TestDBConfigSetOverwrite(t *testing.T) {
 	}
 }
 
+func TestDBDatabaseUnmap(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	n, err := db.ThreadLimit(1)
+	if err != nil {
+		t.Fatalf("db.ThreadLimit failed: %v", err)
+	}
+	if n == 0 {
+		t.Skipf("This client does not support thread_limit")
+	}
+	if err := db.DatabaseUnmap(); err != nil {
+		t.Fatalf("db.DatabaseUnmap failed: %v", err)
+	}
+}
+
 func TestDBDump(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
