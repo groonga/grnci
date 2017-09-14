@@ -698,6 +698,26 @@ load --table Tbl
 	}
 }
 
+func TestDBIOFlush(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.IOFlush(nil); err != nil {
+		t.Fatalf("db.IOFlush failed: %v", err)
+	}
+}
+
+func TestDBIOFlushInvalidTargetName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	options := grnci.NewDBIOFlushOptions()
+	options.TargetName = "no_such_target"
+	if err := db.IOFlush(options); err == nil {
+		t.Fatalf("db.IOFlush wrongly succeeded")
+	}
+}
+
 // func TestDBLoad(t *testing.T) {
 // 	client, err := NewHTTPClient("", nil)
 // 	if err != nil {
