@@ -339,7 +339,7 @@ func (db *DB) ConfigSet(key, value string) error {
 
 // DatabaseUnmap executes database_unmap.
 func (db *DB) DatabaseUnmap() error {
-	resp, err := db.Invoke("delete", nil, nil)
+	resp, err := db.Invoke("database_unmap", nil, nil)
 	if err != nil {
 		return err
 	}
