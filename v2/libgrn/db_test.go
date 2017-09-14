@@ -1462,6 +1462,158 @@ table_create Tbl2 TABLE_PAT_KEY ShortText`
 	}
 }
 
+func TestDBTableCreate(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.TableCreate("Tbl", nil); err != nil {
+		t.Fatalf("db.TableCreate failed: %v", err)
+	}
+	if ok, err := db.ObjectExist("Tbl"); !ok {
+		t.Fatalf("db.ObjectExist failed: %v", err)
+	}
+}
+
+func TestDBTableCreatePat(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	flags := [][]string{
+		[]string{"TABLE_PAT_KEY"},
+		[]string{"TABLE_PAT_KEY", "KEY_WITH_SIS"},
+	}
+	keyTypes := []string{
+		"Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+		"UInt32", "UInt64", "Time", "Float", "ShortText", "TokyoGeoPoint",
+		"WGS84GeoPoint",
+	}
+	valueTypes := []string{
+		"", "Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+		"UInt32", "UInt64", "Time", "Float", "TokyoGeoPoint", "WGS84GeoPoint",
+	}
+	for _, flags := range flags {
+		for _, keyType := range keyTypes {
+			for _, valueType := range valueTypes {
+				options := grnci.NewDBTableCreateOptions()
+				options.Flags = flags
+				options.KeyType = keyType
+				options.ValueType = valueType
+				if err := db.TableCreate("Tbl", options); err != nil {
+					t.Fatalf("db.TableCreate failed: %v", err)
+				}
+				if err := db.TableRemove("Tbl", false); err != nil {
+					t.Fatalf("db.TableRemove failed: %v", err)
+				}
+			}
+		}
+	}
+}
+
+func TestDBTableCreateHash(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	flags := [][]string{
+		[]string{"TABLE_HASH_KEY"},
+		[]string{"TABLE_HASH_KEY", "KEY_LARGE"},
+	}
+	keyTypes := []string{
+		"Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+		"UInt32", "UInt64", "Time", "Float", "ShortText", "TokyoGeoPoint",
+		"WGS84GeoPoint",
+	}
+	valueTypes := []string{
+		"", "Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+		"UInt32", "UInt64", "Time", "Float", "TokyoGeoPoint", "WGS84GeoPoint",
+	}
+	for _, flags := range flags {
+		for _, keyType := range keyTypes {
+			for _, valueType := range valueTypes {
+				options := grnci.NewDBTableCreateOptions()
+				options.Flags = flags
+				options.KeyType = keyType
+				options.ValueType = valueType
+				if err := db.TableCreate("Tbl", options); err != nil {
+					t.Fatalf("db.TableCreate failed: %v", err)
+				}
+				if err := db.TableRemove("Tbl", false); err != nil {
+					t.Fatalf("db.TableRemove failed: %v", err)
+				}
+			}
+		}
+	}
+}
+
+func TestDBTableCreateDat(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	options := grnci.NewDBTableCreateOptions()
+	options.Flags = []string{"TABLE_DAT_KEY"}
+	options.KeyType = "ShortText"
+	if err := db.TableCreate("Tbl", options); err != nil {
+		t.Fatalf("db.TableCreate failed: %v", err)
+	}
+	if err := db.TableRemove("Tbl", false); err != nil {
+		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+}
+
+func TestDBTableCreateIndex(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	defaultTokenizers := []string{
+		"TokenBigram",
+		"TokenBigramSplitSymbol",
+		"TokenBigramSplitSymbolAlpha",
+		"TokenBigramSplitSymbolAlphaDigit",
+		"TokenBigramIgnoreBlank",
+		"TokenBigramIgnoreBlankSplitSymbol",
+		"TokenBigramIgnoreBlankSplitSymbolAlpha",
+		"TokenBigramIgnoreBlankSplitSymbolAlphaDigit",
+		"TokenUnigram",
+		"TokenTrigram",
+		"TokenDelimit",
+		"TokenDelimitNull",
+		"TokenRegexp",
+	}
+	if ok, _ := db.ObjectExist("TokenMecab"); ok {
+		defaultTokenizers = append(defaultTokenizers, "TokenMecab")
+	}
+	if ok, _ := db.ObjectExist("TokenKytea"); ok {
+		defaultTokenizers = append(defaultTokenizers, "TokenKytea")
+	}
+	normalizers := []string{
+		"", "NormalizerAuto",
+	}
+	tokenFilters := []string{""}
+	if err := db.PluginRegister("token_filters/stop_word"); err == nil {
+		tokenFilters = append(tokenFilters, "TokenFilterStopWord")
+	}
+	if err := db.PluginRegister("token_filters/stem"); err == nil {
+		tokenFilters = append(tokenFilters, "TokenFilterStem")
+	}
+	for _, defaultTokenizer := range defaultTokenizers {
+		for _, normalizer := range normalizers {
+			for _, tokenFilter := range tokenFilters {
+				options := grnci.NewDBTableCreateOptions()
+				options.Flags = []string{"TABLE_PAT_KEY"}
+				options.KeyType = "ShortText"
+				options.DefaultTokenizer = defaultTokenizer
+				options.Normalizer = normalizer
+				options.TokenFilters = []string{tokenFilter}
+				if err := db.TableCreate("Tbl", options); err != nil {
+					t.Fatalf("db.TableCreate failed: %v", err)
+				}
+				if err := db.TableRemove("Tbl", false); err != nil {
+					t.Fatalf("db.TableRemove failed: %v", err)
+				}
+			}
+		}
+	}
+}
+
 func TestDBTableList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
