@@ -345,7 +345,8 @@ var commandFormats = map[string]*commandFormat{
 	"io_flush": newCommandFormat(
 		nil,
 		newParamFormat("target_name", nil, false),
-		newParamFormat("recursive", nil, false),
+		newParamFormat("recursive", formatParamYesNo, false),
+		newParamFormat("only_opened", formatParamYesNo, false),
 	),
 	"load": newCommandFormat(
 		nil,
