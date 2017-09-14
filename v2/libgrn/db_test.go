@@ -1374,6 +1374,15 @@ func TestDBSchema(t *testing.T) {
 // 	}
 // }
 
+func TestDBShutdown(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.Shutdown(); err != nil {
+		t.Fatalf("db.Shutdown failed: %v", err)
+	}
+}
+
 func TestDBStatus(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
