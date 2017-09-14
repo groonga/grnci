@@ -116,8 +116,8 @@ func TestDBColumnCreate(t *testing.T) {
 	if err := db.ColumnCreate("Tbl.col", "Text", nil); err != nil {
 		t.Fatalf("db.ColumnCreate failed: %v", err)
 	}
-	if ok, err := db.ObjectExist("Tbl.col"); !ok {
-		t.Fatalf("db.ObjectExist failed: %v", err)
+	if err := db.ColumnRemove("Tbl.col"); err != nil {
+		t.Fatalf("db.ColumnRemove failed: %v", err)
 	}
 }
 
@@ -128,6 +128,152 @@ func TestDBColumnCreateInvalidTable(t *testing.T) {
 	err := db.ColumnCreate("no_such_table.col", "Text", nil)
 	if err == nil {
 		t.Fatalf("db.ColumnCreate wrongly succeeded")
+	}
+}
+
+func TestDBColumnCreateData(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	typePrefixes := []string{"", "[]"}
+	types := []string{
+		"Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+		"UInt32", "UInt64", "Time", "Float", "ShortText", "Text", "LongText",
+		"TokyoGeoPoint", "WGS84GeoPoint",
+	}
+	for _, typePrefix := range typePrefixes {
+		flags := [][]string{[]string{}}
+		if typePrefix == "[]" {
+			flags = append(flags, []string{"WITH_WEIGHT"})
+		}
+		for _, flags := range flags {
+			for _, typ := range types {
+				if err := db.ColumnCreate("Tbl.col", typePrefix+typ, flags); err != nil {
+					t.Fatalf("db.ColumnCreate failed: %v", err)
+				}
+				if err := db.ColumnRemove("Tbl.col"); err != nil {
+					t.Fatalf("db.ColumnRemove failed: %v", err)
+				}
+			}
+		}
+	}
+}
+
+func TestDBColumnCreateRef(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	typePrefixes := []string{"", "[]"}
+	keyTypes := []string{
+		"Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+		"UInt32", "UInt64", "Time", "Float", "ShortText", "TokyoGeoPoint",
+		"WGS84GeoPoint",
+	}
+	for _, typePrefix := range typePrefixes {
+		flags := [][]string{[]string{}}
+		if typePrefix == "[]" {
+			flags = append(flags, []string{"WITH_WEIGHT"})
+		}
+		for _, flags := range flags {
+			for _, keyType := range keyTypes {
+				options := grnci.NewDBTableCreateOptions()
+				options.KeyType = keyType
+				if err := db.TableCreate("Tbl2", options); err != nil {
+					t.Fatalf("db.TableCreate failed: %v", err)
+				}
+				if err := db.ColumnCreate("Tbl.col", typePrefix+"Tbl2", flags); err != nil {
+					t.Fatalf("db.ColumnCreate failed: %v", err)
+				}
+				if err := db.ColumnRemove("Tbl.col"); err != nil {
+					t.Fatalf("db.ColumnRemove failed: %v", err)
+				}
+				if err := db.TableRemove("Tbl2", false); err != nil {
+					t.Fatalf("db.TableRemove failed: %v", err)
+				}
+			}
+		}
+	}
+}
+
+func TestDBColumnCreateIndex(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	typePrefixes := []string{"", "[]"}
+	types := []string{
+		"Bool", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
+		"UInt32", "UInt64", "Time", "Float", "ShortText", "Text", "LongText",
+		"TokyoGeoPoint", "WGS84GeoPoint",
+	}
+	sizeFlags := []string{"", "INDEX_SMALL", "INDEX_MEDIUM"}
+	for _, typePrefix := range typePrefixes {
+		dataFlags := [][]string{[]string{}}
+		posFlags := []string{""}
+		if typePrefix == "[]" {
+			dataFlags = append(dataFlags, []string{"WITH_WEIGHT"})
+			posFlags = append(posFlags, "WITH_POSITION")
+		}
+		for _, dataFlags := range dataFlags {
+			for _, typ := range types {
+				if err := db.ColumnCreate("Tbl.col", typePrefix+typ, dataFlags); err != nil {
+					t.Fatalf("db.ColumnCreate failed: %v", err)
+				}
+				options := grnci.NewDBTableCreateOptions()
+				switch typ {
+				case "Text", "LongText":
+					options.KeyType = "ShortText"
+					options.DefaultTokenizer = "TokenBigram"
+					options.Normalizer = "NormalizerAuto"
+				default:
+					options.KeyType = typ
+				}
+				if err := db.TableCreate("Tbl2", options); err != nil {
+					t.Fatalf("db.TableCreate failed: %v", err)
+				}
+				var indexFlags [][]string
+				for _, posFlag := range posFlags {
+					for _, sizeFlag := range sizeFlags {
+						var flags []string
+						if typePrefix == "[]" && options.DefaultTokenizer != "" {
+							flags = append(flags, "WITH_SECTION")
+						}
+						if posFlag != "" {
+							flags = append(flags, posFlag)
+						}
+						if sizeFlag != "" {
+							flags = append(flags, sizeFlag)
+						}
+						indexFlags = append(indexFlags, flags)
+					}
+				}
+				for _, indexFlags := range indexFlags {
+					if err := db.ColumnCreate("Tbl2.col", "Tbl.col", indexFlags); err != nil {
+						t.Fatalf("db.ColumnCreate failed: %v", err)
+					}
+					if err := db.ColumnRemove("Tbl2.col"); err != nil {
+						t.Fatalf("db.ColumnRemove failed: %v", err)
+					}
+				}
+				if err := db.TableRemove("Tbl2", false); err != nil {
+					t.Fatalf("db.TableRemove failed: %v", err)
+				}
+				if err := db.ColumnRemove("Tbl.col"); err != nil {
+					t.Fatalf("db.ColumnRemove failed: %v", err)
+				}
+			}
+		}
 	}
 }
 
