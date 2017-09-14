@@ -951,6 +951,67 @@ func TestDBObjectExistInvalidName(t *testing.T) {
 	}
 }
 
+func TestDBObjectInspect(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	result, err := db.ObjectInspect("")
+	if err != nil {
+		t.Fatalf("db.ObjectInspect failed: %v", err)
+	}
+	if _, ok := result.(*grnci.DBObjectDatabase); !ok {
+		t.Fatalf("db.ObjectInspect failed: result = %#v", result)
+	}
+}
+
+func TestDBObjectInspectType(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	result, err := db.ObjectInspect("Bool")
+	if err != nil {
+		t.Fatalf("db.ObjectInspect failed: %v", err)
+	}
+	if _, ok := result.(*grnci.DBObjectType); !ok {
+		t.Fatalf("db.ObjectInspect failed: result = %#v", result)
+	}
+}
+
+func TestDBObjectInspectTable(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.ObjectInspect("Tbl")
+	if err != nil {
+		t.Fatalf("db.ObjectInspect failed: %v", err)
+	}
+	if _, ok := result.(*grnci.DBObjectTable); !ok {
+		t.Fatalf("db.ObjectInspect failed: result = %#v", result)
+	}
+}
+
+func TestDBObjectInspectColumn(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.ObjectInspect("Tbl.col")
+	if err != nil {
+		t.Fatalf("db.ObjectInspect failed: %v", err)
+	}
+	if _, ok := result.(*grnci.DBObjectColumn); !ok {
+		t.Fatalf("db.ObjectInspect failed: result = %#v", result)
+	}
+}
+
 func TestDBObjectList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
