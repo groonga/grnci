@@ -1076,24 +1076,22 @@ func TestDBStatus(t *testing.T) {
 	}
 }
 
-// func TestDBTableList(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBTableList(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.TableList()
-// 	if err != nil {
-// 		t.Fatalf("db.TableList failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	dump := `table_create Users TABLE_PAT_KEY ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.TableList()
+	if err != nil {
+		t.Fatalf("db.TableList failed: %v", err)
+	}
+	if len(result) != 1 || result[0].Name != "Users" {
+		t.Fatalf("db.TableList failed: result = %#v", result)
+	}
+}
 
 func TestDBTableRemove(t *testing.T) {
 	db, dir := makeDB(t)
