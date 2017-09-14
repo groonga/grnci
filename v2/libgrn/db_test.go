@@ -933,24 +933,40 @@ func TestDBNormalizerList(t *testing.T) {
 	}
 }
 
-// func TestDBObjectList(t *testing.T) {
-// 	client, err := NewHTTPClient("", nil)
-// 	if err != nil {
-// 		t.Skipf("NewHTTPClient failed: %v", err)
-// 	}
-// 	db := NewDB(client)
-// 	defer db.Close()
+func TestDBObjectExist(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
 
-// 	result, resp, err := db.ObjectList()
-// 	if err != nil {
-// 		t.Fatalf("db.ObjectList failed: %v", err)
-// 	}
-// 	log.Printf("result = %#v", result)
-// 	log.Printf("resp = %#v", resp)
-// 	if err := resp.Err(); err != nil {
-// 		log.Printf("error = %#v", err)
-// 	}
-// }
+	if ok, err := db.ObjectExist("Bool"); !ok {
+		t.Fatalf("db.ObjectExist failed: %v", err)
+	}
+}
+
+func TestDBObjectExistInvalidName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if ok, _ := db.ObjectExist("no_such_object"); ok {
+		t.Fatalf("db.ObjectExist wrongly succeeded")
+	}
+}
+
+func TestDBObjectList(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	result, err := db.ObjectList()
+	if err != nil {
+		t.Fatalf("db.ObjectList failed: %v", err)
+	}
+	if len(result) == 0 || result["Bool"] == nil || result["Tbl"] == nil {
+		t.Fatalf("db.ObjectList failed: result = %#v", result)
+	}
+}
 
 func TestPluginRegister(t *testing.T) {
 	db, dir := makeDB(t)
