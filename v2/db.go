@@ -1197,7 +1197,7 @@ func (db *DB) ObjectInspect(name string) (interface{}, error) {
 			})
 		}
 		return &result, nil
-	default: // Table of type
+	default: // Table or type
 		type SizeNRecords struct {
 			Size     *int `json:"size"`
 			NRecords *int `json:"n_records"`
