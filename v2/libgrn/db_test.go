@@ -1102,6 +1102,49 @@ func TestDBQuit(t *testing.T) {
 	}
 }
 
+func TestDBReindex(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+column_create Tbl col COLUMN_SCALAR Text
+table_create Idx TABLE_PAT_KEY ShortText \
+  --default_tokenizer TokenBigram --normalizer NormalizerAuto
+column_create Idx tbl_col COLUMN_INDEX|WITH_POSITION Tbl col`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.Reindex(""); err != nil {
+		t.Fatalf("db.Reindex failed: %v", err)
+	}
+	if err := db.Reindex("Idx"); err != nil {
+		t.Fatalf("db.Reindex failed: %v", err)
+	}
+	if err := db.Reindex("Idx.tbl_col"); err != nil {
+		t.Fatalf("db.Reindex failed: %v", err)
+	}
+}
+
+func TestDBReindexInvalidTargetName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+column_create Tbl col COLUMN_SCALAR Text
+table_create Idx TABLE_PAT_KEY ShortText \
+  --default_tokenizer TokenBigram --normalizer NormalizerAuto
+column_create Idx tbl_col COLUMN_INDEX|WITH_POSITION Tbl col`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.Reindex("no_such_table"); err == nil {
+		t.Fatalf("db.Reindex wrongly succeeded")
+	}
+	if err := db.Reindex("Idx.no_such_column"); err == nil {
+		t.Fatalf("db.Reindex wrongly succeeded")
+	}
+}
+
 func TestRestore(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
