@@ -165,6 +165,48 @@ func TestDBColumnRemoveInvalidColumn(t *testing.T) {
 	}
 }
 
+func TestDBColumnRename(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY
+column_create Tbl col COLUMN_SCALAR ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.ColumnRename("Tbl.col", "col2"); err != nil {
+		t.Fatalf("db.ColumnRename failed: %v", err)
+	}
+	if ok, _ := db.ObjectExist("Tbl.col"); ok {
+		t.Fatalf("db.ObjectExist wrongly succeeded")
+	}
+	if ok, err := db.ObjectExist("Tbl.col2"); !ok {
+		t.Fatalf("db.ObjectExist failed: %v", err)
+	}
+}
+
+func TestDBColumnRenameInvalidTable(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.ColumnRename("no_such_table.col", "col2"); err == nil {
+		t.Fatalf("db.ColumnRename wrongly succeeded.")
+	}
+}
+
+func TestDBColumnRenameInvalidName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.ColumnRename("Tbl.no_such_column", "col2"); err == nil {
+		t.Fatalf("db.ColumnRename wrongly succeeded.")
+	}
+}
+
 func TestDBConfigDelete(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
@@ -1089,6 +1131,34 @@ table_create Referrer TABLE_HASH_KEY Referred`
 	}
 	if err := db.TableRemove("Referred", true); err != nil {
 		t.Fatalf("db.TableRemove failed: %v", err)
+	}
+}
+
+func TestDBTableRename(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.TableRename("Tbl", "Tbl2"); err != nil {
+		t.Fatalf("db.TableRename failed: %v", err)
+	}
+	if ok, _ := db.ObjectExist("Tbl"); ok {
+		t.Fatalf("db.ObjectExist wrongly succeeded")
+	}
+	if ok, err := db.ObjectExist("Tbl2"); !ok {
+		t.Fatalf("db.ObjectExist failed: %v", err)
+	}
+}
+
+func TestDBTableRenameInvalidName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.TableRename("no_such_table", "col2"); err == nil {
+		t.Fatalf("db.TableRename wrongly succeeded.")
 	}
 }
 
