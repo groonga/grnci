@@ -84,7 +84,7 @@ func TestDBColumnCreate(t *testing.T) {
 	if err := db.ColumnCreate("Tbl.col", "Text", nil); err != nil {
 		t.Fatalf("db.ColumnCreate failed: %v", err)
 	}
-	if err := db.ObjectExist("Tbl.col"); err != nil {
+	if ok, err := db.ObjectExist("Tbl.col"); !ok {
 		t.Fatalf("db.ObjectExist failed: %v", err)
 	}
 }

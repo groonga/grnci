@@ -1042,14 +1042,30 @@ func (db *DB) NormalizerList() ([]DBNormalizer, error) {
 }
 
 // ObjectExist executes object_exist.
-func (db *DB) ObjectExist(name string) error {
+func (db *DB) ObjectExist(name string) (bool, error) {
 	resp, err := db.Invoke("object_exist", map[string]interface{}{
 		"name": name,
 	}, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return db.recvBool(resp)
+	// recvBool must not be used because an object_exist can return false
+	// even if the operation completes successfully.
+	defer resp.Close()
+	if err := resp.Err(); err != nil {
+		return false, err
+	}
+	jsonData, err := ioutil.ReadAll(resp)
+	if err != nil {
+		return false, err
+	}
+	var result bool
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return false, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+	return result, nil
 }
 
 // DBObjectIDName is a part of DBObject*.
