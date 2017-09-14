@@ -805,6 +805,40 @@ func TestRubyEvalInvalidScript(t *testing.T) {
 	}
 }
 
+func TestRubyLoad(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	f, err := ioutil.TempFile("", "libgrn")
+	if err != nil {
+		t.Fatalf("ioutil.TempFile failed: %v", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	if err := db.PluginRegister("ruby/load"); err != nil {
+		t.Skipf("db.PluginRegister failed: %v", err)
+	}
+	result, err := db.RubyLoad(f.Name())
+	if err != nil {
+		t.Fatalf("db.RubyLoad failed: %v", err)
+	}
+	if result != nil {
+		t.Fatalf("db.RubyLoad failed: result = %v, want = %v", result, nil)
+	}
+}
+
+func TestRubyLoadInvalidScript(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.PluginRegister("ruby/load"); err != nil {
+		t.Skipf("db.PluginRegister failed: %v", err)
+	}
+	if _, err := db.RubyLoad(""); err == nil {
+		t.Fatalf("db.RubyLoad wrongly succeeded")
+	}
+}
+
 func TestDBSchema(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
