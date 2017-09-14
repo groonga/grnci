@@ -733,6 +733,45 @@ func TestDBNormalizerList(t *testing.T) {
 // 	}
 // }
 
+func TestPluginRegister(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.PluginRegister("functions/math"); err != nil {
+		t.Fatalf("db.PluginRegister failed: %v", err)
+	}
+}
+
+func TestPluginRegisterInvalid(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.PluginRegister(""); err == nil {
+		t.Fatalf("db.PluginRegister wrongly succeeded")
+	}
+}
+
+func TestPluginUnregister(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.PluginRegister("functions/math"); err != nil {
+		t.Fatalf("db.PluginRegister failed: %v", err)
+	}
+	if err := db.PluginUnregister("functions/math"); err != nil {
+		t.Fatalf("db.PluginUnregister failed: %v", err)
+	}
+}
+
+func TestPluginUnregisterInvalid(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.PluginUnregister(""); err == nil {
+		t.Fatalf("db.PluginUnregister wrongly succeeded")
+	}
+}
+
 func TestDBQuit(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
