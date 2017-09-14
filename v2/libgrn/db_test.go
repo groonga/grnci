@@ -1411,6 +1411,48 @@ func TestDBStatus(t *testing.T) {
 	}
 }
 
+func TestDBTableCopy(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+table_create Tbl2 TABLE_PAT_KEY ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.TableCopy("Tbl", "Tbl2"); err != nil {
+		t.Fatalf("db.TableCopy failed: %v", err)
+	}
+}
+
+func TestDBTableCopyInvalidFromName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+table_create Tbl2 TABLE_PAT_KEY ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.TableCopy("no_such_table", "Tbl"); err == nil {
+		t.Fatalf("db.TableCopy wrongly succeeded.")
+	}
+}
+
+func TestDBTableCopyInvalidToName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_PAT_KEY ShortText
+table_create Tbl2 TABLE_PAT_KEY ShortText`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.TableCopy("Tbl", "no_such_table"); err == nil {
+		t.Fatalf("db.TableCopy wrongly succeeded.")
+	}
+}
+
 func TestDBTableList(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
