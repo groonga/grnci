@@ -517,11 +517,11 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, e
 // appendRow appends the JSON-encoded row to buf nad returns the exetended buffer.
 func (db *DB) appendRow(body []byte, row reflect.Value, cfs []*ColumnField) []byte {
 	body = append(body, '[')
-	for i, fi := range cfs {
+	for i, cf := range cfs {
 		if i != 0 {
 			body = append(body, ',')
 		}
-		body = AppendJSONValue(body, row.Field(fi.Index))
+		body = AppendJSONValue(body, row.Field(cf.Index))
 	}
 	body = append(body, ']')
 	return body
