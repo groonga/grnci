@@ -968,6 +968,31 @@ func TestDBObjectList(t *testing.T) {
 	}
 }
 
+func TestDBObjectRemove(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	dump := `table_create Tbl TABLE_NO_KEY`
+	if _, err := db.Restore(strings.NewReader(dump), nil, true); err != nil {
+		t.Fatalf("db.Restore failed: %v", err)
+	}
+	if err := db.ObjectRemove("Tbl", false); err != nil {
+		t.Fatalf("db.ObjectRemove failed: %v", err)
+	}
+	if ok, _ := db.ObjectExist("Tbl"); ok {
+		t.Fatalf("db.ObjectExist wrongly succeeded")
+	}
+}
+
+func TestDBObjectRemoveInvalidName(t *testing.T) {
+	db, dir := makeDB(t)
+	defer removeDB(db, dir)
+
+	if err := db.ObjectRemove("no_such_object", false); err == nil {
+		t.Fatalf("db.ObjectRemove wrongly succeeded")
+	}
+}
+
 func TestPluginRegister(t *testing.T) {
 	db, dir := makeDB(t)
 	defer removeDB(db, dir)
