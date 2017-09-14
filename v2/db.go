@@ -495,20 +495,23 @@ func (db *DB) Load(tbl string, values io.Reader, options *DBLoadOptions) (int, e
 	// recvInt should not be used because a load command returns the result
 	// even if resp has an error.
 	defer resp.Close()
-	if err := resp.Err(); err != nil {
-		return 0, err
-	}
 	jsonData, err := ioutil.ReadAll(resp)
 	if err != nil {
+		if resp.Err() != nil {
+			return 0, resp.Err()
+		}
 		return 0, err
 	}
 	var result int
 	if err := json.Unmarshal(jsonData, &result); err != nil {
+		if resp.Err() != nil {
+			return 0, resp.Err()
+		}
 		return 0, NewError(ResponseError, "json.Unmarshal failed.", map[string]interface{}{
 			"error": err.Error(),
 		})
 	}
-	return result, nil
+	return result, resp.Err()
 }
 
 // appendRow appends the JSON-encoded row to buf nad returns the exetended buffer.
