@@ -716,6 +716,9 @@ func tokenizeCommand(cmd string) ([]string, error) {
 				}
 			}
 			s = s[i:]
+			if len(token) == 0 {
+				continue
+			}
 		}
 		tokens = append(tokens, string(token))
 		token = token[:0]
