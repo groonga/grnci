@@ -285,7 +285,7 @@ type LogOptions struct {
 	Flags int
 
 	// RotationThreshold specifies the log rotation size threshold in bytes.
-	// If RotationThreshold < 0, Log does not change the settings of log roration.
+	// If RotationThreshold < 0, Log does not change the setting of log roration.
 	// Else if RotationThreshold == 0, log rotation is disabled.
 	// Otherwise, log rotation is enabled.
 	//
@@ -331,5 +331,72 @@ func Log(path string, options *LogOptions) {
 		cPath := C.CString(path)
 		defer C.free(unsafe.Pointer(cPath))
 		C.grn_default_logger_set_path(cPath)
+	}
+}
+
+// Query log flags
+const (
+	QueryLogNone        = int(C.GRN_QUERY_LOG_NONE)
+	QueryLogCommand     = int(C.GRN_QUERY_LOG_COMMAND)
+	QueryLogResultCode  = int(C.GRN_QUERY_LOG_RESULT_CODE)
+	QueryLogDestination = int(C.GRN_QUERY_LOG_DESTINATION)
+	QueryLogCache       = int(C.GRN_QUERY_LOG_CACHE)
+	QueryLogSize        = int(C.GRN_QUERY_LOG_SIZE)
+	QueryLogScore       = int(C.GRN_QUERY_LOG_SCORE)
+	QueryLogAll         = int(C.GRN_QUERY_LOG_ALL)
+)
+
+// QueryLogOptions stores options for QueryLog.
+type QueryLogOptions struct {
+	// Flags specifies the query log flags.
+	// If Flags < 0, QueryLog does not change the query log flags.
+	// Otherwise, QueryLog changes the query log flags.
+	//
+	// The default setting is QueryLogAll.
+	Flags int
+
+	// RotationThreshold specifies the query log rotation size threshold in bytes.
+	// If RotationThreshold < 0, QueryLog does not change the setting of query log roration.
+	// Else if RotationThreshold == 0, query log rotation is disabled.
+	// Otherwise, query log rotation is enabled.
+	//
+	// If query log rotation is enabled, the logger creates the next query log file
+	// when the size of the current log file exceeds the threshold.
+	// The path to the next log file has the suffix which represents the local time.
+	// For example, if the log path is "query.log", the first log file is "query.log"
+	// and other log files are named "query.log.2006-01-02-15-04-05-999999".
+	//
+	// The default setting is 0.
+	RotationThreshold int
+}
+
+// NewQueryLogOptions returns the default QueryLogOptions which does not change any settings.
+func NewQueryLogOptions() *QueryLogOptions {
+	return &QueryLogOptions{
+		Flags:             -1,
+		RotationThreshold: -1,
+	}
+}
+
+// QueryLog configures query logging.
+// If path == "", QueryLog disables query logging.
+// Otherwise, QueryLog enables query logging.
+// If options == nil, QueryLog uses the default QueryLogOptions.
+func QueryLog(path string, options *QueryLogOptions) {
+	if options == nil {
+		options = NewQueryLogOptions()
+	}
+	if options.Flags >= 0 {
+		C.grn_default_query_logger_set_flags(C.uint(options.Flags))
+	}
+	if options.RotationThreshold >= 0 {
+		C.grn_default_query_logger_set_rotate_threshold_size(C.off_t(options.RotationThreshold))
+	}
+	if path == "" {
+		C.grn_default_query_logger_set_path(nil)
+	} else {
+		cPath := C.CString(path)
+		defer C.free(unsafe.Pointer(cPath))
+		C.grn_default_query_logger_set_path(cPath)
 	}
 }
