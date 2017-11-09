@@ -244,3 +244,94 @@ func (db *grnDB) Dup() (*grnCtx, error) {
 	db.mutex.Unlock()
 	return ctx, nil
 }
+
+// LogLevel represents a log level.
+type LogLevel int
+
+// Log levels from lower to higher.
+const (
+	LogNone    = LogLevel(C.GRN_LOG_NONE)
+	LogEmerg   = LogLevel(C.GRN_LOG_EMERG)
+	LogAlert   = LogLevel(C.GRN_LOG_ALERT)
+	LogCrit    = LogLevel(C.GRN_LOG_CRIT)
+	LogError   = LogLevel(C.GRN_LOG_ERROR)
+	LogWarning = LogLevel(C.GRN_LOG_WARNING)
+	LogNotice  = LogLevel(C.GRN_LOG_NOTICE)
+	LogInfo    = LogLevel(C.GRN_LOG_INFO)
+	LogDebug   = LogLevel(C.GRN_LOG_DEBUG)
+	LogDump    = LogLevel(C.GRN_LOG_DUMP)
+)
+
+// DefaultLoggerSetMaxLevel sets the maximum log level.
+// Only logs with the levels less than or equal to the maximum log level
+// are written into log files.
+//
+// The default maximum log level is LogNotice.
+func DefaultLoggerSetMaxLevel(level LogLevel) {
+	C.grn_default_logger_set_max_level(C.grn_log_level(level))
+}
+
+// DefaultLoggerGetMaxLevel returns the maximum log level.
+func DefaultLoggerGetMaxLevel() LogLevel {
+	cLevel := C.grn_default_logger_get_max_level()
+	return LogLevel(cLevel)
+}
+
+// Log flags.
+const (
+	LogTime     = int(C.GRN_LOG_TIME)
+	LogTitle    = int(C.GRN_LOG_TITLE)
+	LogMessage  = int(C.GRN_LOG_MESSAGE)
+	LogLocation = int(C.GRN_LOG_LOCATION)
+	LogPID      = int(C.GRN_LOG_PID)
+)
+
+// DefaultLoggerSetFlags sets the log flags.
+//
+// The default log flags is LogTime|LogMessage.
+func DefaultLoggerSetFlags(flags int) {
+	C.grn_default_logger_set_flags(C.int(flags))
+}
+
+// DefaultLoggerGetFlags returns the log flags.
+func DefaultLoggerGetFlags() int {
+	cFlags := C.grn_default_logger_get_flags()
+	return int(cFlags)
+}
+
+// DefaultLoggerSetPath sets the log path.
+// If the path is empty, logging is disabled.
+//
+// The default log path is empty.
+func DefaultLoggerSetPath(path string) {
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+	C.grn_default_logger_set_path(cPath)
+}
+
+// DefaultLoggerGetPath returns the log path.
+func DefaultLoggerGetPath(path string) string {
+	cPath := C.grn_default_logger_get_path()
+	return C.GoString(cPath)
+}
+
+// DefaultLoggerSetRotateThresholdSize sets the log rotation size threshold in bytes.
+// If the threshold is 0, log rotation is disabled.
+//
+// If log rotation is enabled, the default logger creates the next log file
+// when the size of the current log file exceeds the threshold,.
+// The path has the suffix which represents the local time.
+// For example, if the log path is "groonga.log",
+// the first log file is "groonga.log" and other log files are named
+// "groonga.log.2006-01-02-15-04-05-999999".
+//
+// The default value is 0.
+func DefaultLoggerSetRotateThresholdSize(size int) {
+	C.grn_default_logger_set_rotate_threshold_size(C.off_t(size))
+}
+
+// DefaultLoggerGetRotateThresholdSize returns the log rotation size threshold in bytes.
+func DefaultLoggerGetRotateThresholdSize() int {
+	cSize := C.grn_default_logger_get_rotate_threshold_size()
+	return int(cSize)
+}
