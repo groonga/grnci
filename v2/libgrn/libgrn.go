@@ -262,21 +262,6 @@ const (
 	LogDump    = LogLevel(C.GRN_LOG_DUMP)
 )
 
-// DefaultLoggerSetMaxLevel sets the maximum log level.
-// Only logs with the levels less than or equal to the maximum log level
-// are written into log files.
-//
-// The default maximum log level is LogNotice.
-func DefaultLoggerSetMaxLevel(level LogLevel) {
-	C.grn_default_logger_set_max_level(C.grn_log_level(level))
-}
-
-// DefaultLoggerGetMaxLevel returns the maximum log level.
-func DefaultLoggerGetMaxLevel() LogLevel {
-	cLevel := C.grn_default_logger_get_max_level()
-	return LogLevel(cLevel)
-}
-
 // Log flags.
 const (
 	LogTime     = int(C.GRN_LOG_TIME)
@@ -286,52 +271,68 @@ const (
 	LogPID      = int(C.GRN_LOG_PID)
 )
 
-// DefaultLoggerSetFlags sets the log flags.
-//
-// The default log flags is LogTime|LogMessage.
-func DefaultLoggerSetFlags(flags int) {
-	C.grn_default_logger_set_flags(C.int(flags))
+// LogOptions stores options for Log.
+type LogOptions struct {
+	// MaxLevel specifies the maximum log level.
+	// If MaxLevel < 0, Log does not change the maximum log level.
+	// Otherwise, Log changes the maximum log level.
+	//
+	// The default setting is LogNotice.
+	MaxLevel LogLevel
+
+	// Flags specifies the log flags.
+	// If Flags < 0, Log does not change the log flags.
+	// Otherwise, Log changes the log flags.
+	//
+	// The default setting is LogTime|LogMessage.
+	Flags int
+
+	// RotationThreshold specifies the log rotation size threshold in bytes.
+	// If RotationThreshold < 0, Log does not change the settings of log roration.
+	// Else if RotationThreshold == 0, log rotation is disabled.
+	// Otherwise, log rotation is enabled.
+	//
+	// If log rotation is enabled, the logger creates the next log file
+	// when the size of the current log file exceeds the threshold.
+	// The path to the next log file has the suffix which represents the local time.
+	// For example, if the log path is "groonga.log", the first log file is "groonga.log"
+	// and other log files are named "groonga.log.2006-01-02-15-04-05-999999".
+	//
+	// The default setting is 0.
+	RotationThreshold int
 }
 
-// DefaultLoggerGetFlags returns the log flags.
-func DefaultLoggerGetFlags() int {
-	cFlags := C.grn_default_logger_get_flags()
-	return int(cFlags)
+// NewLogOptions returns the default LogOptions which does not change any settings.
+func NewLogOptions() *LogOptions {
+	return &LogOptions{
+		MaxLevel:          -1,
+		Flags:             -1,
+		RotationThreshold: -1,
+	}
 }
 
-// DefaultLoggerSetPath sets the log path.
-// If the path is empty, logging is disabled.
-//
-// The default log path is empty.
-func DefaultLoggerSetPath(path string) {
-	cPath := C.CString(path)
-	defer C.free(unsafe.Pointer(cPath))
-	C.grn_default_logger_set_path(cPath)
-}
-
-// DefaultLoggerGetPath returns the log path.
-func DefaultLoggerGetPath(path string) string {
-	cPath := C.grn_default_logger_get_path()
-	return C.GoString(cPath)
-}
-
-// DefaultLoggerSetRotateThresholdSize sets the log rotation size threshold in bytes.
-// If the threshold is 0, log rotation is disabled.
-//
-// If log rotation is enabled, the default logger creates the next log file
-// when the size of the current log file exceeds the threshold,.
-// The path has the suffix which represents the local time.
-// For example, if the log path is "groonga.log",
-// the first log file is "groonga.log" and other log files are named
-// "groonga.log.2006-01-02-15-04-05-999999".
-//
-// The default value is 0.
-func DefaultLoggerSetRotateThresholdSize(size int) {
-	C.grn_default_logger_set_rotate_threshold_size(C.off_t(size))
-}
-
-// DefaultLoggerGetRotateThresholdSize returns the log rotation size threshold in bytes.
-func DefaultLoggerGetRotateThresholdSize() int {
-	cSize := C.grn_default_logger_get_rotate_threshold_size()
-	return int(cSize)
+// Log configures logging.
+// If path == "", Log disables logging.
+// Otherwise, Log enables logging.
+// If options == nil, Log uses the default LogOptions.
+func Log(path string, options *LogOptions) {
+	if options == nil {
+		options = NewLogOptions()
+	}
+	if options.MaxLevel >= 0 {
+		C.grn_default_logger_set_max_level(C.grn_log_level(options.MaxLevel))
+	}
+	if options.Flags >= 0 {
+		C.grn_default_logger_set_flags(C.int(options.Flags))
+	}
+	if options.RotationThreshold >= 0 {
+		C.grn_default_logger_set_rotate_threshold_size(C.off_t(options.RotationThreshold))
+	}
+	if path == "" {
+		C.grn_default_logger_set_path(nil)
+	} else {
+		cPath := C.CString(path)
+		defer C.free(unsafe.Pointer(cPath))
+		C.grn_default_logger_set_path(cPath)
+	}
 }
