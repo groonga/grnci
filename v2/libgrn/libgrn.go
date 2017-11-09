@@ -245,21 +245,18 @@ func (db *grnDB) Dup() (*grnCtx, error) {
 	return ctx, nil
 }
 
-// LogLevel represents a log level.
-type LogLevel int
-
 // Log levels from lower to higher.
 const (
-	LogNone    = LogLevel(C.GRN_LOG_NONE)
-	LogEmerg   = LogLevel(C.GRN_LOG_EMERG)
-	LogAlert   = LogLevel(C.GRN_LOG_ALERT)
-	LogCrit    = LogLevel(C.GRN_LOG_CRIT)
-	LogError   = LogLevel(C.GRN_LOG_ERROR)
-	LogWarning = LogLevel(C.GRN_LOG_WARNING)
-	LogNotice  = LogLevel(C.GRN_LOG_NOTICE)
-	LogInfo    = LogLevel(C.GRN_LOG_INFO)
-	LogDebug   = LogLevel(C.GRN_LOG_DEBUG)
-	LogDump    = LogLevel(C.GRN_LOG_DUMP)
+	LogNone    = int(C.GRN_LOG_NONE)
+	LogEmerg   = int(C.GRN_LOG_EMERG)
+	LogAlert   = int(C.GRN_LOG_ALERT)
+	LogCrit    = int(C.GRN_LOG_CRIT)
+	LogError   = int(C.GRN_LOG_ERROR)
+	LogWarning = int(C.GRN_LOG_WARNING)
+	LogNotice  = int(C.GRN_LOG_NOTICE)
+	LogInfo    = int(C.GRN_LOG_INFO)
+	LogDebug   = int(C.GRN_LOG_DEBUG)
+	LogDump    = int(C.GRN_LOG_DUMP)
 )
 
 // Log flags.
@@ -278,7 +275,7 @@ type LogOptions struct {
 	// Otherwise, Log changes the maximum log level.
 	//
 	// The default setting is LogNotice.
-	MaxLevel LogLevel
+	MaxLevel int
 
 	// Flags specifies the log flags.
 	// If Flags < 0, Log does not change the log flags.
