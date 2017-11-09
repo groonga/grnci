@@ -5,11 +5,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
-
-	"reflect"
 
 	"github.com/groonga/grnci/v2"
 )
