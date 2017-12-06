@@ -6,6 +6,7 @@ package libgrn
 import "C"
 import (
 	"io"
+	"unicode/utf8"
 	"unsafe"
 
 	"github.com/groonga/grnci/v2"
@@ -211,11 +212,24 @@ func (c *conn) execDBBody(cmd string, body io.Reader) (grnci.Response, error) {
 			return newResponse(c, data, flags, err), nil
 		}
 		if n == len(c.buf) {
-			if err := c.ctx.Send(c.buf, 0); err != nil {
+			const maxOdd = 6
+			odd := 0
+			for ; odd <= maxOdd; odd++ {
+				r, size := utf8.DecodeLastRune(c.buf[:n-odd])
+				if r != utf8.RuneError || size != 1 {
+					break
+				}
+			}
+			if odd > maxOdd {
+				// FIXME: failed to find a good break.
+				odd = 0
+			}
+			if err := c.ctx.Send(c.buf[:n-odd], 0); err != nil {
 				data, flags, _ := c.ctx.Recv()
 				return newResponse(c, data, flags, err), nil
 			}
-			n = 0
+			copy(c.buf, c.buf[n-odd:])
+			n = odd
 			data, flags, err = c.ctx.Recv()
 			if len(data) != 0 || err != nil {
 				return newResponse(c, data, flags, err), nil
